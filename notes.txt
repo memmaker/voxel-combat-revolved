@@ -1,0 +1,132 @@
+# Basics
+ - Text rendering
+ - Debug Primitive rendering
+
+# Questions to self
+ - Should I be doing indexed draw calls? Throwing the indices away might not be clever?
+ - What really is batching & instancing?
+ -
+
+# Bugs
+ - When removing a block at the edge of a chunk, the neighboring chunk is not re-meshed and may miss a face.
+
+# Level Workflow
+
+1. Acquire Minecraft build
+2. use jMC2Obj to convert Minecraft build to OBJ (Hack it to also export the collision array?)
+3. Load it in Blender
+4. Merge textures (bake) & create collision mesh
+
+
+# OpenGL Performance Checks
+
+Try rendering a really small window, if that helps it is the fragment shader that is the bottleneck.
+Try using a really simple vertex shader, if that helps it is the vertex shader that is the bottleneck.
+
+Look at this:
+https://veloren.net/
+https://openspades.yvt.jp/
+https://wolkenwelten.net/
+
+Switch to Godot?
+https://github.com/Zylann/godot_voxel
+Or Minetest?
+https://www.minetest.net/
+
+## Current Obstacles
+
+### Broad-phase collision detection using spatial partitioning
+
+### Exact collision detection of convex polyhedra
+https://blog.winter.dev/2020/gjk-algorithm/
+https://blog.winter.dev/2020/epa-algorithm/
+
+### Pathfinding
+https://github.com/arl/go-detour
+https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc2018/presentations/Alain_Benoit_HierarchicalDynamicPathfinding.pdf
+
+### Occlusion Culling
+https://bazhenovc.github.io/blog/post/gpu-driven-occlusion-culling-slides-lif/
+https://github.com/GameTechDev/MaskedOcclusionCulling
+https://www.gdcvault.com/play/1017837/Why-Render-Hidden-Objects-Cull
+https://github.com/rawrunprotected/rasterizer/tree/master
+http://procworld.blogspot.com/2015/08/voxel-occlusion.html
+https://fgiesen.wordpress.com/2013/02/11/depth-buffers-done-quick-part/
+https://www.intel.com/content/www/us/en/developer/articles/technical/software-occlusion-culling.html
+
+Idea: Use greedy meshing without taking into account textures to generate occluder quads.
+      Use the software rasterizer depth-buffer technique for occlusion culling.
+
+### LOD
+
+https://transvoxel.org/
+
+### Occlusion Libs
+https://github.com/gigc/Janua
+https://github.com/GnosticOccultist/Janus
+https://github.com/SungJJinKang/EveryCulling
+https://github.com/potato3d/vdlib
+https://github.com/87andrewh/CornerCulling		- csgo specific
+https://github.com/fatkas/coverage-occlusion
+https://github.com/LogisticsCraft/OcclusionCulling - looks like a weird n^3 algorithm
+https://github.com/Prographers/Precomputed-Culling - unity specific
+
+### Simplified Ambient Occlusion
+https://0fps.net/2013/07/03/ambient-occlusion-for-minecraft-like-worlds/
+https://playspacefarer.com/ambient-occlusion/
+
+SIMD Vector Math
+https://github.com/viterin/vek
+
+Minecraft:
+https://github.com/Marcelektro/MCP-919/tree/main
+
+And clones:
+https://github.com/Vekteur/clonecraft (includes swept AABB collision)
+https://www.cse.chalmers.se/~uffe/bachelor/kandidatarbetestartpaket/Final-Voxelspel.pdf
+https://github.com/minetest
+https://github.com/cubzh/cubzh
+http://giga.cps.unizar.es/~varella/kubex/index.html
+
+## More or less solved now..
+
+### Raytracing (3D DDA)
+https://github.com/fenomas/fast-voxel-raycast/blob/master/index.js
+https://github.com/francisengelmann/fast_voxel_traversal/blob/master/main.cpp
+https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/amanatidesWooAlgorithm.cpp
+https://github.com/Yours3lf/voxel_dda/blob/master/voxel_dda.cpp
+
+### Meshing (Greedy Meshing)
+https://blackflux.wordpress.com/2014/02/23/meshing-in-voxel-engines-part-1/
+https://github.com/Vercidium/voxel-mesh-generation
+https://nickmcd.me/2021/04/04/high-performance-voxel-engine/
+
+### Collision AABB vs Voxels / AABB & AABB (Swept AABB using Minkowski Difference)
+https://luisreis.net/blog/aabb_collision_handling/
+https://blog.hamaluik.ca/posts/swept-aabb-collision-using-minkowski-difference/
+
+### The Quake Engine Route
+https://github.com/samuelyuan/go-quake2
+https://github.com/c-d-a/io_export_qmap
+https://github.com/qbism/q2tools-220
+
+### Q2 Engines
+https://github.com/skullernet/q2pro
+https://github.com/jdolan/quake2
+
+### Q3
+https://github.com/ioquake/ioq3
+
+### Source Engines
+https://github.com/Galaco/kero
+https://github.com/headcrab-junkyard/OGS
+
+### Doom3 Engine
+https://github.com/fabiensanglard/Doom3-for-MacOSX-
+https://github.com/RobertBeckebans/RBDOOM-3-BFG
+
+### Making a thief game out of doom3
+https://github.com/stgatilov/darkmod_src
+
+### Qodot
+https://github.com/QodotPlugin/Qodot/

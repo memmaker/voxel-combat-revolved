@@ -1,0 +1,100 @@
+package util
+
+import (
+	"math"
+
+	"github.com/go-gl/mathgl/mgl32"
+)
+
+func abs(x float32) float32 {
+	return float32(math.Abs(float64(x)))
+}
+
+func Round(x float32) float32 {
+	return float32(math.Round(float64(x)))
+}
+
+func Floor(x float32) float32 {
+	return float32(math.Floor(float64(x)))
+}
+func Sin(x float32) float32 {
+	return float32(math.Sin(float64(x)))
+}
+
+func Cos(x float32) float32 {
+	return float32(math.Cos(float64(x)))
+}
+
+func ToRadian(angle float32) float32 {
+	return mgl32.DegToRad(angle)
+}
+
+func max(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func Min(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func Mix(a, b, factor float32) float32 {
+	return a*(1-factor) + factor*b
+}
+
+func Mix64(a, b float32, factor float64) float32 {
+	return float32(float64(a)*(1.0-factor) + factor*float64(b))
+}
+func EucledianDistance3D(one, two mgl32.Vec3) float32 {
+	return float32(math.Sqrt(float64((one.X()-two.X())*(one.X()-two.X()) + (one.Y()-two.Y())*(one.Y()-two.Y()) + (one.Z()-two.Z())*(one.Z()-two.Z()))))
+}
+
+func IntMax3(i int, i2 int, i3 int) int {
+	max := i
+	if i2 > max {
+		max = i2
+	}
+	if i3 > max {
+		max = i3
+	}
+	return max
+}
+
+func IntMax(i int, i2 int) int {
+	if i > i2 {
+		return i
+	}
+	return i2
+}
+
+func ToGrid(pos mgl32.Vec3) IntVec3 {
+	return IntVec3{int(math.Floor(float64(pos.X()))), int(math.Floor(float64(pos.Y()))), int(math.Floor(float64(pos.Z())))}
+}
+
+func Lerp3(one, two mgl32.Vec3, factor float64) mgl32.Vec3 {
+	return mgl32.Vec3{Mix64(one.X(), two.X(), factor), Mix64(one.Y(), two.Y(), factor), Mix64(one.Z(), two.Z(), factor)}
+}
+
+func LerpQuat(one, two [4]float32, factor float64) [4]float32 {
+	dotProduct := float64(one[0]*two[0] + one[1]*two[1] + one[2]*two[2] + one[3]*two[3])
+	a := math.Acos(math.Abs(dotProduct))
+	s := dotProduct / math.Abs(dotProduct)
+	result := [4]float32{}
+	result[0] = one[0]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[0]*float32(s*math.Sin(a*factor)/math.Sin(a))
+	result[1] = one[1]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[1]*float32(s*math.Sin(a*factor)/math.Sin(a))
+	result[2] = one[2]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[2]*float32(s*math.Sin(a*factor)/math.Sin(a))
+	result[3] = one[3]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[3]*float32(s*math.Sin(a*factor)/math.Sin(a))
+	return result
+}
+
+func LerpQuatMgl(one, two mgl32.Quat, factor float64) mgl32.Quat {
+	dotProduct := float64(one.Dot(two))
+	a := math.Acos(math.Abs(dotProduct))
+	s := dotProduct / math.Abs(dotProduct)
+	return one.Scale(float32(math.Sin(a*(1-factor)) / math.Sin(a))).Add(two.Scale(float32(s * math.Sin(a*factor) / math.Sin(a))))
+}
