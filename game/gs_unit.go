@@ -18,6 +18,7 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateUnit) Init() {
+    println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
     g.engine.blockSelector.SetPosition(util.ToGrid(g.selectedUnit.GetFootPosition()))
 }
 

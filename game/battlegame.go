@@ -132,7 +132,7 @@ func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3) *Unit {
     //model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
     model.SetTexture(0, util.MustLoadTexture("./assets/textures/skins/police_officer.png"))
     model.SetAnimation("animation.walk")
-    unit := NewUnit(model, spawnPos)
+    unit := NewUnit(model, spawnPos, "Policeman")
     a.collisionSolver.AddObject(unit)
     a.voxelMap.MoveUnitTo(unit, spawnPos)
     a.actors = append(a.actors, unit)

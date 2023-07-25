@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
@@ -21,6 +22,7 @@ type Unit struct {
 	removeActor     bool
 	Height          uint8
 	eventQueue      []TransitionEvent
+	name            string
 }
 
 func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -38,7 +40,7 @@ func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
 }
 
 func (p *Unit) GetName() string {
-	return "Unit"
+	return p.name
 }
 
 func (p *Unit) IsProjectile() bool {
@@ -83,6 +85,7 @@ func (p *Unit) Update(deltaTime float64) {
 	currentEvent := p.state.Execute(deltaTime)
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
+		println(fmt.Sprintf("[%s] Transition from %s to %s", p.GetName(), currentState.ToString(), nextState.ToString()))
 		p.SetState(nextState)
 	}
 }
@@ -135,16 +138,17 @@ func (p *Unit) SetCurrentWaypoint(waypoint mgl32.Vec3) {
 	p.currentWaypoint = waypoint
 }
 func (p *Unit) IsNearWaypoint() bool {
-	return p.GetPosition().Sub(p.currentWaypoint).Len() < 0.5
+	return p.GetFootPosition().Sub(p.currentWaypoint).Len() < 0.5
 }
 
 func (p *Unit) SetWaypoint(targetPos mgl32.Vec3) {
 	p.currentWaypoint = targetPos
 	p.eventQueue = append(p.eventQueue, EventNewWaypoint)
+	println(fmt.Sprintf("[%s] New waypoint at %v", p.GetName(), targetPos))
 }
 
 func (p *Unit) MoveTowardsWaypoint() {
-	newVelocity := p.currentWaypoint.Sub(p.GetPosition()).Normalize().Mul(p.speed)
+	newVelocity := p.currentWaypoint.Sub(p.GetFootPosition()).Normalize().Mul(p.speed)
 	p.SetVelocity(newVelocity)
 }
 
@@ -184,13 +188,14 @@ func (p *Unit) ShouldBeRemoved() bool {
 }
 
 
-func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3) *Unit {
+func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3, name string) *Unit {
 	a := &Unit{
 		model:           model,
 		extents:         mgl32.Vec3{0.98, 1.98, 0.98},
 		speed:           4,
 		currentWaypoint: mgl32.Vec3{4, 1.75, 1},
 		transition:      ActorTransitionTable, // one for all
+		name:            name,
 	}
 	a.SetState(ActorStateIdle)
 	a.SetFootPosition(pos)

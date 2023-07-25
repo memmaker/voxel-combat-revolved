@@ -42,6 +42,23 @@ const (
 
 type ActorState int
 
+func (s ActorState) ToString() string {
+	switch s {
+	case ActorStateIdle:
+		return "Idle"
+	case ActorStateWaiting:
+		return "Waiting"
+	case ActorGotoWaypoint:
+		return "GotoWaypoint"
+	case ActorStateDying:
+		return "Dying"
+	case ActorStateDead:
+		return "Dead"
+	default:
+		return "Unknown"
+	}
+}
+
 const (
 	ActorStateIdle ActorState = iota
 	ActorStateWaiting

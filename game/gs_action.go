@@ -18,6 +18,7 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateAction) Init() {
+    println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
     // get valid targets for action
     g.validTargets = g.selectedAction.GetValidTargets(g.selectedUnit)
     // highlight valid targets
