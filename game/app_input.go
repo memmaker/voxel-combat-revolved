@@ -30,11 +30,11 @@ func (a *BattleGame) handleMousePosEvents(xpos float64, ypos float64) {
 	if a.state.OnMouseMoved != nil {
 		a.state.OnMouseMoved(a.lastMousePosX, a.lastMousePosY, a.mousePosX, a.mousePosY)
 	}
-	//a.updateSelectedBlock()
+	//a.RayCast()
 	a.updateDebugInfo()
 }
 
-func (a *BattleGame) pollInput() (bool, [2]int) {
+func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
 	cameraMoved := false
 	movementVector := [2]int{0, 0}
 	if a.Window.GetKey(glfw.KeyW) == glfw.Press {
@@ -54,7 +54,13 @@ func (a *BattleGame) pollInput() (bool, [2]int) {
 		cameraMoved = true
 	}
 
+	if a.Window.GetKey(glfw.KeyR) == glfw.Press {
+		a.state.OnZoomIn(deltaTime)
+	}
 
+	if a.Window.GetKey(glfw.KeyF) == glfw.Press {
+		a.state.OnZoomOut(deltaTime)
+	}
 	return cameraMoved, movementVector
 }
 func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
@@ -79,11 +85,11 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 
 	if key == glfw.KeyE && action == glfw.Press {
-		a.camera.RotateRight()
+		a.state.OnUpperRightAction()
 	}
 
 	if key == glfw.KeyQ && action == glfw.Press {
-		a.camera.RotateLeft()
+		a.state.OnUpperLeftAction()
 	}
 
 	if key == glfw.Key1 && action == glfw.Press {
@@ -150,6 +156,10 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	if key == glfw.KeyF12 && action == glfw.Press {
 		a.Window.SetShouldClose(true)
 		return
+	}
+
+	if action == glfw.Press {
+		a.state.OnKeyPressed(key)
 	}
 }
 

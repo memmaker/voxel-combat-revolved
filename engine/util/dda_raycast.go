@@ -2,6 +2,7 @@ package util
 
 import (
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
 
@@ -168,78 +169,31 @@ type HitInfo3D struct {
 	Distance               float64
 	Side                   CubeSide
 	CollisionWorldPosition mgl32.Vec3
-	PreviousGridPosition   IntVec3
-	CollisionGridPosition  IntVec3
+	PreviousGridPosition   voxel.Int3
+	CollisionGridPosition  voxel.Int3
 	Hit                    bool
 }
 
-type IntVec3 [3]int
-
-func (v IntVec3) X() int {
-	return v[0]
-}
-func (v IntVec3) Y() int {
-	return v[1]
-}
-func (v IntVec3) Z() int {
-	return v[2]
-}
-
-func (v IntVec3) Add(diff IntVec3) IntVec3 {
-	return IntVec3{v[0] + diff[0], v[1] + diff[1], v[2] + diff[2]}
-}
-
-func (v IntVec3) ToVec3() mgl32.Vec3 {
-	return mgl32.Vec3{float32(v[0]), float32(v[1]), float32(v[2])}
-}
-
-func (v IntVec3) Down() IntVec3 {
-	return IntVec3{v[0], v[1] - 1, v[2]}
-}
-
-func (v IntVec3) Left() IntVec3 {
-	return IntVec3{v[0] - 1, v[1], v[2]}
-}
-
-func (v IntVec3) Right() IntVec3 {
-	return IntVec3{v[0] + 1, v[1], v[2]}
-}
-
-func (v IntVec3) Up() IntVec3 {
-	return IntVec3{v[0], v[1] + 1, v[2]}
-}
-
-func (v IntVec3) Back() IntVec3 {
-	return IntVec3{v[0], v[1], v[2] - 1}
-}
-
-func (v IntVec3) Front() IntVec3 {
-	return IntVec3{v[0], v[1], v[2] + 1}
-}
-
-func (v IntVec3) Div(value int) IntVec3 {
-	return IntVec3{v[0] / value, v[1] / value, v[2] / value}
-}
-func DDARaycast(rayStart, rayEnd mgl32.Vec3, stopRay func(x int, y int, z int) bool) HitInfo3D {
+func DDARaycast(rayStart, rayEnd mgl32.Vec3, stopRay func(x, y, z int32) bool) HitInfo3D {
 	// adapted from: https://github.com/fenomas/fast-voxel-raycast/blob/master/index.js
 	t := 0.0
-	ix := int(math.Floor(float64(rayStart.X())))
-	iy := int(math.Floor(float64(rayStart.Y())))
-	iz := int(math.Floor(float64(rayStart.Z())))
+	ix := int32(math.Floor(float64(rayStart.X())))
+	iy := int32(math.Floor(float64(rayStart.Y())))
+	iz := int32(math.Floor(float64(rayStart.Z())))
 
 	ray := rayEnd.Sub(rayStart)
 	maxRayLength := ray.Len()
 	rayDir := ray.Normalize()
 
-	stepx := -1
+	stepx := int32(-1)
 	if rayDir.X() > 0 {
 		stepx = 1
 	}
-	stepy := -1
+	stepy := int32(-1)
 	if rayDir.Y() > 0 {
 		stepy = 1
 	}
-	stepz := -1
+	stepz := int32(-1)
 	if rayDir.Z() > 0 {
 		stepz = 1
 	}
@@ -278,33 +232,33 @@ func DDARaycast(rayStart, rayEnd mgl32.Vec3, stopRay func(x int, y int, z int) b
 
 	for t <= float64(maxRayLength) {
 		if stopRay(ix, iy, iz) {
-			var previousGridPosition IntVec3
+			var previousGridPosition voxel.Int3
 			var side CubeSide
 			if steppedIndex == 0 {
 				if stepx > 0 {
 					side = Left
-					previousGridPosition = IntVec3{ix - 1, iy, iz}
+					previousGridPosition = voxel.Int3{ix - 1, iy, iz}
 				} else {
 					side = Right
-					previousGridPosition = IntVec3{ix + 1, iy, iz}
+					previousGridPosition = voxel.Int3{ix + 1, iy, iz}
 				}
 			}
 			if steppedIndex == 1 {
 				if stepy > 0 {
 					side = Bottom
-					previousGridPosition = IntVec3{ix, iy - 1, iz}
+					previousGridPosition = voxel.Int3{ix, iy - 1, iz}
 				} else {
 					side = Top
-					previousGridPosition = IntVec3{ix, iy + 1, iz}
+					previousGridPosition = voxel.Int3{ix, iy + 1, iz}
 				}
 			}
 			if steppedIndex == 2 {
 				if stepz > 0 {
 					side = Back
-					previousGridPosition = IntVec3{ix, iy, iz - 1}
+					previousGridPosition = voxel.Int3{ix, iy, iz - 1}
 				} else {
 					side = Front
-					previousGridPosition = IntVec3{ix, iy, iz + 1}
+					previousGridPosition = voxel.Int3{ix, iy, iz + 1}
 				}
 			}
 
@@ -314,7 +268,7 @@ func DDARaycast(rayStart, rayEnd mgl32.Vec3, stopRay func(x int, y int, z int) b
 				Side:                   side,
 				CollisionWorldPosition: rayStart.Add(rayDir.Mul(float32(t))),
 				PreviousGridPosition:   previousGridPosition,
-				CollisionGridPosition:  IntVec3{ix, iy, iz},
+				CollisionGridPosition:  voxel.Int3{X: ix, Y: iy, Z: iz},
 			}
 		}
 

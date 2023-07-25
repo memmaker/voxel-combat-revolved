@@ -21,7 +21,7 @@ type Projectile struct {
 	meshCollider *util.MeshCollider
 }
 
-func (p *Projectile) HitWithProjectile(projectile CollidingObject, part util.Collider) {
+func (p *Projectile) HitWithProjectile(projectile util.CollidingObject, part util.Collider) {
 
 }
 

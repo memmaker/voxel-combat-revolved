@@ -10,6 +10,7 @@ func runGame() {
 	height := 600
 	battleGame := game.NewBattleGame("BattleGrounds", width, height)
 	battleGame.LoadEmptyWorld()
-	battleGame.SpawnUnit(mgl32.Vec3{4, 1, 9})
+	unit := battleGame.SpawnUnit(mgl32.Vec3{4.5, 1, 9.5})
+	battleGame.SwitchToUnit(unit)
 	battleGame.Run()
 }

@@ -2,3 +2,6 @@
 .idea/
 build/
 assets/rawpng/
+bg
+debug_atlas.png
+*.prof

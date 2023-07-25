@@ -25,22 +25,21 @@ type BattleGame struct {
     guiShader         *glhf.Shader
     textLabel         *etxt.TextMesh
     textRenderer      *etxt.OpenGLTextRenderer
-    lastHitInfo       *util.HitInfo3D
+    lastHitInfo       *RayCastHit
     actors            []*Unit
     projectiles       []*Projectile
     debugObjects      []PositionDrawable
-    lastVisitedBlocks []util.IntVec3
     blockTypeToPlace  byte
     camera            *util.ISOCamera
     drawBoundingBoxes bool
     showDebugInfo     bool
     timer             *util.Timer
-    collisionSolver   *CollisionSolver
+    collisionSolver   *util.CollisionSolver
     state 		   GameState
 }
 
 func (a *BattleGame) IsOccludingBlock(x, y, z int) bool {
-    if a.voxelMap.IsBlockAt(int32(x), int32(y), int32(z)) {
+    if a.voxelMap.IsSolidBlockAt(int32(x), int32(y), int32(z)) {
         return !a.voxelMap.GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
     }
     return false
@@ -108,8 +107,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
             block := currentMap.GetGlobalBlock(x, y, z)
             return block != nil && !block.IsAir()
         }
-        myApp.collisionSolver = NewCollisionSolver(isSolid)
-        myApp.state = &GameStateUnit{engine: myApp}
+        myApp.collisionSolver = util.NewCollisionSolver(isSolid)
     })
 
     return myApp
@@ -134,10 +132,11 @@ func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3) *Unit {
     //model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
     model.SetTexture(0, util.MustLoadTexture("./assets/textures/skins/police_officer.png"))
     model.SetAnimation("animation.walk")
-    actor := NewActor(model, spawnPos)
-    a.collisionSolver.AddObject(actor)
-    a.actors = append(a.actors, actor)
-    return actor
+    unit := NewUnit(model, spawnPos)
+    a.collisionSolver.AddObject(unit)
+    a.voxelMap.MoveUnitTo(unit, spawnPos)
+    a.actors = append(a.actors, unit)
+    return unit
 }
 
 func (a *BattleGame) SpawnProjectile(pos, velocity mgl32.Vec3) {
@@ -163,7 +162,7 @@ func (a *BattleGame) MoveCamera(dx int, dy int) {
 
 func (a *BattleGame) Update(elapsed float64) {
     stopUpdateTimer := a.timer.Start("> Update()")
-    camMoved, movementVector := a.pollInput()
+    camMoved, movementVector := a.pollInput(elapsed)
     if camMoved {
         //a.HandlePlayerCollision()
         a.state.OnDirectionKeys(movementVector, elapsed)
@@ -269,4 +268,16 @@ func (a *BattleGame) drawGUI() {
     a.guiShader.End()
 }
 
+func (a *BattleGame) SwitchToUnit(unit *Unit) {
+    a.state = &GameStateUnit{engine: a, selectedUnit: unit}
+    a.state.Init()
+}
 
+func (a *BattleGame) SwitchToAction(unit *Unit, action Action) {
+    a.state = &GameStateAction{engine: a, selectedUnit: unit, selectedAction: action}
+    a.state.Init()
+}
+
+func (a *BattleGame) HighlightBlocks(validTargets []voxel.Int3) {
+
+}

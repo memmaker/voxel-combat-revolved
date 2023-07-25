@@ -42,6 +42,9 @@ func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
 		},
 		meshBuffer: NewMeshBuffer(chunkShader),
 	}
+	for i := int32(0); i < CHUNK_SIZE_CUBED; i++ {
+		c.data[i] = NewAirBlock()
+	}
 	return c
 }
 
@@ -338,6 +341,18 @@ func (i Int3) ToFloatVec3() mgl32.Vec3 {
 
 func (i Int3) Sub(tr Int3) Int3 {
 	return Int3{i.X - tr.X, i.Y - tr.Y, i.Z - tr.Z}
+}
+
+func (i Int3) ToVec3() mgl32.Vec3 {
+	return mgl32.Vec3{float32(i.X), float32(i.Y), float32(i.Z)}
+}
+
+func (i Int3) Div(factor int)Int3 {
+	return Int3{i.X / int32(factor), i.Y / int32(factor), i.Z / int32(factor)}
+}
+
+func (i Int3) ToBlockCenterVec3() mgl32.Vec3 {
+	return mgl32.Vec3{float32(i.X) + 0.5, float32(i.Y), float32(i.Z) + 0.5}
 }
 
 func (c *Chunk) CreateRun(b *Block, i, j, k, access int32) {

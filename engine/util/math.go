@@ -64,16 +64,8 @@ func IntMax3(i int, i2 int, i3 int) int {
 	}
 	return max
 }
-
-func IntMax(i int, i2 int) int {
-	if i > i2 {
-		return i
-	}
-	return i2
-}
-
-func ToGrid(pos mgl32.Vec3) IntVec3 {
-	return IntVec3{int(math.Floor(float64(pos.X()))), int(math.Floor(float64(pos.Y()))), int(math.Floor(float64(pos.Z())))}
+func ToGrid(position mgl32.Vec3) mgl32.Vec3 {
+	return mgl32.Vec3{float32(math.Floor(float64(position.X()))), float32(math.Floor(float64(position.Y()))), float32(math.Floor(float64(position.Z())))}
 }
 
 func Lerp3(one, two mgl32.Vec3, factor float64) mgl32.Vec3 {

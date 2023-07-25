@@ -7,30 +7,35 @@ import (
 	"github.com/memmaker/battleground/engine/voxel"
 )
 
-func (a *BattleGame) updateSelectedBlock(rayStart, rayEnd mgl32.Vec3) {
+type RayCastHit struct {
+	util.HitInfo3D
+	VisitedBlocks          []voxel.Int3
+	UnitHit                *Unit
+}
+func (a *BattleGame) RayCast(rayStart, rayEnd mgl32.Vec3) *RayCastHit {
 	voxelMap := a.voxelMap
-	var visitedBlocks []util.IntVec3
-	stopRay := func(x, y, z int) bool {
-		visitedBlocks = append(visitedBlocks, util.IntVec3{x, y, z})
-		if voxelMap.Contains(int32(x), int32(y), int32(z)) {
-			block := voxelMap.GetGlobalBlock(int32(x), int32(y), int32(z))
+	var visitedBlocks []voxel.Int3
+	var unitHit *Unit
+	stopRay := func(x, y, z int32) bool {
+		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
+		if voxelMap.Contains(x, y, z) {
+			block := voxelMap.GetGlobalBlock(x, y, z)
 			if block != nil && !block.IsAir() {
 				return true
-			} else {
-				// TODO: check if objects or actors are in the way
+			} else if block.IsOccupied() {
+				unitHit = block.GetOccupant().(*Unit)
+				return true
 			}
 		}
 		return false
 	}
 	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
 	if hitInfo.Hit && (voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)) {
-		a.blockSelector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
-		a.lastHitInfo = &hitInfo
-		a.lastVisitedBlocks = visitedBlocks
+		a.lastHitInfo = &RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit}
 	} else {
 		a.lastHitInfo = nil
-		a.lastVisitedBlocks = nil
 	}
+	return a.lastHitInfo
 }
 
 func (a *BattleGame) PlaceBlockAtCurrentSelection() {
@@ -42,10 +47,10 @@ func (a *BattleGame) PlaceBlockAtCurrentSelection() {
 	a.PlaceBlock(previousGridPosition, voxel.NewTestBlock(a.blockTypeToPlace))
 }
 
-func (a *BattleGame) PlaceBlock(pos util.IntVec3, block *voxel.Block) {
+func (a *BattleGame) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
 	voxelMap := a.voxelMap
-	if voxelMap.Contains(int32(pos.X()), int32(pos.Y()), int32(pos.Z())) {
-		voxelMap.SetBlock(int32(pos.X()), int32(pos.Y()), int32(pos.Z()), block)
+	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
+		voxelMap.SetBlock(int32(pos.X), int32(pos.Y), int32(pos.Z), block)
 		voxelMap.GenerateAllMeshes()
 	}
 }
@@ -57,14 +62,14 @@ func (a *BattleGame) RemoveBlock() {
 	}
 	collisionGridPosition := a.lastHitInfo.CollisionGridPosition
 
-	if voxelMap.Contains(int32(collisionGridPosition.X()), int32(collisionGridPosition.Y()), int32(collisionGridPosition.Z())) {
-		voxelMap.SetBlock(int32(collisionGridPosition.X()), int32(collisionGridPosition.Y()), int32(collisionGridPosition.Z()), voxel.NewAirBlock())
+	if voxelMap.Contains(int32(collisionGridPosition.X), int32(collisionGridPosition.Y), int32(collisionGridPosition.Z)) {
+		voxelMap.SetBlock(int32(collisionGridPosition.X), int32(collisionGridPosition.Y), int32(collisionGridPosition.Z), voxel.NewAirBlock())
 		voxelMap.GenerateAllMeshes()
 	}
 }
 
 func (a *BattleGame) LoadVoxelMap(filename string) *voxel.Map {
-	construction := util.LoadConstruction(filename)
+	construction := voxel.LoadConstruction(filename)
 	listOfBlocks := voxel.GetBlocksNeededByConstruction(construction)
 	listOfBlockEntities := voxel.GetBlockEntitiesNeededByConstruction(construction)
 	listOfBlocks = append(listOfBlocks, listOfBlockEntities...)

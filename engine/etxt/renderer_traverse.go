@@ -297,7 +297,7 @@ func (self *Renderer) traverseGlyphRTL(dot fixed.Point26_6, glyphSeq glyphPair, 
     return dot
 }
 
-// Apply line advance to the given coordinate applying quantization if
+// Execute line advance to the given coordinate applying quantization if
 // relevant, notifying the cache handler fractional pixel change, etc.
 func (self *Renderer) applyLineAdvance(dot fixed.Point26_6) fixed.Int26_6 {
     // handle non-quantized case (notifying fractional position change)

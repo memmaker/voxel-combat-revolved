@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
-	"github.com/memmaker/battleground/engine/util"
 	"math"
 	"math/rand"
 )
@@ -18,12 +17,6 @@ type Map struct {
 	terrainTexture *glhf.Texture
 }
 
-func (m *Map) IsOccludingBlock(x, y, z int) bool {
-	if m.IsBlockAt(int32(x), int32(y), int32(z)) {
-		return !m.GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
-	}
-	return false
-}
 
 func NewMap(width, height, depth int32) *Map {
 	m := &Map{
@@ -145,8 +138,8 @@ func (m *Map) Contains(x int32, y int32, z int32) bool {
 	return x >= 0 && x < m.width*CHUNK_SIZE && y >= 0 && y < m.height*CHUNK_SIZE && z >= 0 && z < m.depth*CHUNK_SIZE
 }
 
-func (m *Map) GetBlockFromVec(pos util.IntVec3) *Block {
-	return m.GetGlobalBlock(int32(pos.X()), int32(pos.Y()), int32(pos.Z()))
+func (m *Map) GetBlockFromVec(pos Int3) *Block {
+	return m.GetGlobalBlock(int32(pos.X), int32(pos.Y), int32(pos.Z))
 }
 func (m *Map) GetGlobalBlock(x int32, y int32, z int32) *Block {
 	chunkX := x / CHUNK_SIZE
@@ -163,46 +156,13 @@ func (m *Map) GetGlobalBlock(x int32, y int32, z int32) *Block {
 	}
 }
 
-func (m *Map) IsBlockAt(x int32, y int32, z int32) bool {
+func (m *Map) IsSolidBlockAt(x int32, y int32, z int32) bool {
 	block := m.GetGlobalBlock(x, y, z)
 	return block != nil && !block.IsAir()
 }
-func (m *Map) Collide(pos mgl32.Vec3) (mgl32.Vec3, bool) {
-	x, y, z := pos.X(), pos.Y(), pos.Z()
-	nx, ny, nz := util.Round(pos.X()), util.Round(pos.Y()), util.Round(pos.Z())
-	const pad = 0.25
 
-	head := util.IntVec3{int(nx), int(ny), int(nz)}
-	foot := head.Down()
-
-	stop := false
-	for _, b := range []util.IntVec3{foot, head} {
-		if IsObstacle(m.GetBlockFromVec(b.Left())) && x < nx && nx-x > pad {
-			x = nx - pad
-		}
-		if IsObstacle(m.GetBlockFromVec(b.Right())) && x > nx && x-nx > pad {
-			x = nx + pad
-		}
-		if IsObstacle(m.GetBlockFromVec(b.Down())) && y < ny && ny-y > pad {
-			y = ny - pad
-			stop = true
-		}
-		if IsObstacle(m.GetBlockFromVec(b.Up())) && y > ny && y-ny > pad {
-			y = ny + pad
-			stop = true
-		}
-		if IsObstacle(m.GetBlockFromVec(b.Back())) && z < nz && nz-z > pad {
-			z = nz - pad
-		}
-		if IsObstacle(m.GetBlockFromVec(b.Front())) && z > nz && z-nz > pad {
-			z = nz + pad
-		}
-	}
-	return mgl32.Vec3{x, y, z}, stop
-}
-
-func (m *Map) ContainsGrid(position util.IntVec3) bool {
-	return m.Contains(int32(position.X()), int32(position.Y()), int32(position.Z()))
+func (m *Map) ContainsGrid(position Int3) bool {
+	return m.Contains(position.X, position.Y, position.Z)
 }
 
 func (m *Map) SetChunkShader(shader *glhf.Shader) {
@@ -243,11 +203,60 @@ func (m *Map) SetSetRandomStuff(block *Block) {
 	}
 }
 
+type MapObject interface {
+	GetOccupiedBlockOffsets() []Int3
+	GetPosition() mgl32.Vec3
+
+}
+
+func (m *Map) MoveUnitTo(unit MapObject, pos mgl32.Vec3) bool {
+	if m.IsUnitPlaceable(unit, pos) {
+		m.RemoveUnit(unit, unit.GetPosition())
+		m.AddUnit(unit, pos)
+		return true
+	}
+	return false
+}
+func ToGridInt3(pos mgl32.Vec3) Int3 {
+	return Int3{int32(math.Floor(float64(pos.X()))), int32(math.Floor(float64(pos.Y()))), int32(math.Floor(float64(pos.Z())))}
+}
+func (m *Map) IsUnitPlaceable(unit MapObject, pos mgl32.Vec3) bool {
+	blockPos := ToGridInt3(pos)
+	offsets := unit.GetOccupiedBlockOffsets()
+	for _, offset := range offsets {
+		occupiedBlockPos := blockPos.Add(offset)
+		if !m.ContainsGrid(occupiedBlockPos) || m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z) {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *Map) RemoveUnit(unit MapObject, position mgl32.Vec3) {
+	blockPos := ToGridInt3(position)
+	offsets := unit.GetOccupiedBlockOffsets()
+	for _, offset := range offsets {
+		occupiedBlockPos := blockPos.Add(offset)
+		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+		block.RemoveUnit(unit)
+	}
+}
+
+func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
+	blockPos := ToGridInt3(pos)
+	offsets := unit.GetOccupiedBlockOffsets()
+	for _, offset := range offsets {
+		occupiedBlockPos := blockPos.Add(offset)
+		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+		block.AddUnit(unit)
+	}
+}
+
 func IsObstacle(vec *Block) bool {
 	return vec != nil && !vec.IsAir()
 }
 
-func GetBlocksNeededByConstruction(construction *util.Construction) []string {
+func GetBlocksNeededByConstruction(construction *Construction) []string {
 	blocks := make(map[string]bool)
 	for _, section := range construction.Sections {
 		for _, block := range section.Blocks {
@@ -265,7 +274,7 @@ func GetBlocksNeededByConstruction(construction *util.Construction) []string {
 	}
 	return blockNames
 }
-func GetBlockEntitiesNeededByConstruction(construction *util.Construction) []string {
+func GetBlockEntitiesNeededByConstruction(construction *Construction) []string {
 	blockEntities := make(map[string]bool)
 	for _, section := range construction.Sections {
 		for _, blockEntity := range section.BlockEntities {
@@ -280,7 +289,7 @@ func GetBlockEntitiesNeededByConstruction(construction *util.Construction) []str
 	}
 	return blockEntityNames
 }
-func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction *util.Construction) *Map {
+func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction *Construction) *Map {
 	minX, minY, minZ := int32(math.MaxInt32), int32(math.MaxInt32), int32(math.MaxInt32)
 	maxX, maxY, maxZ := int32(math.MinInt32), int32(math.MinInt32), int32(math.MinInt32)
 	for _, section := range construction.Sections {
@@ -342,7 +351,7 @@ func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction 
 				for z := section.MinBlockZ; z < section.MinBlockZ+int32(section.ShapeZ); z++ {
 					sourceBlockDef := section.Blocks[blockIndex]
 					if sourceBlockDef == nil {
-						sourceBlockDef = &util.BlockDefinition{
+						sourceBlockDef = &BlockDefinition{
 							Name:      "air",
 							NameSpace: "minecraft",
 						}

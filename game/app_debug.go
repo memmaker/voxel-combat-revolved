@@ -51,9 +51,9 @@ func (a *BattleGame) updateDebugInfo() {
 	}
 	selectedBlockString := "Block: none"
 	if a.lastHitInfo != nil {
-		selectedBlockString = fmt.Sprintf("Col.Block: %d, %d, %d", a.lastHitInfo.CollisionGridPosition.X(), a.lastHitInfo.CollisionGridPosition.Y(), a.lastHitInfo.CollisionGridPosition.Z())
+		selectedBlockString = fmt.Sprintf("Col.Block: %d, %d, %d", a.lastHitInfo.CollisionGridPosition.X, a.lastHitInfo.CollisionGridPosition.Y, a.lastHitInfo.CollisionGridPosition.Z)
 		selectedBlockString += fmt.Sprintf("\nHitSide: %d", a.lastHitInfo.Side)
-		selectedBlockString += fmt.Sprintf("\nPrev.Block: %d, %d, %d", a.lastHitInfo.PreviousGridPosition.X(), a.lastHitInfo.PreviousGridPosition.Y(), a.lastHitInfo.PreviousGridPosition.Z())
+		selectedBlockString += fmt.Sprintf("\nPrev.Block: %d, %d, %d", a.lastHitInfo.PreviousGridPosition.X, a.lastHitInfo.PreviousGridPosition.Y, a.lastHitInfo.PreviousGridPosition.Z)
 		selectedBlockString += fmt.Sprintf("\nHit WorldPos: %.2f, %.2f, %.2f", a.lastHitInfo.CollisionWorldPosition.X(), a.lastHitInfo.CollisionWorldPosition.Y(), a.lastHitInfo.CollisionWorldPosition.Z())
 	}
 	timerString := a.timer.String()

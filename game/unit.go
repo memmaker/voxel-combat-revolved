@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
 
@@ -18,6 +19,15 @@ type Unit struct {
 	transition      *TransitionTable
 	hitInfo         HitInfo
 	removeActor     bool
+	Height          uint8
+	eventQueue      []TransitionEvent
+}
+
+func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
+	return []voxel.Int3{
+		{0, 0, 0},
+		{0, 1, 0},
+	}
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -57,8 +67,13 @@ func (p *Unit) GetAABB() util.AABB {
 }
 
 func (p *Unit) GetIdleEvents() TransitionEvent {
-	p.NextWaypoint()
-	return EventNewWaypoint
+	//p.SetWaypoint()
+	if len(p.eventQueue) > 0 {
+		nextEvent := p.eventQueue[0]
+		p.eventQueue = p.eventQueue[1:]
+		return nextEvent
+	}
+	return EventNone
 }
 func (p *Unit) Update(deltaTime float64) {
 	if p.IsDead() {
@@ -82,7 +97,7 @@ type HitInfo struct {
 	BodyPart      util.Collider
 }
 
-func (p *Unit) HitWithProjectile(projectile CollidingObject, bodyPart util.Collider) {
+func (p *Unit) HitWithProjectile(projectile util.CollidingObject, bodyPart util.Collider) {
 	event := EventHit
 	// needs to be passed to the new state, we do indirectly via the actor
 	forceOfImpact := projectile.GetVelocity()
@@ -107,10 +122,12 @@ func (p *Unit) GetColliders() []util.Collider {
 func (p *Unit) SetFootPosition(position mgl32.Vec3) {
 	p.model.SetPosition(position)
 }
+func (p *Unit) GetFootPosition() mgl32.Vec3 {
+	return p.model.GetPosition()
+}
 func (p *Unit) GetEyePosition() mgl32.Vec3 {
 	return p.model.GetPosition().Add(mgl32.Vec3{0, p.extents.Y() * (7.0 / 8.0), 0})
 }
-
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	return p.model.RootNode.GlobalMatrix()
 }
@@ -121,14 +138,9 @@ func (p *Unit) IsNearWaypoint() bool {
 	return p.GetPosition().Sub(p.currentWaypoint).Len() < 0.5
 }
 
-func (p *Unit) NextWaypoint() {
-	one := mgl32.Vec3{4, 1.75, 1}
-	two := mgl32.Vec3{1, 1.75, 5}
-	if p.currentWaypoint == one {
-		p.currentWaypoint = two
-	} else {
-		p.currentWaypoint = one
-	}
+func (p *Unit) SetWaypoint(targetPos mgl32.Vec3) {
+	p.currentWaypoint = targetPos
+	p.eventQueue = append(p.eventQueue, EventNewWaypoint)
 }
 
 func (p *Unit) MoveTowardsWaypoint() {
@@ -171,7 +183,8 @@ func (p *Unit) ShouldBeRemoved() bool {
 	return p.removeActor
 }
 
-func NewActor(model *util.CompoundMesh, pos mgl32.Vec3) *Unit {
+
+func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3) *Unit {
 	a := &Unit{
 		model:           model,
 		extents:         mgl32.Vec3{0.98, 1.98, 0.98},
