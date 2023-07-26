@@ -1,18 +1,16 @@
 package voxel
 
 type Block struct {
-	kind         int32
-	textureIndex byte
-	health       int32
+	ID           byte
 	occupant    MapObject
 }
 
 func (b *Block) IsAir() bool {
-	return b.kind == EMPTY
+	return b.ID == EMPTY
 }
 
 func (b *Block) GetTextureIndexForSide(side FaceType) byte {
-	return b.textureIndex
+	return b.ID - 1
 }
 
 func (b *Block) RemoveUnit(unit MapObject) {

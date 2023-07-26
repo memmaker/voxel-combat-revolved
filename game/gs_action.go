@@ -13,6 +13,14 @@ type GameStateAction struct {
     validTargets   []voxel.Int3
 }
 
+func (g *GameStateAction) OnScroll(deltaTime float64, xoff float64, yoff float64) {
+    if yoff > 0 {
+        g.engine.camera.ZoomOut(deltaTime, yoff)
+    } else {
+        g.engine.camera.ZoomIn(deltaTime, -yoff)
+    }
+}
+
 func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 
 }
@@ -23,14 +31,6 @@ func (g *GameStateAction) Init() {
     g.validTargets = g.selectedAction.GetValidTargets(g.selectedUnit)
     // highlight valid targets
     g.engine.HighlightBlocks(g.validTargets)
-}
-
-func (g *GameStateAction) OnZoomIn(deltaTime float64) {
-    g.engine.camera.ZoomIn(deltaTime)
-}
-
-func (g *GameStateAction) OnZoomOut(deltaTime float64) {
-    g.engine.camera.ZoomOut(deltaTime)
 }
 
 func (g *GameStateAction) OnUpperRightAction() {
@@ -60,7 +60,7 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 }
 
 
-func (g *GameStateAction) OnDirectionKeys(movementVector [2]int, elapsed float64) {
+func (g *GameStateAction) OnDirectionKeys(elapsed float64, movementVector [2]int) {
     g.engine.camera.ChangePosition(movementVector, float32(elapsed))
 }
 

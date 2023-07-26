@@ -35,7 +35,8 @@ type BattleGame struct {
     showDebugInfo     bool
     timer             *util.Timer
     collisionSolver   *util.CollisionSolver
-    state 		   GameState
+    state             GameState
+    updateQueue       []func(deltaTime float64)
 }
 
 func (a *BattleGame) IsOccludingBlock(x, y, z int) bool {
@@ -56,6 +57,8 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
     window.SetKeyCallback(glApp.KeyCallback)
     window.SetCursorPosCallback(glApp.MousePosCallback)
     window.SetMouseButtonCallback(glApp.MouseButtonCallback)
+    window.SetScrollCallback(glApp.ScrollCallback)
+
     myApp := &BattleGame{
         GlApplication: glApp,
         camera:        util.NewISOCamera(width, height),
@@ -71,6 +74,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
     myApp.KeyHandler = myApp.handleKeyEvents
     myApp.MousePosHandler = myApp.handleMousePosEvents
     myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
+    myApp.ScrollHandler = myApp.handleScrollEvents
     mainthread.Call(func() {
         blockSelector := util.NewLineMesh(myApp.lineShader, [][2]mgl32.Vec3{
             // we need to draw 12 lines, each line has 2 points, should be a wireframe cube
@@ -162,10 +166,16 @@ func (a *BattleGame) MoveCamera(dx int, dy int) {
 
 func (a *BattleGame) Update(elapsed float64) {
     stopUpdateTimer := a.timer.Start("> Update()")
+
+    for _, f := range a.updateQueue {
+        f(elapsed)
+    }
+    a.updateQueue = a.updateQueue[:0]
+
     camMoved, movementVector := a.pollInput(elapsed)
     if camMoved {
         //a.HandlePlayerCollision()
-        a.state.OnDirectionKeys(movementVector, elapsed)
+        a.state.OnDirectionKeys(elapsed, movementVector)
         a.updateDebugInfo()
     }
     a.updateActors(elapsed)
@@ -278,6 +288,15 @@ func (a *BattleGame) SwitchToAction(unit *Unit, action Action) {
     a.state.Init()
 }
 
+func (a *BattleGame) SwitchToEditMap() {
+    a.state = &GameStateEditMap{engine: a}
+    a.state.Init()
+}
+
 func (a *BattleGame) HighlightBlocks(validTargets []voxel.Int3) {
 
+}
+
+func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
+    a.updateQueue = append(a.updateQueue, f)
 }

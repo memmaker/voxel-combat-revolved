@@ -90,7 +90,7 @@ func (c *ISOCamera) ChangePosition(dir [2]int, delta float32) {
 		dir[0], dir[1] = dir[1]*signZ*-1, dir[0]*signX*-1
 	}
 	if moveVec, ok := c.moveMap[dir]; ok {
-		speed := float32(20.0)
+		speed := float32(10.0)
 		moveVec = moveVec.Normalize().Mul(delta * speed)
 		c.cameraPos = c.cameraPos.Add(moveVec)
 	}
@@ -148,14 +148,14 @@ func (c *ISOCamera)  GetPickingRayFromScreenPosition(x float64, y float64) (mgl3
 	return rayStart, rayEnd
 }
 
-func (c *ISOCamera) ZoomIn(deltaTime float64) {
-	speed := float32(20.0)
+func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
+	speed := float32(amount) * 7
 	offset := speed * float32(deltaTime)
 	c.cameraPos = mgl32.Vec3{c.cameraPos.X(), c.cameraPos.Y() - offset, c.cameraPos.Z()}
 }
 
-func (c *ISOCamera) ZoomOut(deltaTime float64) {
-	speed := float32(20.0)
+func (c *ISOCamera) ZoomOut(deltaTime float64, amount float64) {
+	speed := float32(amount) * 7
 	offset := speed * float32(deltaTime)
 	c.cameraPos = mgl32.Vec3{c.cameraPos.X(), c.cameraPos.Y() + offset, c.cameraPos.Z()}
 }

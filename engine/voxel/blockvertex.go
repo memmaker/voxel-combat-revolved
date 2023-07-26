@@ -50,16 +50,18 @@ func (f *BlockFactory) GetBlockByName(name string) *Block {
 
 func NewTestBlock(textureIndex byte) *Block {
 	return &Block{
-		kind:         1,
-		textureIndex: textureIndex,
-		health:       100,
+		ID: textureIndex + 1,
+	}
+}
+
+func NewBlock(id byte) *Block {
+	return &Block{
+		ID: id,
 	}
 }
 func NewAirBlock() *Block {
 	return &Block{
-		kind:         0,
-		textureIndex: 0,
-		health:       0,
+		ID: 0,
 	}
 }
 

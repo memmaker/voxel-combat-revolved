@@ -11,6 +11,14 @@ type GameStateUnit struct {
     selectedUnit *Unit
 }
 
+func (g *GameStateUnit) OnScroll(deltaTime float64, xoff float64, yoff float64) {
+    if yoff > 0 {
+        g.engine.camera.ZoomOut(deltaTime, yoff)
+    } else {
+        g.engine.camera.ZoomIn(deltaTime, -yoff)
+    }
+}
+
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
     if key == glfw.KeySpace {
         g.engine.SwitchToAction(g.selectedUnit, ActionMove{engine: g.engine})
@@ -23,11 +31,11 @@ func (g *GameStateUnit) Init() {
 }
 
 func (g *GameStateUnit) OnZoomIn(deltaTime float64) {
-    g.engine.camera.ZoomIn(deltaTime)
+    g.engine.camera.ZoomIn(deltaTime, 0)
 }
 
 func (g *GameStateUnit) OnZoomOut(deltaTime float64) {
-    g.engine.camera.ZoomOut(deltaTime)
+    g.engine.camera.ZoomOut(deltaTime, 0)
 }
 
 func (g *GameStateUnit) OnUpperRightAction() {
@@ -51,7 +59,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 }
 
 
-func (g *GameStateUnit) OnDirectionKeys(movementVector [2]int, elapsed float64) {
+func (g *GameStateUnit) OnDirectionKeys(elapsed float64, movementVector [2]int) {
     g.engine.camera.ChangePosition(movementVector, float32(elapsed))
 }
 

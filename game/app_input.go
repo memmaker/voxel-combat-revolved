@@ -54,13 +54,6 @@ func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
 		cameraMoved = true
 	}
 
-	if a.Window.GetKey(glfw.KeyR) == glfw.Press {
-		a.state.OnZoomIn(deltaTime)
-	}
-
-	if a.Window.GetKey(glfw.KeyF) == glfw.Press {
-		a.state.OnZoomOut(deltaTime)
-	}
 	return cameraMoved, movementVector
 }
 func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
@@ -71,17 +64,19 @@ func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glf
 		a.state.OnMouseClicked(a.mousePosX, a.mousePosY)
 	}
 }
+
+func (a *BattleGame) handleScrollEvents(xoff float64, yoff float64) {
+	if !a.isMouseInWindow() {
+		return
+	}
+	a.scheduleUpdate(func(deltaTime float64) {
+		a.state.OnScroll(deltaTime, xoff, yoff)
+	})
+}
 func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	if key == glfw.KeyEscape && action == glfw.Press {
 		a.freeMouse()
 		return
-	}
-	if key == glfw.KeyF && action == glfw.Press {
-		a.PlaceBlockAtCurrentSelection()
-	}
-
-	if key == glfw.KeyR && action == glfw.Press {
-		a.RemoveBlock()
 	}
 
 	if key == glfw.KeyE && action == glfw.Press {
@@ -134,6 +129,7 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 
 	if key == glfw.KeyF7 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
+		a.SwitchToEditMap()
 	}
 
 	if key == glfw.KeyF8 && action == glfw.Press {

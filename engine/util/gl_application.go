@@ -19,6 +19,7 @@ type GlApplication struct {
 	KeyHandler         func(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey)
 	MousePosHandler    func(xpos float64, ypos float64)
 	MouseButtonHandler func(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey)
+	ScrollHandler      func (xoff float64, yoff float64)
 	WindowWidth        int
 	WindowHeight       int
 	ticks              uint64
@@ -41,6 +42,13 @@ func (a *GlApplication) KeyCallback(w *glfw.Window, key glfw.Key, scancode int, 
 func (a *GlApplication) MousePosCallback(w *glfw.Window, xpos float64, ypos float64) {
 	if a.MousePosHandler != nil {
 		a.MousePosHandler(xpos, ypos)
+	}
+}
+
+
+func (a *GlApplication) ScrollCallback(w *glfw.Window, xoff float64, yoff float64) {
+	if a.ScrollHandler != nil {
+		a.ScrollHandler(xoff, yoff)
 	}
 }
 
@@ -96,7 +104,6 @@ func (a *GlApplication) Run() {
 		})
 	}
 }
-
 
 func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	var win *glfw.Window

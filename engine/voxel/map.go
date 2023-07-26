@@ -1,11 +1,14 @@
 package voxel
 
 import (
+	"compress/gzip"
+	"encoding/binary"
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
 	"math/rand"
+	"os"
 )
 
 type Map struct {
@@ -17,7 +20,6 @@ type Map struct {
 	terrainTexture *glhf.Texture
 }
 
-
 func NewMap(width, height, depth int32) *Map {
 	m := &Map{
 		chunks: make([]*Chunk, width*height*depth),
@@ -28,6 +30,90 @@ func NewMap(width, height, depth int32) *Map {
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
 	return m
 }
+
+func (m *Map) SaveToDisk() {
+	// serialize this map manually to a byte array
+	outfile, err := os.Create("assets/maps/map.bin")
+	if err != nil {
+		panic(err)
+	}
+	// use a gzip writer to compress the byte array
+	// then write the compressed byte array to the file
+
+	gzipWriter := gzip.NewWriter(outfile)
+	// write 3xint32
+	binary.Write(gzipWriter, binary.LittleEndian, m.width)
+	binary.Write(gzipWriter, binary.LittleEndian, m.height)
+	binary.Write(gzipWriter, binary.LittleEndian, m.depth)
+	// write the map dimensions
+	println(fmt.Sprintf("[Map] Saving map with dimensions %d %d %d", m.width, m.height, m.depth))
+
+	// write the number of chunks
+	chunkCount := int16(len(m.chunks))
+	binary.Write(gzipWriter, binary.LittleEndian, chunkCount)
+	println(fmt.Sprintf("[Map] Saving %d chunks", chunkCount))
+
+	// write the chunks
+	for _, chunk := range m.chunks {
+		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosX)
+		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosY)
+		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosZ)
+		println(fmt.Sprintf("[Map] Saving chunk %d %d %d", chunk.chunkPosX, chunk.chunkPosY, chunk.chunkPosZ))
+		for _, block := range chunk.data {
+			binary.Write(gzipWriter, binary.LittleEndian, block.ID)
+		}
+		println(fmt.Sprintf("[Map] Saved %d blocks", len(chunk.data)))
+	}
+
+	gzipWriter.Close()
+	outfile.Close()
+}
+
+func (m *Map) LoadFromDisk() {
+	filename := "assets/maps/map.bin"
+	file, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+
+	gzipReader, err := gzip.NewReader(file)
+	if err != nil {
+		panic(err)
+	}
+
+	// read the map dimensions
+	binary.Read(gzipReader, binary.LittleEndian, &m.width)
+	binary.Read(gzipReader, binary.LittleEndian, &m.height)
+	binary.Read(gzipReader, binary.LittleEndian, &m.depth)
+	println(fmt.Sprintf("[Map] Loading map with dimensions %d %d %d", m.width, m.height, m.depth))
+
+	// read the number of chunks
+
+	chunkCount := int16(0)
+	binary.Read(gzipReader, binary.LittleEndian, &chunkCount)
+	println(fmt.Sprintf("[Map] Loading %d chunks", chunkCount))
+
+	m.chunks = make([]*Chunk, chunkCount)
+
+	// read the chunks
+	for i := int16(0); i < chunkCount; i++ {
+		var chunkPos [3]int32
+		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[0])
+		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[1])
+		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[2])
+		println(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
+		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
+		m.chunks[i] = chunk
+		for j := int32(0); j < CHUNK_SIZE_CUBED; j++ {
+			blockID := byte(0)
+			binary.Read(gzipReader, binary.LittleEndian, &blockID)
+			chunk.data[j] = NewBlock(blockID)
+		}
+		chunk.SetDirty()
+	}
+	m.GenerateAllMeshes()
+}
+
 func (m *Map) GetChunk(x, y, z int32) *Chunk {
 	i := x + y*m.width + z*m.width*m.height
 	if i < 0 || i >= int32(len(m.chunks)) {
@@ -206,7 +292,6 @@ func (m *Map) SetSetRandomStuff(block *Block) {
 type MapObject interface {
 	GetOccupiedBlockOffsets() []Int3
 	GetPosition() mgl32.Vec3
-
 }
 
 func (m *Map) MoveUnitTo(unit MapObject, pos mgl32.Vec3) bool {
