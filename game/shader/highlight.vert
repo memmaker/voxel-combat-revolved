@@ -80,28 +80,26 @@ attributes := int32(normalDirection) << 21
 // 8 bits for the texture index (0..255)
 attributes |= int32(textureIndex) << 24
 */
-void decompressVertex(int compressedValue, out vec3 position, out int normalDir, out int textureIndex)
+void decompressVertex(int compressedValue, out ivec3 position, out int normalDir, out int textureIndex)
 {
-    int positionX = compressedValue & 0x3F;// 0x3F = 0b111111
-    int positionY = (compressedValue >> 6) & 0x3F;
-    int positionZ = (compressedValue >> 12) & 0x3F;
-    normalDir = (compressedValue >> 18) & 0x7;// 0x7 = 0b111
-    textureIndex = (compressedValue >> 21) & 0xFF;// 0xFF = 0b11111111
-    // read bit 30 to determine if this is hovering highlight
-    position = vec3(positionX, positionY, positionZ);
-    int isHovering = (compressedValue >> 29) & 0x1;
-    position.y += float(isHovering) * 0.05;
+    position.x = compressedValue & 0x3F;// 0x3F = 0b111111
+    position.y = (compressedValue >> 7) & 0x3F;
+    position.z = (compressedValue >> 14) & 0x3F;
+    normalDir = (compressedValue >> 21) & 0x7;// 0x7 = 0b111
+    textureIndex = (compressedValue >> 24) & 0xFF;// 0xFF = 0b11111111
 }
 
 
 void main() {
     // decompress the vertex
     int normalDir;
+    ivec3 position;
 
-    decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex);
+    decompressVertex(compressedValue, position, normalDir, VertTexIndex);
 
     // pass-through for fragment shader
     VertNormal = normalLookup[normalDir];
+    VertPos = vec3(position.x, position.y+0.05, position.z);
 
-    gl_Position = projection * camera * model * vec4(VertPos, 1.0);
+    gl_Position = projection * camera * model * vec4(position, 1.0);
 }

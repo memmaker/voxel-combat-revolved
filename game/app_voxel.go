@@ -9,9 +9,10 @@ import (
 
 type RayCastHit struct {
 	util.HitInfo3D
-	VisitedBlocks          []voxel.Int3
-	UnitHit                *Unit
+	VisitedBlocks []voxel.Int3
+	UnitHit       *Unit
 }
+
 func (a *BattleGame) RayCast(rayStart, rayEnd mgl32.Vec3) *RayCastHit {
 	voxelMap := a.voxelMap
 	var visitedBlocks []voxel.Int3
@@ -77,7 +78,7 @@ func (a *BattleGame) LoadVoxelMap(filename string) *voxel.Map {
 	terrainTexture, textureIndices := util.CreateAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
 	bf := voxel.NewBlockFactory(textureIndices)
 
-	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, construction)
+	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, a.highlightShader, construction)
 	loadedMap.SetTerrainTexture(terrainTexture)
 
 	loadedMap.GenerateAllMeshes()
@@ -107,7 +108,7 @@ func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
 		sizeHorizontal := 3
 		sizeVertical := 1
 		loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
-		loadedMap.SetChunkShader(a.chunkShader)
+		loadedMap.SetShader(a.chunkShader, a.highlightShader)
 		loadedMap.SetTerrainTexture(terrainTexture)
 		for x := 0; x < sizeHorizontal; x++ {
 			for z := 0; z < sizeHorizontal; z++ {
@@ -117,6 +118,35 @@ func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
 		loadedMap.SetFloorAtHeight(0, bf.GetBlockByName("stone"))
 		//loadedMap.SetSetRandomStuff(bf.GetBlockByName("stone"))
 		loadedMap.GenerateAllMeshes()
+		a.SetVoxelMap(loadedMap)
+	})
+
+	return loadedMap
+}
+func (a *BattleGame) LoadDevWorld() *voxel.Map {
+	listOfBlocks := []string{
+		"brick",
+		"clay",
+		"copper_block",
+		"diamond_block",
+		"emerald_block",
+		"granite",
+		"gravel",
+		"iron_block",
+		"sand",
+		"sandstone",
+		"stone",
+	}
+	var loadedMap *voxel.Map
+	mainthread.Call(func() {
+		terrainTexture, _ := util.CreateAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
+		//bf := voxel.NewBlockFactory(textureIndices)
+		sizeHorizontal := 3
+		sizeVertical := 1
+		loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
+		loadedMap.SetShader(a.chunkShader, a.highlightShader)
+		loadedMap.SetTerrainTexture(terrainTexture)
+		loadedMap.LoadFromDisk()
 		a.SetVoxelMap(loadedMap)
 	})
 

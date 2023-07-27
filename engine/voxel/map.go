@@ -9,15 +9,17 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sort"
 )
 
 type Map struct {
-	chunks         []*Chunk
-	width          int32
-	height         int32
-	depth          int32
-	chunkShader    *glhf.Shader
-	terrainTexture *glhf.Texture
+	chunks          []*Chunk
+	width           int32
+	height          int32
+	depth           int32
+	chunkShader     *glhf.Shader
+	terrainTexture  *glhf.Texture
+	highlightShader *glhf.Shader
 }
 
 func NewMap(width, height, depth int32) *Map {
@@ -102,7 +104,7 @@ func (m *Map) LoadFromDisk() {
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[1])
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[2])
 		println(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
-		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
+		chunk := NewChunk(m.chunkShader, m.highlightShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
 		m.chunks[i] = chunk
 		for j := int32(0); j < CHUNK_SIZE_CUBED; j++ {
 			blockID := byte(0)
@@ -112,15 +114,6 @@ func (m *Map) LoadFromDisk() {
 		chunk.SetDirty()
 	}
 	m.GenerateAllMeshes()
-}
-
-func (m *Map) GetChunk(x, y, z int32) *Chunk {
-	i := x + y*m.width + z*m.width*m.height
-	if i < 0 || i >= int32(len(m.chunks)) {
-		return nil
-	} else {
-		return m.chunks[i]
-	}
 }
 
 func (m *Map) SetChunk(x, y, z int32, c *Chunk) {
@@ -202,6 +195,14 @@ func (m *Map) GetBlockFromPosition(position mgl32.Vec3) *Block {
 func (m *Map) GetChunkFromBlock(x, y, z int32) *Chunk {
 	return m.GetChunk(x/CHUNK_SIZE, y/CHUNK_SIZE, z/CHUNK_SIZE)
 }
+func (m *Map) GetChunk(x, y, z int32) *Chunk {
+	i := x + y*m.width + z*m.width*m.height
+	if i < 0 || i >= int32(len(m.chunks)) {
+		return nil
+	} else {
+		return m.chunks[i]
+	}
+}
 func (m *Map) ChunkExists(x, y, z int32) bool {
 	return m.GetChunk(x, y, z) != nil
 }
@@ -251,8 +252,9 @@ func (m *Map) ContainsGrid(position Int3) bool {
 	return m.Contains(position.X, position.Y, position.Z)
 }
 
-func (m *Map) SetChunkShader(shader *glhf.Shader) {
-	m.chunkShader = shader
+func (m *Map) SetShader(chunkShader, highlightShader *glhf.Shader) {
+	m.chunkShader = chunkShader
+	m.highlightShader = highlightShader
 }
 
 func (m *Map) SetTerrainTexture(texture *glhf.Texture) {
@@ -260,7 +262,7 @@ func (m *Map) SetTerrainTexture(texture *glhf.Texture) {
 }
 
 func (m *Map) NewChunk(cX int32, cY int32, cZ int32) *Chunk {
-	chunk := NewChunk(m.chunkShader, m, cX, cY, cZ)
+	chunk := NewChunk(m.chunkShader, m.highlightShader, m, cX, cY, cZ)
 	m.SetChunk(cX, cY, cZ, chunk)
 	return chunk
 }
@@ -337,10 +339,6 @@ func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
 	}
 }
 
-func IsObstacle(vec *Block) bool {
-	return vec != nil && !vec.IsAir()
-}
-
 func GetBlocksNeededByConstruction(construction *Construction) []string {
 	blocks := make(map[string]bool)
 	for _, section := range construction.Sections {
@@ -374,7 +372,7 @@ func GetBlockEntitiesNeededByConstruction(construction *Construction) []string {
 	}
 	return blockEntityNames
 }
-func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction *Construction) *Map {
+func NewMapFromConstruction(bf *BlockFactory, chunkShader, highlightShader *glhf.Shader, construction *Construction) *Map {
 	minX, minY, minZ := int32(math.MaxInt32), int32(math.MaxInt32), int32(math.MaxInt32)
 	maxX, maxY, maxZ := int32(math.MinInt32), int32(math.MinInt32), int32(math.MinInt32)
 	for _, section := range construction.Sections {
@@ -403,7 +401,7 @@ func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction 
 	chunkCountZ := int32(math.Ceil(float64(maxZ-minZ) / float64(CHUNK_SIZE)))
 	println(fmt.Sprintf("[Map] Chunk count: %d %d %d", chunkCountX, chunkCountY, chunkCountZ))
 	voxelMap := NewMap(chunkCountX, chunkCountY, chunkCountZ)
-	voxelMap.SetChunkShader(shader)
+	voxelMap.SetShader(chunkShader, highlightShader)
 	chunkCounter := 0
 	for cX := int32(0); cX < chunkCountX; cX++ {
 		for cY := int32(0); cY < chunkCountY; cY++ {
@@ -467,4 +465,62 @@ func NewMapFromConstruction(bf *BlockFactory, shader *glhf.Shader, construction 
 	println(fmt.Sprintf("[Map] Loaded map with %d blocks in %d chunks", blockCounter, chunkCounter))
 
 	return voxelMap
+}
+
+func (m *Map) SetHighlights(highlightPositions []Int3) {
+	sort.Slice(highlightPositions, func(i, j int) bool {
+		chunkXI, chunkYI, chunkZI := highlightPositions[i].X/CHUNK_SIZE, highlightPositions[i].Y/CHUNK_SIZE, highlightPositions[i].Z/CHUNK_SIZE
+		chunkXJ, chunkYJ, chunkZJ := highlightPositions[j].X/CHUNK_SIZE, highlightPositions[j].Y/CHUNK_SIZE, highlightPositions[j].Z/CHUNK_SIZE
+		return chunkXI < chunkXJ || chunkYI < chunkYJ || chunkZI < chunkZJ
+	})
+	firstBlockPos := highlightPositions[0]
+	firstChunk := m.GetChunkFromBlock(firstBlockPos.X, firstBlockPos.Y, firstBlockPos.Z)
+	currentChunk := firstChunk
+	currentChunkX, currentChunkY, currentChunkZ := firstChunk.chunkPosX, firstChunk.chunkPosY, firstChunk.chunkPosZ
+	highlightsForChunk := make([]Int3, 0)
+	firstBlockLocalPos := Int3{firstBlockPos.X % CHUNK_SIZE, firstBlockPos.Y % CHUNK_SIZE, firstBlockPos.Z % CHUNK_SIZE}
+	highlightsForChunk = append(highlightsForChunk, firstBlockLocalPos)
+	for _, absPos := range highlightPositions {
+		chunkX, chunkY, chunkZ := absPos.X/CHUNK_SIZE, absPos.Y/CHUNK_SIZE, absPos.Z/CHUNK_SIZE
+		if chunkX != currentChunkX || chunkY != currentChunkY || chunkZ != currentChunkZ {
+			currentChunk.SetHighlights(highlightsForChunk)
+			highlightsForChunk = make([]Int3, 0)
+			currentChunkX, currentChunkY, currentChunkZ = chunkX, chunkY, chunkZ
+			currentChunk = m.GetChunk(chunkX, chunkY, chunkZ)
+		}
+		localPos := Int3{absPos.X % CHUNK_SIZE, absPos.Y % CHUNK_SIZE, absPos.Z % CHUNK_SIZE}
+		highlightsForChunk = append(highlightsForChunk, localPos)
+	}
+	currentChunk.SetHighlights(highlightsForChunk)
+}
+
+func (m *Map) GetNeighbors(block Int3, keepPredicate func(neighbor Int3) bool) []Int3 {
+	neighbors := make([]Int3, 0)
+	xp := block.Add(Int3{X: 1})
+	if m.ContainsGrid(xp) && keepPredicate(xp) {
+		neighbors = append(neighbors, xp)
+	}
+	xn := block.Add(Int3{X: -1})
+	if m.ContainsGrid(xn) && keepPredicate(xn) {
+		neighbors = append(neighbors, xn)
+	}
+
+	yp := block.Add(Int3{Y: 1})
+	if m.ContainsGrid(yp) && keepPredicate(yp) {
+		neighbors = append(neighbors, yp)
+	}
+	yn := block.Add(Int3{Y: -1})
+	if m.ContainsGrid(yn) && keepPredicate(yn) {
+		neighbors = append(neighbors, yn)
+	}
+
+	zp := block.Add(Int3{Z: 1})
+	if m.ContainsGrid(zp) && keepPredicate(zp) {
+		neighbors = append(neighbors, zp)
+	}
+	zn := block.Add(Int3{Z: -1})
+	if m.ContainsGrid(zn) && keepPredicate(zn) {
+		neighbors = append(neighbors, zn)
+	}
+	return neighbors
 }

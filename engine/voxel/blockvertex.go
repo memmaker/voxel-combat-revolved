@@ -1,23 +1,28 @@
 package voxel
 
+import (
+	"github.com/memmaker/battleground/engine/glhf"
+)
+
 type FaceType int32
 
 const (
-	xp FaceType = iota
-	xn
-	yp
-	yn
-	zp
-	zn
+	XP FaceType = iota
+	XN
+	YP
+	YN
+	ZP
+	ZN
 )
 
 type ChunkMesh interface {
-	AppendQuad(bl, tl, br, tr Int3, normal FaceType, textureIndex byte)
+	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8)
 	Reset()
 	Draw()
 	FlushMesh()
 	TriangleCount() int
 	MergeBuffer(buffer ChunkMesh)
+	GetShader() *glhf.Shader
 }
 
 type BlockFactory struct {

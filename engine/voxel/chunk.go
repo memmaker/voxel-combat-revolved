@@ -9,29 +9,32 @@ import (
 // translated from https://github.com/Vercidium/voxel-mesh-generation/blob/master/source/Chunk.cs
 
 type Chunk struct {
-	data        []*Block
-	m           *Map
-	chunkPosX   int32
-	chunkPosY   int32
-	chunkPosZ   int32
-	chunkHelper *ChunkHelper
-	cXN         *Chunk
-	cXP         *Chunk
-	cYN         *Chunk
-	cYP         *Chunk
-	cZN         *Chunk
-	cZP         *Chunk
-	isDirty     bool
-	meshBuffer  ChunkMesh
+	data            []*Block
+	m               *Map
+	chunkPosX       int32
+	chunkPosY       int32
+	chunkPosZ       int32
+	chunkHelper     *ChunkHelper
+	cXN             *Chunk
+	cXP             *Chunk
+	cYN             *Chunk
+	cYP             *Chunk
+	cZN             *Chunk
+	cZP             *Chunk
+	isDirty         bool
+	meshBuffer      ChunkMesh
+	highLightMesh   *HighlightMesh
+	highlightShader *glhf.Shader
 }
 
-func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
+func NewChunk(chunkShader, highlightShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
 	c := &Chunk{
-		data:      make([]*Block, CHUNK_SIZE_CUBED),
-		m:         voxelMap,
-		chunkPosX: x,
-		chunkPosY: y,
-		chunkPosZ: z,
+		highlightShader: highlightShader,
+		data:            make([]*Block, CHUNK_SIZE_CUBED),
+		m:               voxelMap,
+		chunkPosX:       x,
+		chunkPosY:       y,
+		chunkPosZ:       z,
 		chunkHelper: &ChunkHelper{
 			visitXN: make([]bool, CHUNK_SIZE_CUBED),
 			visitXP: make([]bool, CHUNK_SIZE_CUBED),
@@ -149,11 +152,11 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
 			switch {
 			case d == 0:
-				side = map[bool]FaceType{true: xn, false: xp}[backFace]
+				side = map[bool]FaceType{true: XN, false: XP}[backFace]
 			case d == 1:
-				side = map[bool]FaceType{true: yn, false: yp}[backFace]
+				side = map[bool]FaceType{true: YN, false: YP}[backFace]
 			case d == 2:
-				side = map[bool]FaceType{true: zn, false: zp}[backFace]
+				side = map[bool]FaceType{true: ZN, false: ZP}[backFace]
 			}
 
 			for x[d] = -1; x[d] < CHUNK_SIZE; {
@@ -223,7 +226,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 								topLeft := Int3{x[0] + du[0], x[1] + du[1], x[2] + du[2]}
 								bottomRight := Int3{x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]}
 								topRight := Int3{x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]}
-								c.meshBuffer.AppendQuad(bottomLeft, topLeft, bottomRight, topRight, mask[n].side, mask[n].textureIndex)
+								c.meshBuffer.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, [4]uint8{})
 								// we also would have width (w) and height (h) here
 								// backface is a bool, true if we are rendering the backface of a block
 							}
@@ -262,7 +265,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 	}
 	var neighbor *Block
 	switch side {
-	case xn:
+	case XN:
 		if x == 0 {
 			if c.cXN != nil {
 				neighbor = c.cXN.GetLocalBlock(CHUNK_SIZE-1, y, z)
@@ -270,7 +273,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x-1, y, z)
 		}
-	case xp:
+	case XP:
 		if x == CHUNK_SIZE-1 {
 			if c.cXP != nil {
 				neighbor = c.cXP.GetLocalBlock(0, y, z)
@@ -278,7 +281,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x+1, y, z)
 		}
-	case yn:
+	case YN:
 		if y == 0 {
 			if c.cYN != nil {
 				neighbor = c.cYN.GetLocalBlock(x, CHUNK_SIZE-1, z)
@@ -286,7 +289,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y-1, z)
 		}
-	case yp:
+	case YP:
 		if y == CHUNK_SIZE-1 {
 			if c.cYP != nil {
 				neighbor = c.cYP.GetLocalBlock(x, 0, z)
@@ -294,7 +297,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y+1, z)
 		}
-	case zn:
+	case ZN:
 		if z == 0 {
 			if c.cZN != nil {
 				neighbor = c.cZN.GetLocalBlock(x, y, CHUNK_SIZE-1)
@@ -302,7 +305,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y, z-1)
 		}
-	case zp:
+	case ZP:
 		if z == CHUNK_SIZE-1 {
 			if c.cZP != nil {
 				neighbor = c.cZP.GetLocalBlock(x, y, 0)
@@ -347,7 +350,7 @@ func (i Int3) ToVec3() mgl32.Vec3 {
 	return mgl32.Vec3{float32(i.X), float32(i.Y), float32(i.Z)}
 }
 
-func (i Int3) Div(factor int)Int3 {
+func (i Int3) Div(factor int) Int3 {
 	return Int3{i.X / int32(factor), i.Y / int32(factor), i.Z / int32(factor)}
 }
 
@@ -365,9 +368,12 @@ func (c *Chunk) Draw(shader *glhf.Shader, camDirection mgl32.Vec3) {
 	}
 	shader.SetUniformAttr(2, c.GetMatrix())
 	c.meshBuffer.Draw()
+	if c.highLightMesh != nil {
+		c.highLightMesh.Draw()
+	}
 }
 func (c *Chunk) getDiscreteCamDir(camDir mgl32.Vec3) Int3 {
-	intPos := Int3{0,0,0}
+	intPos := Int3{0, 0, 0}
 	if camDir.X() < 0 {
 		intPos.X = 1
 	} else if camDir.X() > 0 {
@@ -387,7 +393,6 @@ func (c *Chunk) getDiscreteCamDir(camDir mgl32.Vec3) Int3 {
 	}
 	return intPos
 }
-
 
 func (c *Chunk) GetMatrix() mgl32.Mat4 {
 	return mgl32.Translate3D(float32(c.chunkPosX*CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE))
@@ -412,4 +417,12 @@ func (c *Chunk) AABBMin() mgl32.Vec3 {
 
 func (c *Chunk) AABBMax() mgl32.Vec3 {
 	return mgl32.Vec3{float32(c.chunkPosX*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE + CHUNK_SIZE)}
+}
+
+func (c *Chunk) GetShader() *glhf.Shader {
+	return c.meshBuffer.GetShader()
+}
+
+func (c *Chunk) SetHighlights(positions []Int3) {
+	c.highLightMesh = NewHighlightMesh(c.highlightShader, positions)
 }

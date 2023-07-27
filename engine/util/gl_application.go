@@ -19,7 +19,7 @@ type GlApplication struct {
 	KeyHandler         func(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey)
 	MousePosHandler    func(xpos float64, ypos float64)
 	MouseButtonHandler func(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey)
-	ScrollHandler      func (xoff float64, yoff float64)
+	ScrollHandler      func(xoff float64, yoff float64)
 	WindowWidth        int
 	WindowHeight       int
 	ticks              uint64
@@ -44,7 +44,6 @@ func (a *GlApplication) MousePosCallback(w *glfw.Window, xpos float64, ypos floa
 		a.MousePosHandler(xpos, ypos)
 	}
 }
-
 
 func (a *GlApplication) ScrollCallback(w *glfw.Window, xoff float64, yoff float64) {
 	if a.ScrollHandler != nil {
@@ -127,7 +126,7 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 			panic(err)
 		}
 		win.MakeContextCurrent()
-		glfw.SwapInterval(0) // enable (1) vsync
+		glfw.SwapInterval(1) // enable (1) vsync
 
 		glhf.Init()
 		gl.DepthFunc(gl.LESS)

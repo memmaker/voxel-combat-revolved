@@ -21,6 +21,12 @@ var (
 	//go:embed shader/chunk.frag
 	chunkFragmentShaderSource string
 
+	//go:embed shader/highlight.vert
+	highlightVertexShaderSource string
+
+	//go:embed shader/highlight.frag
+	highlightFragmentShaderSource string
+
 	//go:embed shader/line.vert
 	lineVertexShaderSource string
 
@@ -33,8 +39,6 @@ var (
 	//go:embed shader/gui.frag
 	guiFragmentShaderSource string
 )
-
-
 
 func (a *BattleGame) loadGuiShader() *glhf.Shader {
 	var (
@@ -114,6 +118,48 @@ func (a *BattleGame) loadChunkShader() *glhf.Shader {
 	mainthread.Call(func() {
 		var err error
 		shader, err = glhf.NewShader(vertexFormat, uniformFormat, chunkVertexShaderSource, chunkFragmentShaderSource)
+
+		if err != nil {
+			panic(err)
+		}
+
+		shader.Begin()
+		shader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
+
+		shader.SetUniformAttr(1, a.camera.GetViewMatrix())
+
+		model := mgl32.Ident4()
+		shader.SetUniformAttr(2, model)
+
+		lightPos := mgl32.Vec3{1, 5, 0}
+		shader.SetUniformAttr(3, lightPos)
+
+		lightColor := mgl32.Vec3{1, 1, 1}
+		shader.SetUniformAttr(4, lightColor)
+
+		shader.End()
+	})
+	return shader
+}
+
+func (a *BattleGame) loadHighlightShader() *glhf.Shader {
+	var (
+		vertexFormat = glhf.AttrFormat{
+			{Name: "compressedValue", Type: glhf.Int},
+		}
+		uniformFormat = glhf.AttrFormat{
+			glhf.Attr{Name: "projection", Type: glhf.Mat4},
+			glhf.Attr{Name: "camera", Type: glhf.Mat4},
+			glhf.Attr{Name: "model", Type: glhf.Mat4},
+			glhf.Attr{Name: "light_position", Type: glhf.Vec3},
+			glhf.Attr{Name: "light_color", Type: glhf.Vec3},
+		}
+		shader *glhf.Shader
+	)
+
+	mainthread.Call(func() {
+		var err error
+		shader, err = glhf.NewShader(vertexFormat, uniformFormat, highlightVertexShaderSource, highlightFragmentShaderSource)
 
 		if err != nil {
 			panic(err)

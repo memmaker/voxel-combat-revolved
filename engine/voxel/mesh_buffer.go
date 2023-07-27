@@ -25,6 +25,10 @@ type MeshBuffer struct {
 	faceMap            map[Int3]MultiDrawIndex
 }
 
+func (m *MeshBuffer) GetShader() *glhf.Shader {
+	return m.shader
+}
+
 type MultiDrawIndex struct {
 	Start []int32
 	Count []int32
@@ -38,14 +42,14 @@ func (m *MeshBuffer) TriangleCount() int {
 // Further reduce the amount of data we need to send to the GPU
 // Use indexed drawing?
 
-func (m *MeshBuffer) AppendQuad(bl, tl, br, tr Int3, normal FaceType, textureIndex byte) {
+func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8) {
 	//println(fmt.Sprintf("bl: %v, tl: %v, br: %v, tr: %v, normal: %v, textureIndex: %v", bl, tl, br, tr, normal, textureIndex))
 	// min => bl, max => tr
 	// 8+3 = 11 bits + 4*18 bits => 72 + 11 = 83 bits, one 64bit and one 32bit integer => 96 bits
-	compressedVertexTL := m.Compress(tl, normal, textureIndex) // we use 29 of 32 bits, only 18 are different between the vertices
-	compressedVertexTR := m.Compress(tr, normal, textureIndex)
-	compressedVertexBL := m.Compress(bl, normal, textureIndex)
-	compressedVertexBR := m.Compress(br, normal, textureIndex)
+	compressedVertexTR := m.Compress(tr, normal, textureIndex, extraBits[0])
+	compressedVertexBR := m.Compress(br, normal, textureIndex, extraBits[1])
+	compressedVertexBL := m.Compress(bl, normal, textureIndex, extraBits[2])
+	compressedVertexTL := m.Compress(tl, normal, textureIndex, extraBits[3]) // we use 29 of 32 bits, only 18 are different between the vertices
 
 	// quad info:
 	// 4x Position (x,y,z) => 4x3x6 bits = 72 bits
@@ -166,7 +170,7 @@ func (m *MeshBuffer) PartialDraw(camDirection Int3) {
 }
 
 // Compresses the position, normal direction and texture index into a 32 bit integer.
-func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte) int32 {
+func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte, extraBits uint8) int32 {
 	// 6 bits for the x y z axis
 	// max value for each axis is 2^6 - 1 = 63
 	// we want to pack these into one 32 bit integer
@@ -175,8 +179,8 @@ func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIn
 	maxZ := int32(63)
 
 	xAxis := position.X
-	yAxis := position.Y << 7
-	zAxis := position.Z << 14
+	yAxis := position.Y << 6
+	zAxis := position.Z << 12
 
 	if position.X < 0 || position.X > maxX {
 		println("x axis out of bounds: ", position.X)
@@ -190,9 +194,13 @@ func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIn
 	compressedPosition := xAxis | yAxis | zAxis
 
 	// 3 bits for the normal direction (0..5)
-	attributes := int32(normalDirection) << 21
+	attributes := int32(normalDirection) << 18
 	// 8 bits for the texture index (0..255)
-	attributes |= int32(textureIndex) << 24
+	attributes |= int32(textureIndex) << 21
+
+	// add the first three extra bits
+	attributes |= int32(extraBits) << 29
+
 	compressedVertex := compressedPosition | attributes
 	// total: 29 bits, 3 bits left
 	return compressedVertex
@@ -206,39 +214,39 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []
 		mergedData = append(mergedData, vertexData...)
 		faceVertices[normalDir] = [2]int32{int32(startIndex), int32(count)}
 	}
-	m.faceMap[Int3{0, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0]}, Count: []int32{faceVertices[zp][1]}}
-	m.faceMap[Int3{0, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0]}, Count: []int32{faceVertices[zn][1]}}
-	m.faceMap[Int3{0, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yp][0]}, Count: []int32{faceVertices[yp][1]}}
-	m.faceMap[Int3{0, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yn][0]}, Count: []int32{faceVertices[yn][1]}}
-	m.faceMap[Int3{1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[xp][0]}, Count: []int32{faceVertices[xp][1]}}
-	m.faceMap[Int3{-1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[xn][0]}, Count: []int32{faceVertices[xn][1]}}
+	m.faceMap[Int3{0, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0]}, Count: []int32{faceVertices[ZP][1]}}
+	m.faceMap[Int3{0, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0]}, Count: []int32{faceVertices[ZN][1]}}
+	m.faceMap[Int3{0, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0]}, Count: []int32{faceVertices[YP][1]}}
+	m.faceMap[Int3{0, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0]}, Count: []int32{faceVertices[YN][1]}}
+	m.faceMap[Int3{1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[XP][0]}, Count: []int32{faceVertices[XP][1]}}
+	m.faceMap[Int3{-1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[XN][0]}, Count: []int32{faceVertices[XN][1]}}
 
 	// two axis
-	m.faceMap[Int3{0, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yp][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yp][1]}}
-	m.faceMap[Int3{0, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yp][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yp][1]}}
-	m.faceMap[Int3{0, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yn][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yn][1]}}
-	m.faceMap[Int3{0, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yn][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yn][1]}}
+	m.faceMap[Int3{0, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1]}}
+	m.faceMap[Int3{0, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1]}}
+	m.faceMap[Int3{0, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1]}}
+	m.faceMap[Int3{0, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1]}}
 
-	m.faceMap[Int3{1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zp][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zn][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{-1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zp][1], faceVertices[xn][1]}}
-	m.faceMap[Int3{-1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zn][1], faceVertices[xn][1]}}
+	m.faceMap[Int3{1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{-1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[XN][1]}}
 
-	m.faceMap[Int3{1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yp][0], faceVertices[xp][0]}, Count: []int32{faceVertices[yp][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yn][0], faceVertices[xp][0]}, Count: []int32{faceVertices[yn][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{-1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yp][0], faceVertices[xn][0]}, Count: []int32{faceVertices[yp][1], faceVertices[xn][1]}}
-	m.faceMap[Int3{-1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[yn][0], faceVertices[xn][0]}, Count: []int32{faceVertices[yn][1], faceVertices[xn][1]}}
+	m.faceMap[Int3{1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[YP][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[YN][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{-1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[YP][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[YN][1], faceVertices[XN][1]}}
 
 	// three axis
-	m.faceMap[Int3{1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yp][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yp][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yp][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yp][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yn][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yn][1], faceVertices[xp][1]}}
-	m.faceMap[Int3{1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yn][0], faceVertices[xp][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yn][1], faceVertices[xp][1]}}
+	m.faceMap[Int3{1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1], faceVertices[XP][1]}}
 
-	m.faceMap[Int3{-1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yp][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yp][1], faceVertices[xn][1]}}
-	m.faceMap[Int3{-1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yp][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yp][1], faceVertices[xn][1]}}
-	m.faceMap[Int3{-1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[zp][0], faceVertices[yn][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zp][1], faceVertices[yn][1], faceVertices[xn][1]}}
-	m.faceMap[Int3{-1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[zn][0], faceVertices[yn][0], faceVertices[xn][0]}, Count: []int32{faceVertices[zn][1], faceVertices[yn][1], faceVertices[xn][1]}}
+	m.faceMap[Int3{-1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1], faceVertices[XN][1]}}
 
 	return mergedData
 }
