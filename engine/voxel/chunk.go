@@ -426,3 +426,7 @@ func (c *Chunk) GetShader() *glhf.Shader {
 func (c *Chunk) SetHighlights(positions []Int3) {
 	c.highLightMesh = NewHighlightMesh(c.highlightShader, positions)
 }
+
+func (c *Chunk) ClearHighlights() {
+	c.highLightMesh = nil
+}

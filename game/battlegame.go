@@ -27,7 +27,7 @@ type BattleGame struct {
 	textLabel         *etxt.TextMesh
 	textRenderer      *etxt.OpenGLTextRenderer
 	lastHitInfo       *RayCastHit
-	actors            []*Unit
+	units             []*Unit
 	projectiles       []*Projectile
 	debugObjects      []PositionDrawable
 	blockTypeToPlace  byte
@@ -36,8 +36,12 @@ type BattleGame struct {
 	showDebugInfo     bool
 	timer             *util.Timer
 	collisionSolver   *util.CollisionSolver
-	state             GameState
+	stateStack        []GameState
 	updateQueue       []func(deltaTime float64)
+}
+
+func (a *BattleGame) state() GameState {
+	return a.stateStack[len(a.stateStack)-1]
 }
 
 func (a *BattleGame) IsOccludingBlock(x, y, z int) bool {
@@ -132,15 +136,15 @@ func (a *BattleGame) LoadModel(filename string) *util.CompoundMesh {
 
 func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3) *Unit {
 	//model := a.LoadModel("./assets/model.gltf")
-	model := a.LoadModel("./assets/models/Guard2.glb")
+	model := a.LoadModel("./assets/models/Guard3.glb")
 	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
 	//model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
 	model.SetTexture(0, util.MustLoadTexture("./assets/textures/skins/police_officer.png"))
 	model.SetAnimation("animation.walk")
 	unit := NewUnit(model, spawnPos, "Policeman")
+	unit.SetMap(a.voxelMap)
 	a.collisionSolver.AddObject(unit)
-	a.voxelMap.MoveUnitTo(unit, spawnPos)
-	a.actors = append(a.actors, unit)
+	a.units = append(a.units, unit)
 	return unit
 }
 
@@ -171,21 +175,23 @@ func (a *BattleGame) Update(elapsed float64) {
 	camMoved, movementVector := a.pollInput(elapsed)
 	if camMoved {
 		//a.HandlePlayerCollision()
-		a.state.OnDirectionKeys(elapsed, movementVector)
-		a.updateDebugInfo()
+		a.state().OnDirectionKeys(elapsed, movementVector)
 	}
-	a.updateActors(elapsed)
+	a.updateUnits(elapsed)
 	//a.updateProjectiles(elapsed)
 	a.collisionSolver.Update(elapsed)
+
+	a.updateDebugInfo()
 	stopUpdateTimer()
+
 }
 
-func (a *BattleGame) updateActors(deltaTime float64) {
-	for i := len(a.actors) - 1; i >= 0; i-- {
-		actor := a.actors[i]
+func (a *BattleGame) updateUnits(deltaTime float64) {
+	for i := len(a.units) - 1; i >= 0; i-- {
+		actor := a.units[i]
 		actor.Update(deltaTime)
 		if actor.ShouldBeRemoved() {
-			a.actors = append(a.actors[:i], a.actors[i+1:]...)
+			a.units = append(a.units[:i], a.units[i+1:]...)
 		}
 	}
 }
@@ -219,7 +225,7 @@ func (a *BattleGame) drawModels() {
 
 	a.modelShader.SetUniformAttr(1, a.camera.GetViewMatrix())
 
-	for _, actor := range a.actors {
+	for _, actor := range a.units {
 		actor.Draw(a.modelShader, a.camera.GetPosition())
 	}
 
@@ -252,7 +258,7 @@ func (a *BattleGame) drawLines() {
 		a.lineShader.SetUniformAttr(2, mgl32.Ident4())
 		a.lineShader.SetUniformAttr(3, mgl32.Vec3{0.1, 1.0, 0.1})
 		//a.player.GetAABB().Draw(a.lineShader)
-		for _, actor := range a.actors {
+		for _, actor := range a.units {
 			actor.GetAABB().Draw(a.lineShader)
 		}
 		for _, projectile := range a.projectiles {
@@ -275,20 +281,39 @@ func (a *BattleGame) drawGUI() {
 }
 
 func (a *BattleGame) SwitchToUnit(unit *Unit) {
-	a.state = &GameStateUnit{engine: a, selectedUnit: unit}
-	a.state.Init()
+	a.stateStack = append(a.stateStack, &GameStateUnit{engine: a, selectedUnit: unit})
+	a.state().Init()
 }
 
 func (a *BattleGame) SwitchToAction(unit *Unit, action Action) {
-	a.state = &GameStateAction{engine: a, selectedUnit: unit, selectedAction: action}
-	a.state.Init()
+	a.stateStack = append(a.stateStack, &GameStateAction{engine: a, selectedUnit: unit, selectedAction: action})
+	a.state().Init()
 }
 
 func (a *BattleGame) SwitchToEditMap() {
-	a.state = &GameStateEditMap{engine: a}
-	a.state.Init()
+	a.stateStack = append(a.stateStack, &GameStateEditMap{engine: a})
+	a.state().Init()
 }
 
 func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
 	a.updateQueue = append(a.updateQueue, f)
+}
+
+func (a *BattleGame) PopState() {
+	if len(a.stateStack) > 1 {
+		a.stateStack = a.stateStack[:len(a.stateStack)-1]
+	}
+	a.state().Init()
+}
+func (a *BattleGame) UpdateMousePicking(newX, newY float64) {
+	rayStart, rayEnd := a.camera.GetPickingRayFromScreenPosition(newX, newY)
+	a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
+	hitInfo := a.RayCast(rayStart, rayEnd)
+	if hitInfo != nil {
+		if hitInfo.UnitHit != nil {
+			a.blockSelector.SetPosition(util.ToGrid(hitInfo.UnitHit.GetFootPosition()))
+		} else if hitInfo.Hit {
+			a.blockSelector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
+		}
+	}
 }

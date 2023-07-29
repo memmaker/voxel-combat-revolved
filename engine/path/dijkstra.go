@@ -1,5 +1,9 @@
 package path
 
+import (
+	"math"
+)
+
 /*
 function Dijkstra(Graph, source):
 2      dist[source] ← 0                           // Initialization
@@ -32,29 +36,43 @@ function Dijkstra(Graph, source):
 // 	// ...
 // }
 
-type DijkstraSource interface {
-	GetNeighbors(node PathNode) []PathNode
-	GetCost(currentNode PathNode, neighbor PathNode) int
+type DijkstraSource[T any] interface {
+	GetNeighbors(node T) []T
+	GetCost(currentNode T, neighbor T) int
 }
 
-func Dijkstra(source PathNode, maxCost int, dataSource DijkstraSource) (dist map[PathNode]int, prev map[PathNode]PathNode) {
-	dist = make(map[PathNode]int)
-	prev = make(map[PathNode]PathNode)
-	dist[source] = 0
-	Q := NewPriorityQueue([]PathNode{source})
+func Dijkstra[T comparable](source *PqItem[T], maxCost int, dataSource DijkstraSource[T]) (dist map[T]int, prev map[T]T) {
+	dist = make(map[T]int)
+	prev = make(map[T]T)
+	existingNodes := make(map[T]PathNode[T])
+	dist[source.GetValue()] = 0
+	getDist := func(n T) int {
+		if d, ok := dist[n]; ok {
+			return d
+		} else {
+			return math.MaxInt
+		}
+	}
+	Q := NewPriorityQueue([]PathNode[T]{source})
 	for Q.Len() > 0 {
-		currentNode := Q.Pop().(PathNode)
-		for _, neighbor := range dataSource.GetNeighbors(currentNode) {
-			neighborDist := dist[currentNode] + dataSource.GetCost(currentNode, neighbor)
-			oldNeighborDist, exists := dist[neighbor]
-			if !exists && neighborDist <= maxCost {
+		currentNode := Q.Pop().(PathNode[T])
+		for _, n := range dataSource.GetNeighbors(currentNode.GetValue()) { // generates new instances, no state is preserved..!
+			neighbor := n
+			neighborDist := getDist(currentNode.GetValue()) + dataSource.GetCost(currentNode.GetValue(), neighbor)
+			oldNeighborDist := getDist(neighbor)
+			if neighborDist <= maxCost && neighborDist < oldNeighborDist {
+				var neighborNode PathNode[T]
+				if existingNode, ok := existingNodes[neighbor]; ok {
+					existingNode.SetPriority(neighborDist)
+					neighborNode = existingNode
+				} else {
+					neighborNode = NewNode(neighbor)
+					neighborNode.SetPriority(neighborDist)
+					existingNodes[neighbor] = neighborNode
+				}
 				dist[neighbor] = neighborDist
-				prev[neighbor] = currentNode
-				Q.Push(neighbor)
-			} else if neighborDist < oldNeighborDist {
-				dist[neighbor] = neighborDist
-				prev[neighbor] = currentNode
-				Q.update(neighbor, neighborDist)
+				prev[neighbor] = currentNode.GetValue()
+				Q.Push(neighborNode)
 			}
 		}
 	}

@@ -18,6 +18,10 @@ func ManhattanDistance3(a, b Int3) int32 {
 	return Abs(a.X-b.X) + Abs(a.Y-b.Y) + Abs(a.Z-b.Z)
 }
 
+func ManhattanDistance2(a, b Int3) int32 {
+	return Abs(a.X-b.X) + Abs(a.Z-b.Z)
+}
+
 func Abs(i int32) int32 {
 	if i < 0 {
 		return -i

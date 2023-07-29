@@ -10,19 +10,22 @@ import (
 )
 
 type Unit struct {
-	extents         mgl32.Vec3
-	model           *util.CompoundMesh
-	velocity        mgl32.Vec3
-	currentWaypoint mgl32.Vec3
-	speed           float32
-	waypointTimer   float64
-	state           Behavior
-	transition      *TransitionTable
-	hitInfo         HitInfo
-	removeActor     bool
-	Height          uint8
-	eventQueue      []TransitionEvent
-	name            string
+	extents            mgl32.Vec3
+	model              *util.CompoundMesh
+	velocity           mgl32.Vec3
+	currentWaypoint    int
+	speed              float32
+	waypointTimer      float64
+	state              Behavior
+	transition         *TransitionTable
+	hitInfo            HitInfo
+	removeActor        bool
+	Height             uint8
+	eventQueue         []TransitionEvent
+	name               string
+	currentPath        []voxel.Int3
+	voxelMap           *voxel.Map
+	currentMapPosition mgl32.Vec3
 }
 
 func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -83,6 +86,9 @@ func (p *Unit) Update(deltaTime float64) {
 	}
 	currentState := p.state.GetName()
 	currentEvent := p.state.Execute(deltaTime)
+	if currentEvent == EventWaypointReached || currentEvent == EventLastWaypointReached {
+		p.updateMapPosition()
+	}
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
 		println(fmt.Sprintf("[%s] Transition from %s to %s", p.GetName(), currentState.ToString(), nextState.ToString()))
@@ -102,7 +108,7 @@ type HitInfo struct {
 
 func (p *Unit) HitWithProjectile(projectile util.CollidingObject, bodyPart util.Collider) {
 	event := EventHit
-	// needs to be passed to the new state, we do indirectly via the actor
+	// needs to be passed to the new state, we do indirectly via the unit
 	forceOfImpact := projectile.GetVelocity()
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
@@ -134,21 +140,21 @@ func (p *Unit) GetEyePosition() mgl32.Vec3 {
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	return p.model.RootNode.GlobalMatrix()
 }
-func (p *Unit) SetCurrentWaypoint(waypoint mgl32.Vec3) {
-	p.currentWaypoint = waypoint
-}
-func (p *Unit) IsNearWaypoint() bool {
-	return p.GetFootPosition().Sub(p.currentWaypoint).Len() < 0.5
+func (p *Unit) HasReachedWaypoint() bool {
+	return p.GetFootPosition().Sub(p.GetWaypoint()).Len() < 0.05
 }
 
-func (p *Unit) SetWaypoint(targetPos mgl32.Vec3) {
-	p.currentWaypoint = targetPos
-	p.eventQueue = append(p.eventQueue, EventNewWaypoint)
-	println(fmt.Sprintf("[%s] New waypoint at %v", p.GetName(), targetPos))
+func (p *Unit) SetPath(path []voxel.Int3) {
+	p.currentPath = path
+	p.currentWaypoint = 0
+	p.eventQueue = append(p.eventQueue, EventNewPath)
+	println(fmt.Sprintf("[%s] New waypoint at %v", p.GetName(), p.GetWaypoint()))
 }
-
+func (p *Unit) GetWaypoint() mgl32.Vec3 {
+	return p.currentPath[p.currentWaypoint].ToBlockCenterVec3()
+}
 func (p *Unit) MoveTowardsWaypoint() {
-	newVelocity := p.currentWaypoint.Sub(p.GetFootPosition()).Normalize().Mul(p.speed)
+	newVelocity := p.GetWaypoint().Sub(p.GetFootPosition()).Normalize().Mul(p.speed)
 	p.SetVelocity(newVelocity)
 }
 
@@ -162,7 +168,7 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 }
 
 func (p *Unit) TurnTowardsWaypoint() {
-	direction := p.currentWaypoint.Sub(p.GetPosition()).Normalize()
+	direction := p.GetWaypoint().Sub(p.GetPosition()).Normalize()
 	p.turnToDirection(direction)
 }
 
@@ -187,13 +193,39 @@ func (p *Unit) ShouldBeRemoved() bool {
 	return p.removeActor
 }
 
+func (p *Unit) IsLastWaypoint() bool {
+	return p.currentWaypoint == len(p.currentPath)-1
+}
+
+func (p *Unit) IsCurrentWaypointAClimb() bool {
+	return p.currentPath[p.currentWaypoint].Y == voxel.ToGridInt3(p.GetFootPosition()).Y+1
+}
+
+func (p *Unit) IsCurrentWaypointADrop() bool {
+	return p.currentPath[p.currentWaypoint].Y < voxel.ToGridInt3(p.GetFootPosition()).Y
+}
+
+func (p *Unit) NextWaypoint() {
+	p.currentWaypoint++
+}
+
+func (p *Unit) SetMap(voxelMap *voxel.Map) {
+	p.voxelMap = voxelMap
+	p.updateMapPosition()
+}
+
+func (p *Unit) updateMapPosition() {
+	oldMapPosition := p.currentMapPosition
+	p.currentMapPosition = p.GetFootPosition()
+	p.voxelMap.MoveUnitTo(p, oldMapPosition, p.GetFootPosition())
+}
 
 func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3, name string) *Unit {
 	a := &Unit{
 		model:           model,
 		extents:         mgl32.Vec3{0.98, 1.98, 0.98},
 		speed:           4,
-		currentWaypoint: mgl32.Vec3{4, 1.75, 1},
+		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 		name:            name,
 	}

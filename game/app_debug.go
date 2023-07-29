@@ -40,15 +40,19 @@ func (a *BattleGame) updateDebugInfo() {
 	if !a.showDebugInfo {
 		return
 	}
-	camPos := a.camera.GetPosition()
-	posString := fmt.Sprintf("Pos: %.2f, %.2f, %.2f", camPos.X(), camPos.Y(), camPos.Z())
-	dirString := fmt.Sprintf("Dir: %.2f, %.2f, %.2f", a.camera.GetFront().X(), a.camera.GetFront().Y(), a.camera.GetFront().Z())
-	chunk := a.voxelMap.GetChunkFromPosition(camPos)
-	chunkString := "Chunk: none"
-	if chunk != nil {
-		chunkPos := chunk.Position()
-		chunkString = fmt.Sprintf("Chunk: %d, %d, %d", chunkPos.X, chunkPos.Y, chunkPos.Z)
-	}
+	//camPos := a.camera.GetPosition()
+	/*
+	       posString := fmt.Sprintf("Pos: %.2f, %.2f, %.2f", camPos.X(), camPos.Y(), camPos.Z())
+	   	dirString := fmt.Sprintf("Dir: %.2f, %.2f, %.2f", a.camera.GetFront().X(), a.camera.GetFront().Y(), a.camera.GetFront().Z())
+	   	chunk := a.voxelMap.GetChunkFromPosition(camPos)
+	   	chunkString := "Chunk: none"
+	   	if chunk != nil {
+	   		chunkPos := chunk.Position()
+	   		chunkString = fmt.Sprintf("Chunk: %d, %d, %d", chunkPos.X, chunkPos.Y, chunkPos.Z)
+	   	}
+
+	*/
+
 	selectedBlockString := "Block: none"
 	if a.lastHitInfo != nil {
 		selectedBlockString = fmt.Sprintf("Col.Block: %d, %d, %d", a.lastHitInfo.CollisionGridPosition.X, a.lastHitInfo.CollisionGridPosition.Y, a.lastHitInfo.CollisionGridPosition.Z)
@@ -56,25 +60,23 @@ func (a *BattleGame) updateDebugInfo() {
 		selectedBlockString += fmt.Sprintf("\nPrev.Block: %d, %d, %d", a.lastHitInfo.PreviousGridPosition.X, a.lastHitInfo.PreviousGridPosition.Y, a.lastHitInfo.PreviousGridPosition.Z)
 		selectedBlockString += fmt.Sprintf("\nHit WorldPos: %.2f, %.2f, %.2f", a.lastHitInfo.CollisionWorldPosition.X(), a.lastHitInfo.CollisionWorldPosition.Y(), a.lastHitInfo.CollisionWorldPosition.Z())
 	}
-	timerString := a.timer.String()
-	debugInfo := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", posString, dirString, chunkString, selectedBlockString, timerString)
+	unitPos := a.units[0].GetPosition()
+	unitPosString := fmt.Sprintf("Unit: %.2f, %.2f, %.2f", unitPos.X(), unitPos.Y(), unitPos.Z())
+
+	animString := a.units[0].model.GetAnimationDebugString()
+
+	//timerString := a.timer.String()
+	//debugInfo := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", posString, dirString, chunkString, selectedBlockString, timerString)
+	debugInfo := fmt.Sprintf("\n%s\n%s", unitPosString, animString)
 	a.Print(debugInfo)
 }
 
-func (a *BattleGame) placeDebugMarker() {
+func (a *BattleGame) placeDebugLine(startEnd [2]mgl32.Vec3) {
 	a.debugObjects = a.debugObjects[:0]
-	camPos := a.camera.GetPosition()
 	//camDirection := a.player.cam.GetFront()
 	var lines [][2]mgl32.Vec3
-
-	targetPos := camPos.Add(a.camera.GetFront().Mul(100))
-
-	if a.lastHitInfo != nil {
-		targetPos = a.lastHitInfo.CollisionWorldPosition
-	}
-
 	lines = [][2]mgl32.Vec3{
-		{camPos, targetPos},
+		startEnd,
 	}
 	rayLine := util.NewLineMesh(a.lineShader, lines)
 	a.debugObjects = append(a.debugObjects, rayLine)

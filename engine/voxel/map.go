@@ -296,10 +296,10 @@ type MapObject interface {
 	GetPosition() mgl32.Vec3
 }
 
-func (m *Map) MoveUnitTo(unit MapObject, pos mgl32.Vec3) bool {
-	if m.IsUnitPlaceable(unit, pos) {
-		m.RemoveUnit(unit, unit.GetPosition())
-		m.AddUnit(unit, pos)
+func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {
+	if m.IsUnitPlaceable(unit, newPos) {
+		m.RemoveUnit(unit, oldPos)
+		m.AddUnit(unit, newPos)
 		return true
 	}
 	return false
@@ -331,6 +331,7 @@ func (m *Map) RemoveUnit(unit MapObject, position mgl32.Vec3) {
 
 func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
 	blockPos := ToGridInt3(pos)
+	println(fmt.Sprintf("[Map] Adding unit %s", blockPos.ToString()))
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
 		occupiedBlockPos := blockPos.Add(offset)
@@ -494,33 +495,80 @@ func (m *Map) SetHighlights(highlightPositions []Int3) {
 	currentChunk.SetHighlights(highlightsForChunk)
 }
 
-func (m *Map) GetNeighbors(block Int3, keepPredicate func(neighbor Int3) bool) []Int3 {
-	neighbors := make([]Int3, 0)
+func (m *Map) GetNeighborsForGroundMovement(block Int3, keepPredicate func(neighbor Int3) bool) []Int3 {
+	neighbors := make([]Int3, 0, 4)
 	xp := block.Add(Int3{X: 1})
-	if m.ContainsGrid(xp) && keepPredicate(xp) {
-		neighbors = append(neighbors, xp)
-	}
-	xn := block.Add(Int3{X: -1})
-	if m.ContainsGrid(xn) && keepPredicate(xn) {
-		neighbors = append(neighbors, xn)
+	if m.ContainsGrid(xp) {
+		if m.IsSolidBlockAt(xp.X, xp.Y, xp.Z) {
+			// check one block above (climbing one block is allowed)
+			xp = xp.Add(Int3{Y: 1})
+		} else {
+			// get the lowest solid block below and test the block above that
+			xp = m.GetGroundPosition(xp)
+		}
+		if m.ContainsGrid(xp) && keepPredicate(xp) {
+			neighbors = append(neighbors, xp)
+		}
 	}
 
-	yp := block.Add(Int3{Y: 1})
-	if m.ContainsGrid(yp) && keepPredicate(yp) {
-		neighbors = append(neighbors, yp)
-	}
-	yn := block.Add(Int3{Y: -1})
-	if m.ContainsGrid(yn) && keepPredicate(yn) {
-		neighbors = append(neighbors, yn)
+	xn := block.Add(Int3{X: -1})
+	if m.ContainsGrid(xn) {
+		if m.IsSolidBlockAt(xn.X, xn.Y, xn.Z) {
+			// check one block above (climbing one block is allowed)
+			xn = xn.Add(Int3{Y: 1})
+		} else {
+			// get the lowest solid block below and test the block above that
+			xn = m.GetGroundPosition(xn)
+		}
+		if m.ContainsGrid(xn) && keepPredicate(xn) {
+			neighbors = append(neighbors, xn)
+		}
 	}
 
 	zp := block.Add(Int3{Z: 1})
-	if m.ContainsGrid(zp) && keepPredicate(zp) {
-		neighbors = append(neighbors, zp)
+	if m.ContainsGrid(zp) {
+		if m.IsSolidBlockAt(zp.X, zp.Y, zp.Z) {
+			// check one block above (climbing one block is allowed)
+			zp = zp.Add(Int3{Y: 1})
+		} else {
+			// get the lowest solid block below and test the block above that
+			zp = m.GetGroundPosition(zp)
+		}
+		if m.ContainsGrid(zp) && keepPredicate(zp) {
+			neighbors = append(neighbors, zp)
+		}
 	}
+
 	zn := block.Add(Int3{Z: -1})
-	if m.ContainsGrid(zn) && keepPredicate(zn) {
-		neighbors = append(neighbors, zn)
+	if m.ContainsGrid(zn) {
+		if m.IsSolidBlockAt(zn.X, zn.Y, zn.Z) {
+			// check one block above (climbing one block is allowed)
+			zn = zn.Add(Int3{Y: 1})
+		} else {
+			// get the lowest solid block below and test the block above that
+			zn = m.GetGroundPosition(zn)
+		}
+		if m.ContainsGrid(zn) && keepPredicate(zn) {
+			neighbors = append(neighbors, zn)
+		}
 	}
 	return neighbors
+}
+
+func (m *Map) GetGroundPosition(startBlock Int3) Int3 {
+	// iterate down until we hit a solid block
+	for y := startBlock.Y; y >= 1; y-- {
+		if m.IsSolidBlockAt(startBlock.X, y-1, startBlock.Z) || !m.ContainsGrid(Int3{startBlock.X, y - 1, startBlock.Z}) {
+			return Int3{startBlock.X, y, startBlock.Z}
+		}
+	}
+	return startBlock
+}
+
+func (m *Map) ClearHighlights() {
+	for _, chunk := range m.chunks {
+		if chunk != nil {
+			chunk.ClearHighlights()
+		}
+	}
 }

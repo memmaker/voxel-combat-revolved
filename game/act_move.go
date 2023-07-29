@@ -7,42 +7,82 @@ import (
 )
 
 type ActionMove struct {
-	engine *BattleGame
+	engine          *BattleGame
+	selectedPath    []voxel.Int3
+	previousNodeMap map[voxel.Int3]voxel.Int3
+	distanceMap     map[voxel.Int3]int
 }
 
-func (a ActionMove) GetName() string {
+func (a *ActionMove) GetName() string {
 	return "Move"
 }
 
-func (a ActionMove) GetValidTargets(unit *Unit) []voxel.Int3 {
+func (a *ActionMove) GetValidTargets(unit *Unit) []voxel.Int3 {
 	footPosInt := voxel.ToGridInt3(unit.GetFootPosition())
-	valid := []voxel.Int3{}
-	dist, _ := path.Dijkstra(path.NewNode(footPosInt), 5, NewPather(a.engine.voxelMap))
-	for node, _ := range dist {
-		valid = append(valid, node.GetValue().(voxel.Int3))
+	var valid []voxel.Int3
+	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), int(unit.speed), NewPather(a.engine.voxelMap))
+	for node, distance := range dist {
+		if node == footPosInt {
+			continue
+		}
+		valid = append(valid, node)
+		a.distanceMap[node] = distance
+	}
+	for node, prevNode := range prevNodeMap {
+		a.previousNodeMap[node] = prevNode
 	}
 	return valid
+}
+
+func (a *ActionMove) Execute(unit *Unit, target voxel.Int3) {
+	currentPos := voxel.ToGridInt3(unit.GetFootPosition())
+	distance := a.distanceMap[target]
+	println(fmt.Sprintf("Moving %s: from %s to %s (dist: %d)", unit.GetName(), currentPos.ToString(), target.ToString(), distance))
+
+	foundPath := a.getPath(target)
+	for _, pos := range foundPath {
+		println(fmt.Sprintf(" -> %s", pos.ToString()))
+	}
+
+	unit.SetPath(foundPath)
+}
+
+func (a *ActionMove) getPath(target voxel.Int3) []voxel.Int3 {
+	pathToTarget := make([]voxel.Int3, a.distanceMap[target]+1)
+	current := target
+	index := len(pathToTarget) - 1
+	for {
+		pathToTarget[index] = current
+		if prev, ok := a.previousNodeMap[current]; ok {
+			current = prev
+			index--
+		} else {
+			break
+		}
+	}
+	// remove first element, which is the current position
+	return pathToTarget[1:]
 }
 
 type VoxelPather struct {
 	voxelMap *voxel.Map
 }
 
-func (v VoxelPather) GetNeighbors(node path.PathNode) []path.PathNode {
-	currentBlock := node.GetValue().(voxel.Int3)
-	neighbors := v.voxelMap.GetNeighbors(currentBlock, v.isWalkable)
-	result := make([]path.PathNode, len(neighbors))
+func (v *VoxelPather) GetNeighbors(node voxel.Int3) []voxel.Int3 {
+	currentBlock := node
+	neighbors := v.voxelMap.GetNeighborsForGroundMovement(currentBlock, v.isWalkable)
+	result := make([]voxel.Int3, len(neighbors))
 	for i, neighbor := range neighbors {
-		result[i] = path.NewNode(neighbor)
+		result[i] = neighbor
 	}
 	return result
 }
 
-func (v VoxelPather) GetCost(currentNode path.PathNode, neighbor path.PathNode) int {
-	return int(voxel.ManhattanDistance3(currentNode.GetValue().(voxel.Int3), neighbor.GetValue().(voxel.Int3)))
+func (v *VoxelPather) GetCost(currentNode, neighbor voxel.Int3) int {
+	return int(voxel.ManhattanDistance2(currentNode, neighbor))
 }
 
-func (v VoxelPather) isWalkable(neighbor voxel.Int3) bool {
+func (v *VoxelPather) isWalkable(neighbor voxel.Int3) bool {
 	nBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y, neighbor.Z)
 	bBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y-1, neighbor.Z)
 	return nBlock.IsAir() && !bBlock.IsAir()
@@ -50,9 +90,4 @@ func (v VoxelPather) isWalkable(neighbor voxel.Int3) bool {
 
 func NewPather(voxelMap *voxel.Map) *VoxelPather {
 	return &VoxelPather{voxelMap: voxelMap}
-}
-
-func (a ActionMove) Execute(unit *Unit, target voxel.Int3) {
-	println(fmt.Sprintf("Moving %s to %s", unit.GetName(), target.ToString()))
-	unit.SetWaypoint(target.ToBlockCenterVec3())
 }

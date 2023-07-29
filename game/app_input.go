@@ -27,11 +27,10 @@ func (a *BattleGame) handleMousePosEvents(xpos float64, ypos float64) {
 	a.mousePosY = ypos
 	a.lastMousePosX = xpos
 	a.lastMousePosY = ypos
-	if a.state.OnMouseMoved != nil {
-		a.state.OnMouseMoved(a.lastMousePosX, a.lastMousePosY, a.mousePosX, a.mousePosY)
+	if a.state().OnMouseMoved != nil {
+		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, a.mousePosX, a.mousePosY)
 	}
 	//a.RayCast()
-	a.updateDebugInfo()
 }
 
 func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
@@ -61,7 +60,7 @@ func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glf
 		return
 	}
 	if button == glfw.MouseButtonLeft && action == glfw.Press {
-		a.state.OnMouseClicked(a.mousePosX, a.mousePosY)
+		a.state().OnMouseClicked(a.mousePosX, a.mousePosY)
 	}
 }
 
@@ -70,7 +69,7 @@ func (a *BattleGame) handleScrollEvents(xoff float64, yoff float64) {
 		return
 	}
 	a.scheduleUpdate(func(deltaTime float64) {
-		a.state.OnScroll(deltaTime, xoff, yoff)
+		a.state().OnScroll(deltaTime, xoff, yoff)
 	})
 }
 func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -80,11 +79,11 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 
 	if key == glfw.KeyE && action == glfw.Press {
-		a.state.OnUpperRightAction()
+		a.state().OnUpperRightAction()
 	}
 
 	if key == glfw.KeyQ && action == glfw.Press {
-		a.state.OnUpperLeftAction()
+		a.state().OnUpperLeftAction()
 	}
 
 	if key == glfw.Key1 && action == glfw.Press {
@@ -114,7 +113,6 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 
 	if key == glfw.KeyF4 && action == glfw.Press {
-		a.placeDebugMarker()
 		/*for _, coord := range a.lastVisitedBlocks {
 		    a.PlaceBlock(coord, voxel.NewTestBlock())
 		}*/
@@ -155,7 +153,7 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 
 	if action == glfw.Press {
-		a.state.OnKeyPressed(key)
+		a.state().OnKeyPressed(key)
 	}
 }
 

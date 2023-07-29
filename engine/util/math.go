@@ -73,6 +73,9 @@ func Lerp3(one, two mgl32.Vec3, factor float64) mgl32.Vec3 {
 }
 
 func LerpQuat(one, two [4]float32, factor float64) [4]float32 {
+	if one[0] == two[0] && one[1] == two[1] && one[2] == two[2] && one[3] == two[3] {
+		return one
+	}
 	dotProduct := float64(one[0]*two[0] + one[1]*two[1] + one[2]*two[2] + one[3]*two[3])
 	a := math.Acos(math.Abs(dotProduct))
 	s := dotProduct / math.Abs(dotProduct)

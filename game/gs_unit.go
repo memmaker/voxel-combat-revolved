@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 )
 
 type GameStateUnit struct {
 	engine       *BattleGame
 	selectedUnit *Unit
+	lastMouseY   float64
+	lastMouseX   float64
 }
 
 func (g *GameStateUnit) OnScroll(deltaTime float64, xoff float64, yoff float64) {
@@ -21,7 +24,7 @@ func (g *GameStateUnit) OnScroll(deltaTime float64, xoff float64, yoff float64) 
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeySpace {
-		g.engine.SwitchToAction(g.selectedUnit, ActionMove{engine: g.engine})
+		g.engine.SwitchToAction(g.selectedUnit, &ActionMove{engine: g.engine, previousNodeMap: make(map[voxel.Int3]voxel.Int3), distanceMap: make(map[voxel.Int3]int)})
 	}
 }
 
@@ -61,8 +64,11 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 
 func (g *GameStateUnit) OnDirectionKeys(elapsed float64, movementVector [2]int) {
 	g.engine.camera.ChangePosition(movementVector, float32(elapsed))
+	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
 }
 
 func (g *GameStateUnit) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
-
+	g.lastMouseX = newX
+	g.lastMouseY = newY
+	g.engine.UpdateMousePicking(newX, newY)
 }

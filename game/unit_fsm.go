@@ -16,9 +16,9 @@ func NewActorTransitionTable() *TransitionTable {
 	t := NewTransitionTable()
 
 	// waypoints
-	t.AddTransition(ActorStateIdle, EventNewWaypoint, ActorGotoWaypoint)
-	t.AddTransition(ActorGotoWaypoint, EventNearWaypoint, ActorStateWaiting)
-	t.AddTransition(ActorStateWaiting, EventFinishedWaiting, ActorStateIdle)
+	t.AddTransition(ActorStateIdle, EventNewPath, UnitGotoWaypoint)
+	t.AddTransition(UnitGotoWaypoint, EventLastWaypointReached, ActorStateIdle)
+	//t.AddTransition(ActorStateWaiting, EventFinishedWaiting, ActorStateIdle)
 
 	// dying & death
 	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventHit, ActorStateDying)
@@ -33,11 +33,12 @@ type TransitionEvent int
 
 const (
 	EventNone TransitionEvent = iota
-	EventNewWaypoint
-	EventNearWaypoint
+	EventNewPath
 	EventFinishedWaiting
 	EventHit
 	EventAnimationFinished
+	EventLastWaypointReached
+	EventWaypointReached
 )
 
 type ActorState int
@@ -48,7 +49,7 @@ func (s ActorState) ToString() string {
 		return "Idle"
 	case ActorStateWaiting:
 		return "Waiting"
-	case ActorGotoWaypoint:
+	case UnitGotoWaypoint:
 		return "GotoWaypoint"
 	case ActorStateDying:
 		return "Dying"
@@ -62,7 +63,7 @@ func (s ActorState) ToString() string {
 const (
 	ActorStateIdle ActorState = iota
 	ActorStateWaiting
-	ActorGotoWaypoint
+	UnitGotoWaypoint
 	ActorStateDying
 	ActorStateDead
 	// Also change NewTransitionTable() below, if you add new states at the end or the beginning
@@ -116,7 +117,7 @@ type Behavior interface {
 
 var BehaviorTable = map[ActorState]Behavior{
 	ActorStateIdle:    &ActorIdleBehavior{},
-	ActorGotoWaypoint: &ActorGotoWaypointBehavior{},
+	UnitGotoWaypoint:  &UnitGotoWaypointBehavior{},
 	ActorStateWaiting: &ActorWaitingBehavior{},
 	ActorStateDying:   &ActorDyingBehavior{},
 	ActorStateDead:    &ActorDeadBehavior{},
