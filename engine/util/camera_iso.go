@@ -7,7 +7,6 @@ import (
 
 type ISOCamera struct {
 	cameraPos          mgl32.Vec3
-	cameraRight        mgl32.Vec3
 	cameraUp           mgl32.Vec3
 	windowWidth        int
 	windowHeight       int

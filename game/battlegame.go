@@ -12,8 +12,6 @@ import (
 
 type BattleGame struct {
 	*util.GlApplication
-	mousePosX             float64
-	mousePosY             float64
 	lastMousePosX         float64
 	lastMousePosY         float64
 	voxelMap              *voxel.Map
@@ -32,7 +30,9 @@ type BattleGame struct {
 	projectiles           []*Projectile
 	debugObjects          []PositionDrawable
 	blockTypeToPlace      byte
-	camera                *util.ISOCamera
+	isoCamera             *util.ISOCamera
+	fpsCamera             *util.FPSCamera
+	cameraIsFirstPerson   bool
 	drawBoundingBoxes     bool
 	showDebugInfo         bool
 	timer                 *util.Timer
@@ -75,7 +75,8 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 
 	myApp := &BattleGame{
 		GlApplication: glApp,
-		camera:        util.NewISOCamera(width, height),
+		isoCamera:     util.NewISOCamera(width, height),
+		fpsCamera:     util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
 		timer:         util.NewTimer(),
 	}
 	myApp.modelShader = myApp.loadModelShader()
@@ -220,11 +221,17 @@ func (a *BattleGame) updateUnits(deltaTime float64) {
 
 func (a *BattleGame) Draw(elapsed float64) {
 	stopDrawTimer := a.timer.Start("> Draw()")
-	a.drawWorld(a.camera)
 
-	a.drawModels()
+	var camera util.Camera = a.isoCamera
+	if a.cameraIsFirstPerson {
+		camera = a.fpsCamera
+	}
 
-	a.drawLines()
+	a.drawWorld(camera)
+
+	a.drawModels(camera)
+
+	a.drawLines(camera)
 
 	a.drawGUI()
 	stopDrawTimer()
@@ -242,14 +249,14 @@ func (a *BattleGame) drawWorld(cam util.Camera) {
 	a.chunkShader.End()
 }
 
-func (a *BattleGame) drawModels() {
+func (a *BattleGame) drawModels(cam util.Camera) {
 	a.modelShader.Begin()
 
-	a.modelShader.SetUniformAttr(1, a.camera.GetViewMatrix())
+	a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
-		a.modelShader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
-		a.modelShader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		a.modelShader.SetUniformAttr(0, cam.GetProjectionMatrix())
+		a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
 		a.selector.Draw()
 	}
 	if a.unitSelector != nil {
@@ -276,12 +283,12 @@ func (a *BattleGame) drawProjectiles() {
 		}
 	}
 }
-func (a *BattleGame) drawLines() {
+func (a *BattleGame) drawLines(cam util.Camera) {
 	a.lineShader.Begin()
 	a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
 	if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
-		a.lineShader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
-		a.lineShader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
+		a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
 		a.selector.Draw()
 	}
 	for _, drawable := range a.debugObjects {
@@ -323,6 +330,11 @@ func (a *BattleGame) SwitchToAction(unit *Unit, action Action) {
 	a.state().Init(false)
 }
 
+func (a *BattleGame) SwitchToFreeAim(unit *Unit, action *ActionAttack) {
+	a.stateStack = append(a.stateStack, &GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action})
+	a.state().Init(false)
+}
+
 func (a *BattleGame) SwitchToEditMap() {
 	a.stateStack = append(a.stateStack, &GameStateEditMap{engine: a})
 	a.state().Init(false)
@@ -339,7 +351,7 @@ func (a *BattleGame) PopState() {
 	a.state().Init(true)
 }
 func (a *BattleGame) UpdateMousePicking(newX, newY float64) {
-	rayStart, rayEnd := a.camera.GetPickingRayFromScreenPosition(newX, newY)
+	rayStart, rayEnd := a.isoCamera.GetPickingRayFromScreenPosition(newX, newY)
 	//a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
 	hitInfo := a.RayCast(rayStart, rayEnd)
 	if hitInfo != nil {
@@ -516,4 +528,15 @@ func (a *BattleGame) GetVisibleUnits(unit *Unit) []*Unit {
 		return a.currentVisibleEnemies[unit]
 	}
 	return make([]*Unit, 0)
+}
+
+func (a *BattleGame) SwitchToFirstPerson(position mgl32.Vec3) {
+	a.captureMouse()
+	a.fpsCamera.SetPosition(position)
+	a.cameraIsFirstPerson = true
+}
+
+func (a *BattleGame) SwitchToIsoCamera() {
+	a.freeMouse()
+	a.cameraIsFirstPerson = false
 }

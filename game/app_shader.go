@@ -91,8 +91,8 @@ func (a *BattleGame) loadLineShader() *glhf.Shader {
 		}
 
 		shader.Begin()
-		shader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
-		shader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
+		shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 		model := mgl32.Ident4()
 		shader.SetUniformAttr(2, model)
 		shader.End()
@@ -124,9 +124,9 @@ func (a *BattleGame) loadChunkShader() *glhf.Shader {
 		}
 
 		shader.Begin()
-		shader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
+		shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
 
-		shader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 
 		model := mgl32.Ident4()
 		shader.SetUniformAttr(2, model)
@@ -166,9 +166,9 @@ func (a *BattleGame) loadHighlightShader() *glhf.Shader {
 		}
 
 		shader.Begin()
-		shader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
+		shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
 
-		shader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 
 		model := mgl32.Ident4()
 		shader.SetUniformAttr(2, model)
@@ -209,9 +209,9 @@ func (a *BattleGame) loadModelShader() *glhf.Shader {
 		}
 
 		shader.Begin()
-		shader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
+		shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
 
-		shader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 
 		model := mgl32.Ident4()
 		shader.SetUniformAttr(2, model)

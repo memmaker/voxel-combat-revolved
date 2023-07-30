@@ -13,24 +13,24 @@ func (a *BattleGame) isMouseExclusive() bool {
 }
 
 func (a *BattleGame) isMouseInWindow() bool {
-	if a.mousePosX > 0 && a.mousePosX < float64(a.WindowWidth) && a.mousePosY > 0 && a.mousePosY < float64(a.WindowHeight) {
+	if a.isMouseExclusive() {
+		return true
+	}
+	if a.lastMousePosX > 0 && a.lastMousePosX < float64(a.WindowWidth) && a.lastMousePosY > 0 && a.lastMousePosY < float64(a.WindowHeight) {
 		return true
 	}
 	return false
 }
 
 func (a *BattleGame) handleMousePosEvents(xpos float64, ypos float64) {
-	if a.mousePosX == xpos && a.mousePosY == ypos {
+	if a.lastMousePosX == xpos && a.lastMousePosY == ypos {
 		return
 	}
-	a.mousePosX = xpos
-	a.mousePosY = ypos
+	if a.state().OnMouseMoved != nil {
+		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, xpos, ypos)
+	}
 	a.lastMousePosX = xpos
 	a.lastMousePosY = ypos
-	if a.state().OnMouseMoved != nil {
-		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, a.mousePosX, a.mousePosY)
-	}
-	//a.RayCast()
 }
 
 func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
@@ -60,7 +60,7 @@ func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glf
 		return
 	}
 	if button == glfw.MouseButtonLeft && action == glfw.Press {
-		a.state().OnMouseClicked(a.mousePosX, a.mousePosY)
+		a.state().OnMouseClicked(a.lastMousePosX, a.lastMousePosY)
 	}
 }
 
@@ -73,10 +73,6 @@ func (a *BattleGame) handleScrollEvents(xoff float64, yoff float64) {
 	})
 }
 func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	if key == glfw.KeyEscape && action == glfw.Press {
-		a.freeMouse()
-		return
-	}
 
 	if key == glfw.KeyE && action == glfw.Press {
 		a.state().OnUpperRightAction()
@@ -119,10 +115,10 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 
 	if key == glfw.KeyF5 && action == glfw.Press {
-		a.SpawnProjectile(a.camera.GetPosition().Add(a.camera.GetFront()), a.camera.GetFront().Mul(8000))
+		a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8000))
 	}
 	if key == glfw.KeyF6 && action == glfw.Press {
-		a.SpawnProjectile(a.camera.GetPosition().Add(a.camera.GetFront()), a.camera.GetFront().Mul(8))
+		a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8))
 	}
 
 	if key == glfw.KeyF7 && action == glfw.Press {

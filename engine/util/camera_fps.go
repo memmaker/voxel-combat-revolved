@@ -15,18 +15,23 @@ type Camera interface {
 }
 
 type FPSCamera struct {
-	cameraPos          mgl32.Vec3
-	cameraFront        mgl32.Vec3
-	cameraRight        mgl32.Vec3
-	cameraUp           mgl32.Vec3
-	fpsWalkDirection   mgl32.Vec3
-	rotatex            float32
-	rotatey            float32
-	lookSensitivity    float32
-	invertedY          bool
-	windowWidth        int
-	windowHeight       int
+	cameraPos        mgl32.Vec3
+	cameraFront      mgl32.Vec3
+	cameraRight      mgl32.Vec3
+	cameraUp         mgl32.Vec3
+	fpsWalkDirection mgl32.Vec3
+	rotatex          float32
+	rotatey          float32
+	lookSensitivity  float32
+	invertedY        bool
+	windowWidth      int
+	windowHeight     int
 }
+
+func (c *FPSCamera) ChangePosition(dir [2]int, delta float32) {
+
+}
+
 func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 	return &FPSCamera{
 		cameraPos:       pos,
@@ -36,8 +41,8 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 		rotatey:         0,
 		rotatex:         -90,
 		invertedY:       true,
-		windowWidth:	 windowWidth,
-		windowHeight:	 windowHeight,
+		windowWidth:     windowWidth,
+		windowHeight:    windowHeight,
 	}
 }
 
@@ -54,6 +59,7 @@ func (c *FPSCamera) GetProjectionMatrix() mgl32.Mat4 {
 	fov := float32(45.0)
 	return mgl32.Perspective(mgl32.DegToRad(fov), float32(c.windowWidth)/float32(c.windowHeight), 0.15, 512.0)
 }
+
 // ChangeAngles changes the camera's angles by dx and dy.
 // Used for mouse look in FPS look mode.
 func (c *FPSCamera) ChangeAngles(dx, dy float32) {

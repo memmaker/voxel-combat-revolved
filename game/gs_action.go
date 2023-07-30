@@ -17,9 +17,9 @@ type GameStateAction struct {
 
 func (g *GameStateAction) OnScroll(deltaTime float64, xoff float64, yoff float64) {
 	if yoff > 0 {
-		g.engine.camera.ZoomOut(deltaTime, yoff)
+		g.engine.isoCamera.ZoomOut(deltaTime, yoff)
 	} else {
-		g.engine.camera.ZoomIn(deltaTime, -yoff)
+		g.engine.isoCamera.ZoomIn(deltaTime, -yoff)
 	}
 }
 
@@ -31,20 +31,22 @@ func (g *GameStateAction) Init(bool) {
 	println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
 	g.validTargets = g.selectedAction.GetValidTargets(g.selectedUnit)
 	println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(g.validTargets)))
-	g.engine.voxelMap.SetHighlights(g.validTargets, 12)
+	if len(g.validTargets) > 0 {
+		g.engine.voxelMap.SetHighlights(g.validTargets, 12)
+	}
 }
 
 func (g *GameStateAction) OnUpperRightAction() {
-	g.engine.camera.RotateRight()
+	g.engine.isoCamera.RotateRight()
 }
 
 func (g *GameStateAction) OnUpperLeftAction() {
-	g.engine.camera.RotateLeft()
+	g.engine.isoCamera.RotateLeft()
 }
 
 func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[GameStateAction] Clicked at %0.2f, %0.2f", x, y))
-	// project point from screen space to camera space
+	// project point from screen space to isoCamera space
 	groundBlock := g.engine.groundSelector.GetBlockPosition()
 	println(fmt.Sprintf("[GameStateAction] Block %s", groundBlock.ToString()))
 	if g.selectedUnit.CanAct() {
@@ -64,7 +66,7 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateAction) OnDirectionKeys(elapsed float64, movementVector [2]int) {
-	g.engine.camera.ChangePosition(movementVector, float32(elapsed))
+	g.engine.isoCamera.ChangePosition(movementVector, float32(elapsed))
 	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
 }
 

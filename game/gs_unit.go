@@ -17,17 +17,19 @@ type GameStateUnit struct {
 
 func (g *GameStateUnit) OnScroll(deltaTime float64, xoff float64, yoff float64) {
 	if yoff > 0 {
-		g.engine.camera.ZoomOut(deltaTime, yoff)
+		g.engine.isoCamera.ZoomOut(deltaTime, yoff)
 	} else {
-		g.engine.camera.ZoomIn(deltaTime, -yoff)
+		g.engine.isoCamera.ZoomIn(deltaTime, -yoff)
 	}
 }
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeySpace && g.selectedUnit.CanAct() {
 		g.engine.SwitchToAction(g.selectedUnit, &ActionMove{engine: g.engine, previousNodeMap: make(map[voxel.Int3]voxel.Int3), distanceMap: make(map[voxel.Int3]int)})
-	} else if key == glfw.KeyEnter {
+	} else if key == glfw.KeyF {
 		g.engine.SwitchToAction(g.selectedUnit, &ActionAttack{engine: g.engine})
+	} else if key == glfw.KeyEnter {
+		g.engine.SwitchToFreeAim(g.selectedUnit, &ActionAttack{engine: g.engine})
 	} else if key == glfw.KeyTab {
 		g.nextUnit()
 	}
@@ -49,30 +51,30 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		footPos := util.ToGrid(g.selectedUnit.GetFootPosition())
 		g.engine.SwitchToGroundSelector()
 		g.engine.unitSelector.SetPosition(footPos)
-		g.engine.camera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+		g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
 	}
 }
 
 func (g *GameStateUnit) OnZoomIn(deltaTime float64) {
-	g.engine.camera.ZoomIn(deltaTime, 0)
+	g.engine.isoCamera.ZoomIn(deltaTime, 0)
 }
 
 func (g *GameStateUnit) OnZoomOut(deltaTime float64) {
-	g.engine.camera.ZoomOut(deltaTime, 0)
+	g.engine.isoCamera.ZoomOut(deltaTime, 0)
 }
 
 func (g *GameStateUnit) OnUpperRightAction() {
-	g.engine.camera.RotateRight()
+	g.engine.isoCamera.RotateRight()
 }
 
 func (g *GameStateUnit) OnUpperLeftAction() {
-	g.engine.camera.RotateLeft()
+	g.engine.isoCamera.RotateLeft()
 }
 
 func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[GameStateUnit] Screen clicked at (%0.1f, %0.1f)", x, y))
-	// project point from screen space to camera space
-	rayStart, rayEnd := g.engine.camera.GetPickingRayFromScreenPosition(x, y)
+	// project point from screen space to isoCamera space
+	rayStart, rayEnd := g.engine.isoCamera.GetPickingRayFromScreenPosition(x, y)
 	hitInfo := g.engine.RayCast(rayStart, rayEnd)
 	if hitInfo != nil && hitInfo.UnitHit != nil && hitInfo.UnitHit.CanAct() && hitInfo.UnitHit.faction == g.engine.CurrentFaction() {
 		g.selectedUnit = hitInfo.UnitHit
@@ -82,7 +84,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateUnit) OnDirectionKeys(elapsed float64, movementVector [2]int) {
-	g.engine.camera.ChangePosition(movementVector, float32(elapsed))
+	g.engine.isoCamera.ChangePosition(movementVector, float32(elapsed))
 	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
 }
 

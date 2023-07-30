@@ -40,10 +40,10 @@ func (a *BattleGame) updateDebugInfo() {
 	if !a.showDebugInfo {
 		return
 	}
-	//camPos := a.camera.GetPosition()
+	//camPos := a.isoCamera.GetPosition()
 	/*
 	       posString := fmt.Sprintf("Pos: %.2f, %.2f, %.2f", camPos.X(), camPos.Y(), camPos.Z())
-	   	dirString := fmt.Sprintf("Dir: %.2f, %.2f, %.2f", a.camera.GetFront().X(), a.camera.GetFront().Y(), a.camera.GetFront().Z())
+	   	dirString := fmt.Sprintf("Dir: %.2f, %.2f, %.2f", a.isoCamera.GetFront().X(), a.isoCamera.GetFront().Y(), a.isoCamera.GetFront().Z())
 	   	chunk := a.voxelMap.GetChunkFromPosition(camPos)
 	   	chunkString := "Chunk: none"
 	   	if chunk != nil {

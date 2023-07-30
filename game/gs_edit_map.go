@@ -13,9 +13,9 @@ type GameStateEditMap struct {
 
 func (g *GameStateEditMap) OnScroll(deltaTime float64, xoff float64, yoff float64) {
 	if yoff > 0 {
-		g.engine.camera.ZoomOut(deltaTime, yoff)
+		g.engine.isoCamera.ZoomOut(deltaTime, yoff)
 	} else {
-		g.engine.camera.ZoomIn(deltaTime, -yoff)
+		g.engine.isoCamera.ZoomIn(deltaTime, -yoff)
 	}
 }
 
@@ -43,17 +43,17 @@ func (g *GameStateEditMap) Init(bool) {
 }
 
 func (g *GameStateEditMap) OnUpperRightAction() {
-	g.engine.camera.RotateRight()
+	g.engine.isoCamera.RotateRight()
 }
 
 func (g *GameStateEditMap) OnUpperLeftAction() {
-	g.engine.camera.RotateLeft()
+	g.engine.isoCamera.RotateLeft()
 }
 
 func (g *GameStateEditMap) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[Picking] Clicked at %0.2f, %0.2f", x, y))
-	// project point from screen space to camera space
-	rayStart, rayEnd := g.engine.camera.GetPickingRayFromScreenPosition(x, y)
+	// project point from screen space to isoCamera space
+	rayStart, rayEnd := g.engine.isoCamera.GetPickingRayFromScreenPosition(x, y)
 	hitInfo := g.engine.RayCast(rayStart, rayEnd)
 	if hitInfo != nil && hitInfo.Hit {
 		prevGrid := hitInfo.PreviousGridPosition.ToVec3()
@@ -63,7 +63,7 @@ func (g *GameStateEditMap) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateEditMap) OnDirectionKeys(elapsed float64, movementVector [2]int) {
-	g.engine.camera.ChangePosition(movementVector, float32(elapsed))
+	g.engine.isoCamera.ChangePosition(movementVector, float32(elapsed))
 	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
 }
 
