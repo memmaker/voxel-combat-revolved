@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 )
@@ -23,15 +24,33 @@ func (g *GameStateUnit) OnScroll(deltaTime float64, xoff float64, yoff float64) 
 }
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
-	if key == glfw.KeySpace {
+	if key == glfw.KeySpace && g.selectedUnit.CanAct() {
 		g.engine.SwitchToAction(g.selectedUnit, &ActionMove{engine: g.engine, previousNodeMap: make(map[voxel.Int3]voxel.Int3), distanceMap: make(map[voxel.Int3]int)})
+	} else if key == glfw.KeyEnter {
+		g.engine.SwitchToAction(g.selectedUnit, &ActionAttack{engine: g.engine})
+	} else if key == glfw.KeyTab {
+		g.nextUnit()
 	}
 }
 
-func (g *GameStateUnit) Init() {
-	println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
-	footPos := util.ToGrid(g.selectedUnit.GetFootPosition())
-	g.engine.blockSelector.SetPosition(footPos)
+func (g *GameStateUnit) nextUnit() {
+	nextUnit, exists := g.engine.GetNextUnit(g.selectedUnit)
+	if !exists {
+		println("[GameStateUnit] No unit left to act.")
+	} else {
+		g.selectedUnit = nextUnit
+		g.Init(false)
+	}
+}
+
+func (g *GameStateUnit) Init(wasPopped bool) {
+	if !wasPopped {
+		println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
+		footPos := util.ToGrid(g.selectedUnit.GetFootPosition())
+		g.engine.SwitchToGroundSelector()
+		g.engine.unitSelector.SetPosition(footPos)
+		g.engine.camera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+	}
 }
 
 func (g *GameStateUnit) OnZoomIn(deltaTime float64) {
@@ -51,14 +70,14 @@ func (g *GameStateUnit) OnUpperLeftAction() {
 }
 
 func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
-	println(fmt.Sprintf("Clicked at %0.2f, %0.2f", x, y))
+	println(fmt.Sprintf("[GameStateUnit] Screen clicked at (%0.1f, %0.1f)", x, y))
 	// project point from screen space to camera space
 	rayStart, rayEnd := g.engine.camera.GetPickingRayFromScreenPosition(x, y)
 	hitInfo := g.engine.RayCast(rayStart, rayEnd)
-	if hitInfo != nil && hitInfo.UnitHit != nil {
+	if hitInfo != nil && hitInfo.UnitHit != nil && hitInfo.UnitHit.CanAct() && hitInfo.UnitHit.faction == g.engine.CurrentFaction() {
 		g.selectedUnit = hitInfo.UnitHit
-		println(fmt.Sprintf("Selected unit at %0.2f, %0.2f, %0.2f", g.selectedUnit.GetPosition().X(), g.selectedUnit.GetPosition().Y(), g.selectedUnit.GetPosition().Z()))
-		g.engine.blockSelector.SetPosition(util.ToGrid(g.selectedUnit.GetFootPosition()))
+		println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
+		g.Init(false)
 	}
 }
 

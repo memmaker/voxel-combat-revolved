@@ -27,16 +27,11 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 
 }
 
-func (g *GameStateAction) Init() {
+func (g *GameStateAction) Init(bool) {
 	println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
-	// get valid targets for action
 	g.validTargets = g.selectedAction.GetValidTargets(g.selectedUnit)
 	println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(g.validTargets)))
-	for _, target := range g.validTargets {
-		println(fmt.Sprintf(" --> %s", target.ToString()))
-	}
-	// highlight valid targets
-	g.engine.voxelMap.SetHighlights(g.validTargets)
+	g.engine.voxelMap.SetHighlights(g.validTargets, 12)
 }
 
 func (g *GameStateAction) OnUpperRightAction() {
@@ -50,16 +45,17 @@ func (g *GameStateAction) OnUpperLeftAction() {
 func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[GameStateAction] Clicked at %0.2f, %0.2f", x, y))
 	// project point from screen space to camera space
-	rayStart, rayEnd := g.engine.camera.GetPickingRayFromScreenPosition(x, y)
-	hitInfo := g.engine.RayCast(rayStart, rayEnd)
-	println(fmt.Sprintf("[GameStateAction] Block %s", hitInfo.PreviousGridPosition.ToString()))
-	if hitInfo != nil && hitInfo.Hit {
+	groundBlock := g.engine.groundSelector.GetBlockPosition()
+	println(fmt.Sprintf("[GameStateAction] Block %s", groundBlock.ToString()))
+	if g.selectedUnit.CanAct() {
 		// check if target is valid
 		for _, target := range g.validTargets {
-			if target == hitInfo.PreviousGridPosition {
+			if target == groundBlock {
 				println(fmt.Sprintf("[GameStateAction] Target %s is VALID", target.ToString()))
 				g.selectedAction.Execute(g.selectedUnit, target)
 				g.engine.voxelMap.ClearHighlights()
+				g.engine.unitSelector.Hide()
+				g.selectedUnit.canAct = false
 				g.engine.PopState()
 				return
 			}

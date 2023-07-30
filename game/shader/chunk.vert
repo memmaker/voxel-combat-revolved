@@ -90,7 +90,7 @@ void decompressVertex(int compressedValue, out vec3 position, out int normalDir,
     // read bit 30 to determine if this is hovering highlight
     position = vec3(positionX, positionY, positionZ);
     int isHovering = (compressedValue >> 29) & 0x1;
-    position.y += float(isHovering) * 0.05;
+    position.y += float(isHovering) * 0.01;
 }
 
 

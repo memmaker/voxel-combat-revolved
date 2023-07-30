@@ -26,7 +26,7 @@ func NewISOCamera(windowWidth, windowHeight int) *ISOCamera {
 		relativeLookTarget: relativeLookTarget,
 		windowWidth:        windowWidth,
 		windowHeight:       windowHeight,
-		nearPlaneDist: 0.15,
+		nearPlaneDist:      0.15,
 		moveMap: map[[2]int]mgl32.Vec3{
 			[2]int{0, -1}:  mgl32.Vec3{1, 0, 1},   // up
 			[2]int{0, 1}:   mgl32.Vec3{-1, 0, -1}, // down
@@ -126,8 +126,7 @@ func (c *ISOCamera) GetNearPlaneDist() float32 {
 	return c.nearPlaneDist
 }
 
-
-func (c *ISOCamera)  GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
+func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
 	rayLength := float32(100)
 	proj := c.GetProjectionMatrix()
 	view := c.GetViewMatrix()
@@ -158,4 +157,8 @@ func (c *ISOCamera) ZoomOut(deltaTime float64, amount float64) {
 	speed := float32(amount) * 7
 	offset := speed * float32(deltaTime)
 	c.cameraPos = mgl32.Vec3{c.cameraPos.X(), c.cameraPos.Y() + offset, c.cameraPos.Z()}
+}
+
+func (c *ISOCamera) CenterOn(targetPos mgl32.Vec3) {
+	c.cameraPos = targetPos.Sub(c.relativeLookTarget)
 }

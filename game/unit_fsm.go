@@ -115,14 +115,14 @@ type Behavior interface {
 	Execute(deltaTime float64) TransitionEvent
 }
 
-var BehaviorTable = map[ActorState]Behavior{
-	ActorStateIdle:    &ActorIdleBehavior{},
-	UnitGotoWaypoint:  &UnitGotoWaypointBehavior{},
-	ActorStateWaiting: &ActorWaitingBehavior{},
-	ActorStateDying:   &ActorDyingBehavior{},
-	ActorStateDead:    &ActorDeadBehavior{},
+var BehaviorTable = map[ActorState]func() Behavior{
+	ActorStateIdle:    func() Behavior { return &ActorIdleBehavior{} },
+	UnitGotoWaypoint:  func() Behavior { return &UnitGotoWaypointBehavior{} },
+	ActorStateWaiting: func() Behavior { return &ActorWaitingBehavior{} },
+	ActorStateDying:   func() Behavior { return &ActorDyingBehavior{} },
+	ActorStateDead:    func() Behavior { return &ActorDeadBehavior{} },
 }
 
 func BehaviorFactory(state ActorState) Behavior {
-	return BehaviorTable[state]
+	return BehaviorTable[state]()
 }

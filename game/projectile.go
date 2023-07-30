@@ -61,8 +61,7 @@ func (p *Projectile) SetPosition(pos mgl32.Vec3) {
 	p.position = pos
 }
 
-func NewProjectile(shader *glhf.Shader, pos mgl32.Vec3) *Projectile {
-	texture := glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
+func NewProjectile(shader *glhf.Shader, texture *glhf.Texture, pos mgl32.Vec3) *Projectile {
 	vd := glhf.MakeVertexSlice(shader, 36, 36)
 	// we want to create small lengthy rectangle
 	//pos(3), norm(3), uv(2)

@@ -38,7 +38,7 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 func (m *CompoundMesh) SetAnimationSpeed(newSpeed float64) {
 	m.animationSpeed = newSpeed
 }
-func (m *CompoundMesh) Draw(shader *glhf.Shader, camPosition mgl32.Vec3) {
+func (m *CompoundMesh) Draw(shader *glhf.Shader) {
 	m.RootNode.Draw(shader, m.textures)
 }
 

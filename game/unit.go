@@ -26,6 +26,8 @@ type Unit struct {
 	currentPath        []voxel.Int3
 	voxelMap           *voxel.Map
 	currentMapPosition mgl32.Vec3
+	faction            *Faction
+	canAct             bool
 }
 
 func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -121,8 +123,8 @@ func (p *Unit) HitWithProjectile(projectile util.CollidingObject, bodyPart util.
 	}
 }
 
-func (p *Unit) Draw(shader *glhf.Shader, camPosition mgl32.Vec3) {
-	p.model.Draw(shader, camPosition)
+func (p *Unit) Draw(shader *glhf.Shader) {
+	p.model.Draw(shader)
 }
 
 func (p *Unit) GetColliders() []util.Collider {
@@ -220,6 +222,18 @@ func (p *Unit) updateMapPosition() {
 	p.voxelMap.MoveUnitTo(p, oldMapPosition, p.GetFootPosition())
 }
 
+func (p *Unit) SetFaction(faction *Faction) {
+	p.faction = faction
+}
+
+func (p *Unit) CanAct() bool {
+	return p.canAct && !p.IsDead() && !p.IsDying()
+}
+
+func (p *Unit) GetBlockPosition() voxel.Int3 {
+	return voxel.ToGridInt3(p.GetFootPosition())
+}
+
 func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3, name string) *Unit {
 	a := &Unit{
 		model:           model,
@@ -228,6 +242,7 @@ func NewUnit(model *util.CompoundMesh, pos mgl32.Vec3, name string) *Unit {
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 		name:            name,
+		canAct:          true,
 	}
 	a.SetState(ActorStateIdle)
 	a.SetFootPosition(pos)

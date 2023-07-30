@@ -6,7 +6,9 @@ import (
 )
 
 type GameStateEditMap struct {
-	engine *BattleGame
+	engine     *BattleGame
+	lastMouseX float64
+	lastMouseY float64
 }
 
 func (g *GameStateEditMap) OnScroll(deltaTime float64, xoff float64, yoff float64) {
@@ -31,11 +33,12 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	}
 
 	if key == glfw.KeyP {
-		g.engine.voxelMap.LoadFromDisk()
+		g.engine.voxelMap.LoadFromDisk("assets/maps/map.bin")
 	}
 }
 
-func (g *GameStateEditMap) Init() {
+func (g *GameStateEditMap) Init(bool) {
+	g.engine.SwitchToBlockSelector()
 	println(fmt.Sprintf("[GameStateEditMap] Entered"))
 }
 
@@ -55,14 +58,17 @@ func (g *GameStateEditMap) OnMouseClicked(x float64, y float64) {
 	if hitInfo != nil && hitInfo.Hit {
 		prevGrid := hitInfo.PreviousGridPosition.ToVec3()
 		println(fmt.Sprintf("[Picking] Block %s", hitInfo.PreviousGridPosition.ToString()))
-		g.engine.blockSelector.SetPosition(prevGrid)
+		g.engine.selector.SetPosition(prevGrid)
 	}
 }
 
 func (g *GameStateEditMap) OnDirectionKeys(elapsed float64, movementVector [2]int) {
 	g.engine.camera.ChangePosition(movementVector, float32(elapsed))
+	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
 }
 
 func (g *GameStateEditMap) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
-
+	g.lastMouseX = newX
+	g.lastMouseY = newY
+	g.engine.UpdateMousePicking(newX, newY)
 }

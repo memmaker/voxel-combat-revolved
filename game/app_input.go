@@ -132,6 +132,7 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 
 	if key == glfw.KeyF8 && action == glfw.Press {
 		//a.player.SetHeight(1.9)
+		a.EndTurn()
 	}
 
 	if key == glfw.KeyF9 && action == glfw.Press {

@@ -83,9 +83,10 @@ func (v *VoxelPather) GetCost(currentNode, neighbor voxel.Int3) int {
 }
 
 func (v *VoxelPather) isWalkable(neighbor voxel.Int3) bool {
+	tBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y+1, neighbor.Z)
 	nBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y, neighbor.Z)
 	bBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y-1, neighbor.Z)
-	return nBlock.IsAir() && !bBlock.IsAir()
+	return !nBlock.IsOccupied() && tBlock.IsAir() && nBlock.IsAir() && !bBlock.IsAir()
 }
 
 func NewPather(voxelMap *voxel.Map) *VoxelPather {

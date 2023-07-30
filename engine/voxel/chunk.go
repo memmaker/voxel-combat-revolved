@@ -423,8 +423,8 @@ func (c *Chunk) GetShader() *glhf.Shader {
 	return c.meshBuffer.GetShader()
 }
 
-func (c *Chunk) SetHighlights(positions []Int3) {
-	c.highLightMesh = NewHighlightMesh(c.highlightShader, positions)
+func (c *Chunk) SetHighlights(positions []Int3, textureIndex byte) {
+	c.highLightMesh = NewHighlightMesh(c.highlightShader, positions, textureIndex)
 }
 
 func (c *Chunk) ClearHighlights() {

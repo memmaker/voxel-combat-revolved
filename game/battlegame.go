@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"github.com/faiface/mainthread"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/etxt"
@@ -11,33 +12,41 @@ import (
 
 type BattleGame struct {
 	*util.GlApplication
-	mousePosX         float64
-	mousePosY         float64
-	lastMousePosX     float64
-	lastMousePosY     float64
-	voxelMap          *voxel.Map
-	wireFrame         bool
-	blockSelector     PositionDrawable
-	crosshair         PositionDrawable
-	modelShader       *glhf.Shader
-	chunkShader       *glhf.Shader
-	lineShader        *glhf.Shader
-	guiShader         *glhf.Shader
-	highlightShader   *glhf.Shader
-	textLabel         *etxt.TextMesh
-	textRenderer      *etxt.OpenGLTextRenderer
-	lastHitInfo       *RayCastHit
-	units             []*Unit
-	projectiles       []*Projectile
-	debugObjects      []PositionDrawable
-	blockTypeToPlace  byte
-	camera            *util.ISOCamera
-	drawBoundingBoxes bool
-	showDebugInfo     bool
-	timer             *util.Timer
-	collisionSolver   *util.CollisionSolver
-	stateStack        []GameState
-	updateQueue       []func(deltaTime float64)
+	mousePosX             float64
+	mousePosY             float64
+	lastMousePosX         float64
+	lastMousePosY         float64
+	voxelMap              *voxel.Map
+	wireFrame             bool
+	selector              PositionDrawable
+	crosshair             PositionDrawable
+	modelShader           *glhf.Shader
+	chunkShader           *glhf.Shader
+	lineShader            *glhf.Shader
+	guiShader             *glhf.Shader
+	highlightShader       *glhf.Shader
+	textLabel             *etxt.TextMesh
+	textRenderer          *etxt.OpenGLTextRenderer
+	lastHitInfo           *RayCastHit
+	units                 []*Unit
+	projectiles           []*Projectile
+	debugObjects          []PositionDrawable
+	blockTypeToPlace      byte
+	camera                *util.ISOCamera
+	drawBoundingBoxes     bool
+	showDebugInfo         bool
+	timer                 *util.Timer
+	collisionSolver       *util.CollisionSolver
+	stateStack            []GameState
+	updateQueue           []func(deltaTime float64)
+	isBlockSelection      bool
+	groundSelector        *GroundSelector
+	unitSelector          *GroundSelector
+	blockSelector         *util.LineMesh
+	factions              []*Faction
+	currentFactionIndex   int
+	currentVisibleEnemies map[*Unit][]*Unit
+	projectileTexture     *glhf.Texture
 }
 
 func (a *BattleGame) state() GameState {
@@ -74,6 +83,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	myApp.highlightShader = myApp.loadHighlightShader()
 	myApp.lineShader = myApp.loadLineShader()
 	myApp.guiShader = myApp.loadGuiShader()
+	myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
 	myApp.textRenderer = etxt.NewOpenGLTextRenderer(myApp.guiShader)
 	myApp.DrawFunc = myApp.Draw
 	myApp.UpdateFunc = myApp.Update
@@ -81,32 +91,20 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	myApp.MousePosHandler = myApp.handleMousePosEvents
 	myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
 	myApp.ScrollHandler = myApp.handleScrollEvents
-	mainthread.Call(func() {
-		blockSelector := util.NewLineMesh(myApp.lineShader, [][2]mgl32.Vec3{
-			// we need to draw 12 lines, each line has 2 points, should be a wireframe cube
-			// bottom
-			{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{1, 0, 0}},
-			{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 0, 1}},
-			{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{0, 0, 1}},
-			{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 0, 0}},
-			// top
-			{mgl32.Vec3{0, 1, 0}, mgl32.Vec3{1, 1, 0}},
-			{mgl32.Vec3{1, 1, 0}, mgl32.Vec3{1, 1, 1}},
-			{mgl32.Vec3{1, 1, 1}, mgl32.Vec3{0, 1, 1}},
-			{mgl32.Vec3{0, 1, 1}, mgl32.Vec3{0, 1, 0}},
 
-			// sides
-			{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}},
-			{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 1, 0}},
-			{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{1, 1, 1}},
-			{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 1, 1}},
-		})
+	myApp.unitSelector = NewGroundSelector(util.LoadGLTF("./assets/models/flatselector.glb"), myApp.modelShader)
+
+	selectorMesh := util.LoadGLTF("./assets/models/selector.glb")
+	selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
+	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.modelShader)
+	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
+
+	mainthread.Call(func() {
+		myApp.SwitchToBlockSelector()
 		myApp.textRenderer.SetAlign(etxt.YCenter, etxt.XCenter)
 		crosshair := myApp.textRenderer.DrawText("+")
 		crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
 		myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
-
-		myApp.SetBlockSelector(blockSelector)
 		myApp.SetCrosshair(crosshair)
 
 		isSolid := func(x, y, z int32) bool {
@@ -123,6 +121,30 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	return myApp
 }
 
+func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
+	blockSelector := util.NewLineMesh(shader, [][2]mgl32.Vec3{
+		// we need to draw 12 lines, each line has 2 points, should be a wireframe cube
+		// bottom
+		{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{1, 0, 0}},
+		{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 0, 1}},
+		{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{0, 0, 1}},
+		{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 0, 0}},
+		// top
+		{mgl32.Vec3{0, 1, 0}, mgl32.Vec3{1, 1, 0}},
+		{mgl32.Vec3{1, 1, 0}, mgl32.Vec3{1, 1, 1}},
+		{mgl32.Vec3{1, 1, 1}, mgl32.Vec3{0, 1, 1}},
+		{mgl32.Vec3{0, 1, 1}, mgl32.Vec3{0, 1, 0}},
+
+		// sides
+		{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}},
+		{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 1, 0}},
+		{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{1, 1, 1}},
+		{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 1, 1}},
+	})
+
+	return blockSelector
+}
+
 type PositionDrawable interface {
 	SetPosition(pos mgl32.Vec3)
 	Draw()
@@ -134,14 +156,14 @@ func (a *BattleGame) LoadModel(filename string) *util.CompoundMesh {
 	return compoundMesh
 }
 
-func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3) *Unit {
+func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3, skinFile, name string) *Unit {
 	//model := a.LoadModel("./assets/model.gltf")
 	model := a.LoadModel("./assets/models/Guard3.glb")
 	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
 	//model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
-	model.SetTexture(0, util.MustLoadTexture("./assets/textures/skins/police_officer.png"))
+	model.SetTexture(0, util.MustLoadTexture(skinFile))
 	model.SetAnimation("animation.walk")
-	unit := NewUnit(model, spawnPos, "Policeman")
+	unit := NewUnit(model, spawnPos, name)
 	unit.SetMap(a.voxelMap)
 	a.collisionSolver.AddObject(unit)
 	a.units = append(a.units, unit)
@@ -149,7 +171,7 @@ func (a *BattleGame) SpawnUnit(spawnPos mgl32.Vec3) *Unit {
 }
 
 func (a *BattleGame) SpawnProjectile(pos, velocity mgl32.Vec3) {
-	projectile := NewProjectile(a.modelShader, pos)
+	projectile := NewProjectile(a.modelShader, a.projectileTexture, pos)
 	//projectile.SetCollisionHandler(a.GetCollisionHandler())
 	a.collisionSolver.AddProjectile(projectile)
 	projectile.SetVelocity(velocity)
@@ -225,8 +247,19 @@ func (a *BattleGame) drawModels() {
 
 	a.modelShader.SetUniformAttr(1, a.camera.GetViewMatrix())
 
-	for _, actor := range a.units {
-		actor.Draw(a.modelShader, a.camera.GetPosition())
+	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
+		a.modelShader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
+		a.modelShader.SetUniformAttr(1, a.camera.GetViewMatrix())
+		a.selector.Draw()
+	}
+	if a.unitSelector != nil {
+		a.unitSelector.Draw()
+	}
+	for _, unit := range a.CurrentFaction().units {
+		unit.Draw(a.modelShader)
+	}
+	for unit, _ := range a.CurrentVisibleEnemiesList() {
+		unit.Draw(a.modelShader)
 	}
 
 	a.drawProjectiles()
@@ -246,10 +279,10 @@ func (a *BattleGame) drawProjectiles() {
 func (a *BattleGame) drawLines() {
 	a.lineShader.Begin()
 	a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
-	if a.blockSelector != nil && a.lastHitInfo != nil {
+	if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
 		a.lineShader.SetUniformAttr(0, a.camera.GetProjectionMatrix())
 		a.lineShader.SetUniformAttr(1, a.camera.GetViewMatrix())
-		a.blockSelector.Draw()
+		a.selector.Draw()
 	}
 	for _, drawable := range a.debugObjects {
 		drawable.Draw()
@@ -281,18 +314,18 @@ func (a *BattleGame) drawGUI() {
 }
 
 func (a *BattleGame) SwitchToUnit(unit *Unit) {
-	a.stateStack = append(a.stateStack, &GameStateUnit{engine: a, selectedUnit: unit})
-	a.state().Init()
+	a.stateStack = []GameState{&GameStateUnit{engine: a, selectedUnit: unit}}
+	a.state().Init(false)
 }
 
 func (a *BattleGame) SwitchToAction(unit *Unit, action Action) {
 	a.stateStack = append(a.stateStack, &GameStateAction{engine: a, selectedUnit: unit, selectedAction: action})
-	a.state().Init()
+	a.state().Init(false)
 }
 
 func (a *BattleGame) SwitchToEditMap() {
 	a.stateStack = append(a.stateStack, &GameStateEditMap{engine: a})
-	a.state().Init()
+	a.state().Init(false)
 }
 
 func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
@@ -303,17 +336,184 @@ func (a *BattleGame) PopState() {
 	if len(a.stateStack) > 1 {
 		a.stateStack = a.stateStack[:len(a.stateStack)-1]
 	}
-	a.state().Init()
+	a.state().Init(true)
 }
 func (a *BattleGame) UpdateMousePicking(newX, newY float64) {
 	rayStart, rayEnd := a.camera.GetPickingRayFromScreenPosition(newX, newY)
-	a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
+	//a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
 	hitInfo := a.RayCast(rayStart, rayEnd)
 	if hitInfo != nil {
 		if hitInfo.UnitHit != nil {
-			a.blockSelector.SetPosition(util.ToGrid(hitInfo.UnitHit.GetFootPosition()))
+			a.selector.SetPosition(util.ToGrid(hitInfo.UnitHit.GetFootPosition()))
 		} else if hitInfo.Hit {
-			a.blockSelector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
+			if a.isBlockSelection {
+				a.selector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
+			} else {
+				a.selector.SetPosition(a.voxelMap.GetGroundPosition(hitInfo.PreviousGridPosition).ToVec3())
+			}
 		}
 	}
+}
+
+func (a *BattleGame) SwitchToGroundSelector() {
+	a.selector = a.groundSelector
+	a.isBlockSelection = false
+}
+
+type GroundSelector struct {
+	mesh   *util.CompoundMesh
+	shader *glhf.Shader
+	hide   bool
+}
+
+func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {
+	offset := mgl32.Vec3{0.5, 0.025, 0.5}
+	g.mesh.SetPosition(pos.Add(offset))
+	g.hide = false
+}
+
+func (g *GroundSelector) Hide() {
+	g.hide = true
+}
+
+func (g *GroundSelector) Draw() {
+	if g.hide {
+		return
+	}
+	g.mesh.Draw(g.shader)
+}
+
+func (g *GroundSelector) GetBlockPosition() voxel.Int3 {
+	return voxel.ToGridInt3(g.mesh.GetPosition())
+}
+
+func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSelector {
+	groundSelector := &GroundSelector{
+		mesh:   mesh,
+		shader: shader,
+	}
+	mesh.ConvertVertexData(shader)
+	return groundSelector
+}
+
+func (a *BattleGame) SwitchToBlockSelector() {
+	a.selector = a.blockSelector
+	a.isBlockSelection = true
+}
+
+func (a *BattleGame) FirstTurn(factionName string) {
+	for index, faction := range a.factions {
+		if faction.name == factionName {
+			a.currentFactionIndex = index
+			a.NextTurn(faction)
+		}
+	}
+}
+
+func (a *BattleGame) NextTurn(faction *Faction) {
+	a.UpdateVisibleEnemies()
+	println(fmt.Sprintf("[Next Turn] Starting turn for %s", faction.name))
+	for _, unit := range faction.units {
+		if unit.IsDead() || unit.IsDying() {
+			continue
+		}
+		unit.canAct = true
+	}
+	for _, unit := range faction.units {
+		if unit.IsDead() || unit.IsDying() {
+			continue
+		}
+		a.SwitchToUnit(unit)
+		break
+	}
+}
+
+func (a *BattleGame) EndTurn() {
+	println(fmt.Sprintf("[End Turn] Ending turn for %s", a.CurrentFaction().name))
+	a.currentFactionIndex = (a.currentFactionIndex + 1) % len(a.factions)
+	a.NextTurn(a.CurrentFaction())
+}
+
+func (a *BattleGame) CurrentFaction() *Faction {
+	return a.factions[a.currentFactionIndex]
+}
+
+func (a *BattleGame) GetNextUnit(unit *Unit) (*Unit, bool) {
+	faction := a.CurrentFaction()
+	for i, u := range faction.units {
+		if u == unit {
+			for j := 1; j < len(faction.units); j++ {
+				nextUnitIndex := (i + j) % len(faction.units)
+				nextUnit := faction.units[nextUnitIndex]
+				if nextUnit.CanAct() {
+					return nextUnit, true
+				}
+			}
+			return nil, false
+		}
+	}
+	return nil, false
+}
+
+func (a *BattleGame) UpdateVisibleEnemies() {
+	own := a.CurrentFaction()
+	visibleEnemies := make(map[*Unit][]*Unit)
+	for _, ownUnit := range own.units {
+		for _, unit := range a.units {
+			if unit.faction == own {
+				continue
+			}
+			if a.CanSee(ownUnit, unit) {
+				if _, ok := visibleEnemies[ownUnit]; !ok {
+					visibleEnemies[ownUnit] = make([]*Unit, 0)
+				}
+				visibleEnemies[ownUnit] = append(visibleEnemies[ownUnit], unit)
+			}
+		}
+	}
+	a.currentVisibleEnemies = visibleEnemies
+}
+
+func (a *BattleGame) CanSee(one *Unit, another *Unit) bool {
+	source := one.GetEyePosition()
+	targetOne := another.GetEyePosition()
+	targetTwo := another.GetFootPosition()
+
+	rayOne := a.RayCastUnits(source, targetOne, one, another)
+	rayTwo := a.RayCastUnits(source, targetTwo, one, another)
+
+	return rayOne.UnitHit == another || rayTwo.UnitHit == another
+}
+
+func (a *BattleGame) OnUnitMoved(unitMapObject voxel.MapObject, pos mgl32.Vec3, pos2 mgl32.Vec3) {
+	unit := unitMapObject.(*Unit)
+	own := a.CurrentFaction()
+	if unit.faction == own {
+		a.currentVisibleEnemies[unit] = make([]*Unit, 0)
+		for _, enemy := range a.units {
+			if enemy.faction == own {
+				continue
+			}
+			if a.CanSee(unit, enemy) {
+				a.currentVisibleEnemies[unit] = append(a.currentVisibleEnemies[unit], enemy)
+			}
+		}
+	}
+}
+
+func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
+	result := make(map[*Unit]bool)
+	for _, visibles := range a.currentVisibleEnemies {
+		for _, visible := range visibles {
+			result[visible] = true
+		}
+	}
+	return result
+}
+
+func (a *BattleGame) GetVisibleUnits(unit *Unit) []*Unit {
+	if _, ok := a.currentVisibleEnemies[unit]; ok {
+		return a.currentVisibleEnemies[unit]
+	}
+	return make([]*Unit, 0)
 }

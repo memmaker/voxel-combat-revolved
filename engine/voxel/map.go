@@ -13,13 +13,14 @@ import (
 )
 
 type Map struct {
-	chunks          []*Chunk
-	width           int32
-	height          int32
-	depth           int32
-	chunkShader     *glhf.Shader
-	terrainTexture  *glhf.Texture
-	highlightShader *glhf.Shader
+	chunks           []*Chunk
+	width            int32
+	height           int32
+	depth            int32
+	chunkShader      *glhf.Shader
+	terrainTexture   *glhf.Texture
+	highlightShader  *glhf.Shader
+	unitMovedHandler func(unit MapObject, oldPos, newPos mgl32.Vec3)
 }
 
 func NewMap(width, height, depth int32) *Map {
@@ -71,8 +72,7 @@ func (m *Map) SaveToDisk() {
 	outfile.Close()
 }
 
-func (m *Map) LoadFromDisk() {
-	filename := "assets/maps/map.bin"
+func (m *Map) LoadFromDisk(filename string) {
 	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -300,6 +300,7 @@ func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {
 	if m.IsUnitPlaceable(unit, newPos) {
 		m.RemoveUnit(unit, oldPos)
 		m.AddUnit(unit, newPos)
+		m.onUnitMoved(unit, oldPos, newPos)
 		return true
 	}
 	return false
@@ -468,7 +469,7 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader, highlightShader *glhf
 	return voxelMap
 }
 
-func (m *Map) SetHighlights(highlightPositions []Int3) {
+func (m *Map) SetHighlights(highlightPositions []Int3, textureIndex byte) {
 	sort.Slice(highlightPositions, func(i, j int) bool {
 		chunkXI, chunkYI, chunkZI := highlightPositions[i].X/CHUNK_SIZE, highlightPositions[i].Y/CHUNK_SIZE, highlightPositions[i].Z/CHUNK_SIZE
 		chunkXJ, chunkYJ, chunkZJ := highlightPositions[j].X/CHUNK_SIZE, highlightPositions[j].Y/CHUNK_SIZE, highlightPositions[j].Z/CHUNK_SIZE
@@ -484,7 +485,7 @@ func (m *Map) SetHighlights(highlightPositions []Int3) {
 	for _, absPos := range highlightPositions {
 		chunkX, chunkY, chunkZ := absPos.X/CHUNK_SIZE, absPos.Y/CHUNK_SIZE, absPos.Z/CHUNK_SIZE
 		if chunkX != currentChunkX || chunkY != currentChunkY || chunkZ != currentChunkZ {
-			currentChunk.SetHighlights(highlightsForChunk)
+			currentChunk.SetHighlights(highlightsForChunk, textureIndex)
 			highlightsForChunk = make([]Int3, 0)
 			currentChunkX, currentChunkY, currentChunkZ = chunkX, chunkY, chunkZ
 			currentChunk = m.GetChunk(chunkX, chunkY, chunkZ)
@@ -492,7 +493,7 @@ func (m *Map) SetHighlights(highlightPositions []Int3) {
 		localPos := Int3{absPos.X % CHUNK_SIZE, absPos.Y % CHUNK_SIZE, absPos.Z % CHUNK_SIZE}
 		highlightsForChunk = append(highlightsForChunk, localPos)
 	}
-	currentChunk.SetHighlights(highlightsForChunk)
+	currentChunk.SetHighlights(highlightsForChunk, textureIndex)
 }
 
 func (m *Map) GetNeighborsForGroundMovement(block Int3, keepPredicate func(neighbor Int3) bool) []Int3 {
@@ -571,4 +572,27 @@ func (m *Map) ClearHighlights() {
 			chunk.ClearHighlights()
 		}
 	}
+}
+
+func (m *Map) IsOccupied(blockPos Int3) bool {
+	block := m.GetBlockFromVec(blockPos)
+	return block != nil && block.IsOccupied()
+}
+
+func (m *Map) onUnitMoved(unit MapObject, oldPos mgl32.Vec3, newPos mgl32.Vec3) {
+	if m.unitMovedHandler != nil {
+		m.unitMovedHandler(unit, oldPos, newPos)
+	}
+}
+
+func (m *Map) SetUnitMovedHandler(handler func(unit MapObject, oldPos, newPos mgl32.Vec3)) {
+	m.unitMovedHandler = handler
+}
+
+func (m *Map) GetMapObjectAt(target Int3) MapObject {
+	block := m.GetBlockFromVec(target)
+	if block != nil {
+		return block.GetOccupant()
+	}
+	return nil
 }

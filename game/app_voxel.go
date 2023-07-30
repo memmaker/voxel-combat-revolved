@@ -13,6 +13,31 @@ type RayCastHit struct {
 	UnitHit       *Unit
 }
 
+func (a *BattleGame) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject) *RayCastHit {
+	voxelMap := a.voxelMap
+	var visitedBlocks []voxel.Int3
+	var unitHit *Unit
+	stopRay := func(x, y, z int32) bool {
+		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
+		if voxelMap.Contains(x, y, z) {
+			block := voxelMap.GetGlobalBlock(x, y, z)
+			if block != nil && !block.IsAir() {
+				return true
+			} else if block.IsOccupied() && (block.GetOccupant() != sourceUnit && block.GetOccupant() == targetUnit) {
+				unitHit = block.GetOccupant().(*Unit)
+				return true
+			}
+		}
+		return false
+	}
+	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
+	if hitInfo.Hit && (voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)) {
+		a.lastHitInfo = &RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit}
+	} else {
+		a.lastHitInfo = nil
+	}
+	return a.lastHitInfo
+}
 func (a *BattleGame) RayCast(rayStart, rayEnd mgl32.Vec3) *RayCastHit {
 	voxelMap := a.voxelMap
 	var visitedBlocks []voxel.Int3
@@ -88,6 +113,7 @@ func (a *BattleGame) LoadVoxelMap(filename string) *voxel.Map {
 
 func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
 	listOfBlocks := []string{
+		"selection",
 		"brick",
 		"clay",
 		"copper_block",
@@ -123,8 +149,9 @@ func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
 
 	return loadedMap
 }
-func (a *BattleGame) LoadDevWorld() *voxel.Map {
+func (a *BattleGame) LoadMap(filename string) *voxel.Map {
 	listOfBlocks := []string{
+		"selection",
 		"brick",
 		"clay",
 		"copper_block",
@@ -146,7 +173,7 @@ func (a *BattleGame) LoadDevWorld() *voxel.Map {
 		loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
 		loadedMap.SetShader(a.chunkShader, a.highlightShader)
 		loadedMap.SetTerrainTexture(terrainTexture)
-		loadedMap.LoadFromDisk()
+		loadedMap.LoadFromDisk(filename)
 		a.SetVoxelMap(loadedMap)
 	})
 
@@ -155,8 +182,5 @@ func (a *BattleGame) LoadDevWorld() *voxel.Map {
 
 func (a *BattleGame) SetVoxelMap(testMap *voxel.Map) {
 	a.voxelMap = testMap
-}
-
-func (a *BattleGame) SetBlockSelector(selector PositionDrawable) {
-	a.blockSelector = selector
+	a.voxelMap.SetUnitMovedHandler(a.OnUnitMoved)
 }
