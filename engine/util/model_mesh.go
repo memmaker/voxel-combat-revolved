@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"github.com/faiface/mainthread"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -461,26 +460,14 @@ type SubMesh struct {
 func (m SubMesh) ToVertexSlice(shader *glhf.Shader) *glhf.VertexSlice[glhf.GlFloat] {
 
 	var slice *glhf.VertexSlice[glhf.GlFloat]
-	mainthread.Call(func() {
-		if len(m.Indices) > 0 {
-			slice = glhf.MakeIndexedVertexSlice(shader, m.VertexCount, m.VertexCount, m.Indices)
-		} else {
-			slice = glhf.MakeVertexSlice(shader, m.VertexCount, m.VertexCount)
-		}
-		slice.Begin()
-		slice.SetVertexData(m.VertexData)
-		slice.End()
-	})
+	if len(m.Indices) > 0 {
+		slice = glhf.MakeIndexedVertexSlice(shader, m.VertexCount, m.VertexCount, m.Indices)
+	} else {
+		slice = glhf.MakeVertexSlice(shader, m.VertexCount, m.VertexCount)
+	}
+	slice.Begin()
+	slice.SetVertexData(m.VertexData)
+	slice.End()
 
-	//println(fmt.Sprintf("VertexCount: %d", m.VertexCount))
-	/*
-	   for i := 0; i < m.VertexCount; i++ {
-	       offset := i * 8
-	       println(fmt.Sprintf("Vertex %d Pos: %f %f %f", i, m.VertexData[offset], m.VertexData[offset+1], m.VertexData[offset+2]))
-	       println(fmt.Sprintf("Vertex %d Norm: %f %f %f", i, m.VertexData[offset+3], m.VertexData[offset+4], m.VertexData[offset+5]))
-	       println(fmt.Sprintf("Vertex %d UV: %f %f", i, m.VertexData[offset+6], m.VertexData[offset+7]))
-	   }
-
-	*/
 	return slice
 }

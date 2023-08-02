@@ -16,16 +16,14 @@ import (
 // 3. return the atlas
 // 4. allow for resolving the name to the index
 
-func CreateAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, map[string]byte) {
-	sort.SliceStable(blocksNeeded, func(i, j int) bool {
-		return blocksNeeded[i] < blocksNeeded[j]
+func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, map[string]byte) {
+	sort.SliceStable(whiteList, func(i, j int) bool {
+		return whiteList[i] < whiteList[j]
 	})
-	debugNames := []string{"debug", "debug2"}
-	blocksNeeded = append(debugNames, blocksNeeded...)
 	indices := map[string]byte{}
 	pixels := image.NewNRGBA(image.Rect(0, 0, 256, 256)) // iterate over the files in the directory
 	textureIndex := 0
-	for _, blockName := range blocksNeeded {
+	for _, blockName := range whiteList {
 		texturePath := path.Join(directory, blockName+".png")
 		file, err := os.Open(texturePath)
 		if err != nil {
@@ -37,13 +35,15 @@ func CreateAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Te
 			continue
 		}
 		file.Close()
+		imageWidth := img.Bounds().Dx()
+		imageHeight := img.Bounds().Dy()
 		// copy the image into the atlas
-		tilePosX := textureIndex % 16
-		tilePosY := textureIndex / 16
-		offsetX := tilePosX * 16
-		offsetY := tilePosY * 16
-		for x := 0; x < 16; x++ {
-			for y := 0; y < 16; y++ {
+		tilePosX := textureIndex % imageWidth
+		tilePosY := textureIndex / imageHeight
+		offsetX := tilePosX * imageWidth
+		offsetY := tilePosY * imageHeight
+		for x := 0; x < imageWidth; x++ {
+			for y := 0; y < imageHeight; y++ {
 				pixels.Set(offsetX+x, offsetY+y, img.At(x, y))
 			}
 		}
@@ -52,7 +52,7 @@ func CreateAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Te
 		textureIndex++
 	}
 	// debug write the atlas to a file
-	file, err := os.Create("debug_atlas.png")
+	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
 	if err != nil {
 		println("could not create debug_atlas.png")
 	}
@@ -62,4 +62,13 @@ func CreateAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Te
 	}
 	file.Close()
 	return glhf.NewTexture(256, 256, false, pixels.Pix), indices
+}
+
+func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, map[string]byte) {
+	sort.SliceStable(blocksNeeded, func(i, j int) bool {
+		return blocksNeeded[i] < blocksNeeded[j]
+	})
+	debugNames := []string{"debug", "debug2"}
+	blocksNeeded = append(debugNames, blocksNeeded...)
+	return CreateAtlasFromDirectory(directory, blocksNeeded)
 }

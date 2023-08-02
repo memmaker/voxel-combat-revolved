@@ -27,9 +27,7 @@ func NewSolidColorTexture(color [3]uint8) *Texture {
 	}
 
 	var texture *Texture
-	mainthread.Call(func() {
-		texture = NewTexture(4, 4, false, pixels)
-	})
+	texture = NewTexture(4, 4, false, pixels)
 	return texture
 }
 
@@ -169,4 +167,16 @@ func (t *Texture) Begin() {
 // End unbinds the Texture and restores the previous one.
 func (t *Texture) End() {
 	t.tex.restore()
+}
+
+func (t *Texture) GetUV(index byte, width, height int) (GlFloat, GlFloat, GlFloat, GlFloat) {
+	xCount := int(t.width / width)
+
+	topLeftU := GlFloat((int(index)%xCount)*width) / GlFloat(t.width)
+	topLeftV := GlFloat((int(index)/xCount)*height) / GlFloat(t.height)
+
+	bottomRightU := GlFloat(((int(index)%xCount)+1)*width) / GlFloat(t.width)
+	bottomRightV := GlFloat(((int(index)/xCount)+1)*height) / GlFloat(t.height)
+
+	return topLeftU, topLeftV, bottomRightU, bottomRightV
 }

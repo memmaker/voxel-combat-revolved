@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"github.com/faiface/mainthread"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
@@ -63,84 +62,77 @@ func (a *GlApplication) Run() {
 	shouldQuit := false
 	time := glfw.GetTime()
 	for !shouldQuit {
-		mainthread.Call(func() {
-			if a.Window.ShouldClose() {
-				shouldQuit = true
+		if a.Window.ShouldClose() {
+			shouldQuit = true
+		}
+
+		// Clear the window.
+		gl.ClearColor(0, 0, 0, 1)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+		// Update
+		time = glfw.GetTime()
+		elapsed := time - previousTime
+		previousTime = time
+		a.UpdateFunc(elapsed)
+
+		a.DrawFunc(elapsed)
+
+		a.FramesPerSecond = 1.0 / elapsed
+		if a.ticks%60 == 0 {
+			sixtyTicksAverage := a.FPSRunningAvg
+			a.Window.SetTitle(fmt.Sprintf("FPS: %.0f (Avg: %.0f, Min: %.0f, Max: %.0f) / Elapsed: %.3f", a.FramesPerSecond, sixtyTicksAverage, a.FPSMin, a.FPSMax, elapsed*1000))
+			a.FPSRunningAvg = 0 + a.FramesPerSecond*(1.0/60.0)
+			a.FPSMin = math.MaxFloat64
+			a.FPSMax = 0
+		} else {
+			a.FPSRunningAvg = a.FPSRunningAvg + a.FramesPerSecond*(1.0/60.0)
+			if a.FramesPerSecond < a.FPSMin {
+				a.FPSMin = a.FramesPerSecond
 			}
-
-			// Clear the window.
-			gl.ClearColor(0, 0, 0, 1)
-			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-			// Update
-			time = glfw.GetTime()
-			elapsed := time - previousTime
-			previousTime = time
-			a.UpdateFunc(elapsed)
-
-			a.DrawFunc(elapsed)
-
-			a.FramesPerSecond = 1.0 / elapsed
-			if a.ticks%60 == 0 {
-				sixtyTicksAverage := a.FPSRunningAvg
-				a.Window.SetTitle(fmt.Sprintf("FPS: %.0f (Avg: %.0f, Min: %.0f, Max: %.0f) / Elapsed: %.3f", a.FramesPerSecond, sixtyTicksAverage, a.FPSMin, a.FPSMax, elapsed*1000))
-				a.FPSRunningAvg = 0 + a.FramesPerSecond*(1.0/60.0)
-				a.FPSMin = math.MaxFloat64
-				a.FPSMax = 0
-			} else {
-				a.FPSRunningAvg = a.FPSRunningAvg + a.FramesPerSecond*(1.0/60.0)
-				if a.FramesPerSecond < a.FPSMin {
-					a.FPSMin = a.FramesPerSecond
-				}
-				if a.FramesPerSecond > a.FPSMax {
-					a.FPSMax = a.FramesPerSecond
-				}
+			if a.FramesPerSecond > a.FPSMax {
+				a.FPSMax = a.FramesPerSecond
 			}
+		}
 
-			a.Window.SwapBuffers()
-			glfw.PollEvents()
-			a.ticks++
-		})
+		a.Window.SwapBuffers()
+		glfw.PollEvents()
+		a.ticks++
 	}
 }
 
 func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	var win *glfw.Window
-	mainthread.Call(func() {
-		glErr := glfw.Init()
-		if glErr != nil {
-			println("glfw: ", glErr.Error())
-			panic(glErr)
-			return
-		}
-		glfw.WindowHint(glfw.ContextVersionMajor, 3)
-		glfw.WindowHint(glfw.ContextVersionMinor, 3)
-		glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-		glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-		glfw.WindowHint(glfw.Resizable, glfw.False)
+	glErr := glfw.Init()
+	if glErr != nil {
+		println("glfw: ", glErr.Error())
+		panic(glErr)
+		return nil, nil
+	}
+	glfw.WindowHint(glfw.ContextVersionMajor, 3)
+	glfw.WindowHint(glfw.ContextVersionMinor, 3)
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	glfw.WindowHint(glfw.Resizable, glfw.False)
 
-		var err error
+	var err error
 
-		win, err = glfw.CreateWindow(width, height, title, nil, nil)
-		if err != nil {
-			panic(err)
-		}
-		win.MakeContextCurrent()
-		glfw.SwapInterval(1) // enable (1) vsync
+	win, err = glfw.CreateWindow(width, height, title, nil, nil)
+	if err != nil {
+		panic(err)
+	}
+	win.MakeContextCurrent()
+	glfw.SwapInterval(1) // enable (1) vsync
 
-		glhf.Init()
-		gl.DepthFunc(gl.LESS)
-		gl.Enable(gl.DEPTH_TEST)
+	glhf.Init()
+	gl.DepthFunc(gl.LESS)
+	gl.Enable(gl.DEPTH_TEST)
 
-		gl.Enable(gl.CULL_FACE)
-		gl.CullFace(gl.BACK)
+	gl.Enable(gl.CULL_FACE)
+	gl.CullFace(gl.BACK)
 
-		//gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-	})
 	return win, func() {
-		mainthread.Call(func() {
-			glfw.Terminate()
-		})
+		glfw.Terminate()
 	}
 }
 

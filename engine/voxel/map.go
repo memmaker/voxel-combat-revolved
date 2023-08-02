@@ -113,7 +113,6 @@ func (m *Map) LoadFromDisk(filename string) {
 		}
 		chunk.SetDirty()
 	}
-	m.GenerateAllMeshes()
 }
 
 func (m *Map) SetChunk(x, y, z int32, c *Chunk) {

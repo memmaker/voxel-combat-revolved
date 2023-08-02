@@ -11,5 +11,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/qmuntal/gltf v0.24.0 // indirect
 	golang.org/x/image v0.8.0 // indirect
+	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.10.0 // indirect
 )

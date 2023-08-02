@@ -3,7 +3,6 @@ package util
 import (
 	bytes2 "bytes"
 	"fmt"
-	"github.com/faiface/mainthread"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/qmuntal/gltf"
@@ -27,8 +26,8 @@ func LoadGLTF(filename string) *CompoundMesh {
 		defaultSceneIndex = int(*doc.Scene)
 	}
 	defaultScene := doc.Scenes[defaultSceneIndex]
-	fmt.Println(fmt.Sprintf("Loading scene '%s' (1/%d)", defaultScene.Name, len(doc.Scenes)))
-	fmt.Println(fmt.Sprintf("Scene contains %d node(s)", len(defaultScene.Nodes)))
+	fmt.Println(fmt.Sprintf("[LoadGLTF] Loading scene '%s' (1/%d)", defaultScene.Name, len(doc.Scenes)))
+	fmt.Println(fmt.Sprintf("[LoadGLTF] Scene contains %d node(s)", len(defaultScene.Nodes)))
 	result := &CompoundMesh{
 		SamplerFrames:  make(map[string][][]float32),
 		animationSpeed: 1.0,
@@ -54,7 +53,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 	result.textures = tryLoadTextures(doc)
 
 	for _, anim := range doc.Animations {
-		//println(fmt.Sprintf("\nFound Animation: %s", anim.Name))
+		//println(fmt.Sprintf("\nFound Animation: %s", anim.GameIdentifier))
 		samplerFrames := make([][]float32, len(anim.Samplers))
 		//samplerOutput := make([][][4]float32, len(anim.Samplers))
 		for samplerIndex, sampler := range anim.Samplers {
@@ -67,7 +66,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 			var scaleFrames [][3]float32
 			nodeIndex := *channel.Target.Node
 			node := flatNodes[nodeIndex]
-			//println(fmt.Sprintf("\nNode for animation: %s", node.Name))
+			//println(fmt.Sprintf("\nNode for animation: %s", node.GameIdentifier))
 			//println(fmt.Sprintf("Property provided by sampler: %s", channel.Target.Path))
 			samplerIndex := *channel.Sampler
 			sampler := anim.Samplers[samplerIndex]
@@ -103,7 +102,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 	results := make([]*glhf.Texture, len(doc.Textures))
 	for texIndex, texture := range doc.Textures {
-		print(fmt.Sprintf("Texture at index %d ('%s'): ", texIndex, texture.Name))
+		print(fmt.Sprintf("[LoadGLTF] Texture at index %d ('%s'): ", texIndex, texture.Name))
 		imageSource := doc.Images[*texture.Source]
 		if imageSource.IsEmbeddedResource() {
 			embeddedTexture, err := loadEmbeddedTexture(imageSource)
@@ -336,13 +335,11 @@ func NewTextureFromReader(r io.Reader, flipY bool) (*glhf.Texture, error) {
 	}
 
 	var texture *glhf.Texture
-	mainthread.Call(func() {
-		texture = glhf.NewTexture(
-			nrgba.Bounds().Dx(),
-			nrgba.Bounds().Dy(),
-			false,
-			nrgba.Pix,
-		)
-	})
+	texture = glhf.NewTexture(
+		nrgba.Bounds().Dx(),
+		nrgba.Bounds().Dy(),
+		false,
+		nrgba.Pix,
+	)
 	return texture, nil
 }

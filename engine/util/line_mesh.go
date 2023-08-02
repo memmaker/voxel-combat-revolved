@@ -1,7 +1,6 @@
 package util
 
 import (
-	"github.com/faiface/mainthread"
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -30,13 +29,11 @@ func NewLineMesh(shader *glhf.Shader, lines [][2]mgl32.Vec3) *LineMesh {
 		flatLines = append(flatLines, glhf.GlFloat(line[1].X()), glhf.GlFloat(line[1].Y()), glhf.GlFloat(line[1].Z()))
 	}
 	var vertices *glhf.VertexSlice[glhf.GlFloat]
-	mainthread.Call(func() {
-		vertices = glhf.MakeVertexSlice(shader, len(lines)*2, len(lines)*2)
-		vertices.SetPrimitiveType(gl.LINES)
-		vertices.Begin()
-		vertices.SetVertexData(flatLines)
-		vertices.End()
-	})
+	vertices = glhf.MakeVertexSlice(shader, len(lines)*2, len(lines)*2)
+	vertices.SetPrimitiveType(gl.LINES)
+	vertices.Begin()
+	vertices.SetVertexData(flatLines)
+	vertices.End()
 
 	return &LineMesh{
 		vertices: vertices,

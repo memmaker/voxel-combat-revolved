@@ -7,20 +7,34 @@ import (
 )
 
 type ActionMove struct {
-	engine          *BattleGame
+	gameMap         *voxel.Map
 	selectedPath    []voxel.Int3
 	previousNodeMap map[voxel.Int3]voxel.Int3
 	distanceMap     map[voxel.Int3]int
+}
+
+func (a *ActionMove) IsValidTarget(unit UnitCore, target voxel.Int3) bool {
+	a.GetValidTargets(unit)
+	distance, ok := a.distanceMap[target]
+	return ok && distance <= unit.MovesLeft()
+}
+
+func NewActionMove(gameMap *voxel.Map) *ActionMove {
+	return &ActionMove{
+		gameMap:         gameMap,
+		previousNodeMap: make(map[voxel.Int3]voxel.Int3),
+		distanceMap:     make(map[voxel.Int3]int),
+	}
 }
 
 func (a *ActionMove) GetName() string {
 	return "Move"
 }
 
-func (a *ActionMove) GetValidTargets(unit *Unit) []voxel.Int3 {
+func (a *ActionMove) GetValidTargets(unit UnitCore) []voxel.Int3 {
 	footPosInt := voxel.ToGridInt3(unit.GetFootPosition())
 	var valid []voxel.Int3
-	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), int(unit.speed), NewPather(a.engine.voxelMap))
+	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), unit.MovesLeft(), NewPather(a.gameMap))
 	for node, distance := range dist {
 		if node == footPosInt {
 			continue
@@ -34,7 +48,7 @@ func (a *ActionMove) GetValidTargets(unit *Unit) []voxel.Int3 {
 	return valid
 }
 
-func (a *ActionMove) Execute(unit *Unit, target voxel.Int3) {
+func (a *ActionMove) Execute(unit UnitCore, target voxel.Int3) {
 	currentPos := voxel.ToGridInt3(unit.GetFootPosition())
 	distance := a.distanceMap[target]
 	println(fmt.Sprintf("Moving %s: from %s to %s (dist: %d)", unit.GetName(), currentPos.ToString(), target.ToString(), distance))
