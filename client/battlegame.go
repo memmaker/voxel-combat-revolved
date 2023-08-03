@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/etxt"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -8,6 +9,7 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
+	"sync"
 )
 
 type BattleGame struct {
@@ -50,6 +52,8 @@ type BattleGame struct {
 	actionbar             *gui.ActionBar
 	server                *game.ServerConnection
 	unitMap               map[uint64]*Unit
+
+	mu sync.Mutex
 }
 
 func (a *BattleGame) state() GameState {
@@ -199,10 +203,13 @@ func (a *BattleGame) Print(text string) {
 func (a *BattleGame) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
 
+	a.mu.Lock()
 	for _, f := range a.updateQueue {
 		f(elapsed)
 	}
+	// what happens when we try writing to this slice exactly in between these two lines?
 	a.updateQueue = a.updateQueue[:0]
+	a.mu.Unlock()
 
 	camMoved, movementVector := a.pollInput(elapsed)
 	if camMoved {
@@ -354,7 +361,9 @@ func (a *BattleGame) SwitchToEditMap() {
 }
 
 func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
+	a.mu.Lock()
 	a.updateQueue = append(a.updateQueue, f)
+	a.mu.Unlock()
 }
 
 func (a *BattleGame) PopState() {
@@ -463,6 +472,13 @@ func (a *BattleGame) SwitchToIsoCamera() {
 
 func (a *BattleGame) SetConnection(connection *game.ServerConnection) {
 	a.server = connection
+	scheduleOnMainthread := func(msgType, data string) {
+		println(fmt.Sprintf("[BattleGame] Received message %s", msgType))
+		a.scheduleUpdate(func(deltaTime float64) {
+			a.OnServerMessage(msgType, data)
+		})
+	}
+	connection.SetEventHandler(scheduleOnMainthread)
 }
 
 func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
@@ -472,16 +488,38 @@ func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnConfirmedTargetedUnitAction(msg)
 		}
+	case "NextPlayer":
+		var msg game.NextPlayerMessage
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnNextPlayer(msg)
+		}
 	}
+
 }
 
 func (a *BattleGame) OnConfirmedTargetedUnitAction(msg game.TargetedUnitActionMessage) {
-	unit := a.unitMap[msg.GameUnitID]
+	unit, known := a.unitMap[msg.GameUnitID]
+	if !known {
+		println(fmt.Sprintf("[BattleGame] Unknown unit %d", msg.GameUnitID))
+		return
+	}
 	clientAction := a.animateAction(unit, msg.Action, msg.Target)
 	if clientAction != nil {
 		if clientAction.IsValidTarget(unit, msg.Target) {
 			clientAction.Execute(unit, msg.Target)
 		}
+	}
+}
+
+func (a *BattleGame) OnNextPlayer(msg game.NextPlayerMessage) {
+	println(fmt.Sprintf("[BattleGame] NextPlayer: %v", msg))
+	if msg.YourTurn {
+		a.ResetUnitsForNextTurn()
+		a.Print("It's your turn!")
+		a.SwitchToUnit(a.FirstUnit())
+	} else {
+		a.Print("Waiting for other players...")
+		a.SwitchToWaitForEvents()
 	}
 }
 
@@ -496,11 +534,12 @@ func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
 }
 
 func (a *BattleGame) EndTurn() {
-	// TODO: send to server
+	util.MustSend(a.server.EndTurn())
+	a.SwitchToWaitForEvents()
 }
 
 func (a *BattleGame) SwitchToWaitForEvents() {
-	a.stateStack = append(a.stateStack, &GameStateWaitForEvents{IsoMovementState{engine: a}})
+	a.stateStack = []GameState{&GameStateWaitForEvents{IsoMovementState{engine: a}}}
 	a.state().Init(false)
 }
 
@@ -525,4 +564,10 @@ func (a *BattleGame) animateAction(unit *Unit, action string, target voxel.Int3)
 		return game.NewActionMove(a.voxelMap)
 	}
 	return nil
+}
+
+func (a *BattleGame) ResetUnitsForNextTurn() {
+	for _, unit := range a.userUnits {
+		unit.NextTurn()
+	}
 }

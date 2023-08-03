@@ -12,7 +12,6 @@ type LoginResponse struct {
 }
 
 type GameStartedMessage struct {
-	NextTurnMessage
 	GameID           string
 	PlayerFactionMap map[uint64]string
 	PlayerNameMap    map[uint64]string
@@ -20,7 +19,7 @@ type GameStartedMessage struct {
 	MapFile          string
 }
 
-type NextTurnMessage struct {
+type NextPlayerMessage struct {
 	CurrentPlayer uint64
 	YourTurn      bool
 }

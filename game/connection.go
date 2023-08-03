@@ -3,7 +3,7 @@ package game
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/memmaker/battleground/engine/util"
+	"fmt"
 	"github.com/memmaker/battleground/engine/voxel"
 	"log"
 	"net"
@@ -11,12 +11,13 @@ import (
 )
 
 type ServerConnection struct {
-	connection   util.VirtualInterface
-	eventHandler func(msgType, data string)
+	connection        net.Conn
+	eventHandler      func(msgType, data string)
+	mainthreadChannel chan string
 }
 
-func NewTCPConnection() *ServerConnection {
-	con, err := net.Dial("tcp", "0.0.0.0:9999")
+func NewTCPConnection(endpoint string) *ServerConnection {
+	con, err := net.Dial("tcp", endpoint)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -25,14 +26,6 @@ func NewTCPConnection() *ServerConnection {
 	go s.readLoop(bufio.NewReader(con))
 	return s
 }
-
-func NewChannelConnection(serverChannel *util.ChannelWrapper) *ServerConnection {
-	// create a string channel
-	s := &ServerConnection{connection: serverChannel}
-	go s.readLoop(bufio.NewReader(s.connection))
-	return s
-}
-
 func (c *ServerConnection) Login(username string) error {
 	message := LoginMessage{Username: username}
 	return c.send("Login", message)
@@ -76,8 +69,10 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 			log.Println(err)
 			return
 		}
+
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
+		println(fmt.Sprintf("[ServerConnection] Received message: %s", messageType))
 		if c.eventHandler != nil {
 			c.eventHandler(messageType, message)
 		}
@@ -86,6 +81,10 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 
 func (c *ServerConnection) SetEventHandler(handler func(msgType, data string)) {
 	c.eventHandler = handler
+}
+
+func (c *ServerConnection) SetMainthreadChannel(channel chan string) {
+	c.mainthreadChannel = channel
 }
 
 func (c *ServerConnection) SelectUnits(choices []UnitChoices) error {
@@ -103,4 +102,8 @@ type NoData struct {
 
 func (c *ServerConnection) EndTurn() error {
 	return c.send("EndTurn", NoData{})
+}
+
+func (c *ServerConnection) MapLoaded() error {
+	return c.send("MapLoaded", NoData{})
 }

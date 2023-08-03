@@ -4,5 +4,6 @@
 package main
 
 func main() {
-	NewBattleServer().ListenTCP()
+	server := NewBattleServer()
+	server.ListenTCP("0.0.0.0:9999")
 }

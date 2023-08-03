@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"log"
@@ -38,14 +37,14 @@ func (b *BattleServer) AddFaction(def FactionDefinition) {
 func (b *BattleServer) AddUnitDefinition(unit *game.UnitDefinition) {
 	b.availableUnits = append(b.availableUnits, unit)
 }
-func (b *BattleServer) ListenTCP() {
+func (b *BattleServer) ListenTCP(endpoint string) {
 	clientID := uint64(0)
-	listener, err := net.Listen("tcp", "0.0.0.0:9999")
+	listener, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer listener.Close()
-	println(fmt.Sprintf("Server started on port %d", 9999))
+	println(fmt.Sprintf("Server started on %s", endpoint))
 	for {
 		con, err := listener.Accept()
 		if err != nil {
@@ -58,12 +57,7 @@ func (b *BattleServer) ListenTCP() {
 	}
 }
 
-func (b *BattleServer) AddChannelClient(commChannel *util.ChannelWrapper) {
-	clientID := uint64(len(b.connectedClients))
-	go b.handleClientRequest(commChannel, clientID)
-}
-
-func (b *BattleServer) handleClientRequest(con util.VirtualInterface, id uint64) {
+func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 	connectionDropped := func() {
 		println(fmt.Sprintf("[BattleServer] Client(%d) disconnected!", id))
 		delete(b.connectedClients, id)
@@ -85,7 +79,7 @@ func (b *BattleServer) handleClientRequest(con util.VirtualInterface, id uint64)
 		}
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
-		println(fmt.Sprintf("[BattleServer] Client(%d) msg(%s): %s", id, messageType, message))
+		println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
 		b.GenerateResponse(con, id, messageType, message)
 	}
 }
@@ -94,7 +88,7 @@ type Header struct {
 	Type string `json:"type"`
 }
 
-func (b *BattleServer) GenerateResponse(con util.VirtualInterface, id uint64, msgType string, message string) {
+func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string, message string) {
 	// decode msg as json
 	// check header
 	switch msgType {
@@ -128,6 +122,8 @@ func (b *BattleServer) GenerateResponse(con util.VirtualInterface, id uint64, ms
 		if toJson(message, &targetedUnitActionMsg) {
 			b.TargetedUnitAction(id, targetedUnitActionMsg)
 		}
+	case "MapLoaded":
+		b.MapLoaded(id)
 	case "EndTurn":
 		b.EndTurn(id)
 	}
@@ -143,20 +139,29 @@ func toJson(message string, msg interface{}) bool {
 }
 
 type UserConnection struct {
-	raw        util.VirtualInterface
+	raw        net.Conn
 	id         uint64
 	name       string
 	activeGame string
+	isReady    bool
 }
 
 func (b *BattleServer) respond(connection *UserConnection, messageType string, response any) {
 	asJson, _ := json.Marshal(response)
 	// our protocol is: messageType (string) + \n + data as json (string) + \n
-	connection.raw.Write(append([]byte(messageType), '\n'))
-	connection.raw.Write(append(asJson, '\n'))
-	println(fmt.Sprintf("[BattleServer] Server(%d) msg(%s): %s", connection.id, messageType, string(asJson)))
+	println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, messageType, string(asJson)))
+	_, err := connection.raw.Write(append([]byte(messageType), '\n'))
+	if err != nil {
+		println(fmt.Sprintf(err.Error()))
+		return
+	}
+	_, err = connection.raw.Write(append(asJson, '\n'))
+	if err != nil {
+		println(fmt.Sprintf(err.Error()))
+		return
+	}
 }
-func (b *BattleServer) Login(con util.VirtualInterface, userID uint64, msg game.LoginMessage) {
+func (b *BattleServer) Login(con net.Conn, userID uint64, msg game.LoginMessage) {
 	userConnection := &UserConnection{raw: con, id: userID, name: msg.Username}
 	b.connectedClients[userID] = userConnection
 	b.respond(userConnection, "LoginResponse", game.ActionResponse{Success: true, Message: "Welcome to BattleGrounds"})
@@ -200,7 +205,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 
 	battleGame := NewGameInstance(userId, gameID, msg.Map, msg.IsPublic)
 	battleGame.AddPlayer(userId)
-
+	user.isReady = false
 	user.activeGame = gameID
 
 	b.runningGames[gameID] = battleGame
@@ -215,7 +220,7 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 		b.respond(user, "JoinGameResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
-
+	user.isReady = false
 	user.activeGame = gameID
 	gameInstance := b.runningGames[gameID]
 	gameInstance.AddPlayer(id)
@@ -229,7 +234,7 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 
 func (b *BattleServer) startGame(battleGame *GameInstance) {
 	println(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.id))
-	firstPlayer := battleGame.Start()
+	battleGame.Start()
 	playerNames := make(map[uint64]string)
 	playerFactions := battleGame.GetPlayerFactions()
 
@@ -248,10 +253,6 @@ func (b *BattleServer) startGame(battleGame *GameInstance) {
 		// broadcast game started event to all players, tell everyone who's turn it is
 		units := battleGame.GetPlayerUnits(playerID)
 		b.respond(user, "GameStarted", game.GameStartedMessage{
-			NextTurnMessage: game.NextTurnMessage{
-				CurrentPlayer: firstPlayer,
-				YourTurn:      playerID == firstPlayer,
-			},
 			GameID:           battleGame.id,
 			PlayerNameMap:    playerNames,
 			PlayerFactionMap: playerFactions,
@@ -381,14 +382,53 @@ func (b *BattleServer) EndTurn(userID uint64) {
 		return
 	}
 
-	nextPlayer := gameInstance.EndTurn()
+	b.SendNextPlayer(gameInstance)
+}
 
+func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
+	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.players {
 		connectedUser := b.connectedClients[playerID]
-		b.respond(connectedUser, "NextTurn", game.NextTurnMessage{
+		b.respond(connectedUser, "NextPlayer", game.NextPlayerMessage{
 			CurrentPlayer: nextPlayer,
 			YourTurn:      playerID == nextPlayer,
 		})
+	}
+}
+
+func (b *BattleServer) MapLoaded(userID uint64) {
+	// get the player and mark him as ready
+	user, exists := b.connectedClients[userID]
+	if !exists {
+		println(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", userID))
+		return
+	}
+
+	gameID := user.activeGame
+	if gameID == "" {
+		b.respond(user, "MapLoadedResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		return
+	}
+
+	gameInstance, exists := b.runningGames[gameID]
+	if !exists {
+		b.respond(user, "MapLoadedResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		return
+	}
+
+	user.isReady = true
+
+	allReady := true
+	for _, playerID := range gameInstance.players {
+		connectedUser := b.connectedClients[playerID]
+		if !connectedUser.isReady {
+			allReady = false
+			break
+		}
+	}
+
+	if allReady {
+		b.SendNextPlayer(gameInstance)
 	}
 }
 

@@ -56,14 +56,9 @@ func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 	return result
 }
 
-func (g *GameInstance) EndTurn() uint64 {
+func (g *GameInstance) NextPlayer() uint64 {
 	println(fmt.Sprintf("[GameInstance] Ending turn for %s", g.currentPlayerFaction().name))
 	g.currentPlayerIndex = (g.currentPlayerIndex + 1) % len(g.players)
-	g.NextTurn()
-	return g.currentPlayerID()
-}
-
-func (g *GameInstance) NextTurn() {
 	g.UpdateVisibleEnemies()
 	println(fmt.Sprintf("[GameInstance] Starting turn for %s", g.currentPlayerFaction().name))
 
@@ -73,7 +68,7 @@ func (g *GameInstance) NextTurn() {
 		}
 		unit.NextTurn()
 	}
-	// TODO: Send turn started event to connectedClients
+	return g.currentPlayerID()
 }
 
 func (g *GameInstance) currentPlayerUnits() []*game.UnitInstance {
@@ -108,7 +103,7 @@ func (g *GameInstance) UpdateVisibleEnemies() {
 }
 
 func (g *GameInstance) CanSee(one, another *game.UnitInstance) bool {
-	if one == another {
+	if one == another || one.ControlledBy == another.ControlledBy {
 		return true
 	}
 	source := one.GetEyePosition()
@@ -155,10 +150,9 @@ func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, tar
 		return false
 	}
 	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
-	if hitInfo.Hit && (voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)) {
-		return &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit}
-	}
-	return nil
+	insideMap := voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)
+
+	return &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
 }
 
 func (g *GameInstance) AddPlayer(id uint64) {
@@ -184,7 +178,7 @@ func (g *GameInstance) AddUnit(userID uint64, unit *game.UnitInstance) uint64 {
 	if _, unitsExist := g.playerUnits[userID]; !unitsExist {
 		g.playerUnits[userID] = make([]*game.UnitInstance, 0)
 	}
-	unitInstanceID := uint64(len(g.playerUnits[userID]))
+	unitInstanceID := uint64(len(g.units))
 	unit.SetGameUnitID(unitInstanceID)
 	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.UnitDefinition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unit)

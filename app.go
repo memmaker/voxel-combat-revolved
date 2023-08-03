@@ -5,15 +5,11 @@ package main
 import (
 	"fmt"
 	"github.com/faiface/mainthread"
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/client"
 	"github.com/memmaker/battleground/engine/util"
-	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
-	"github.com/memmaker/battleground/server"
 	"golang.org/x/term"
 	"os"
-	"time"
 )
 
 func runGame() {
@@ -21,19 +17,32 @@ func runGame() {
 	// 1. Start the server in a background thread
 	// 2. Start a headless client for the AI in a background thread
 	// 3. Start the graphical client in the main thread
-	battleServer := NewBattleServer()
+	if len(os.Args) > 1 {
+		runNetworkClient(os.Args[1])
+	} else {
+		runStandalone()
+	}
+}
 
-	dummyClientChannel := util.NewChannelWrapper()
-	dummyClient := game.NewDummyClient(game.NewChannelConnection(dummyClientChannel))
-	battleServer.AddChannelClient(util.NewReverseChannelWrapper(dummyClientChannel))
-	time.Sleep(1 * time.Second) // hacky way to wait for the server to start
+func runStandalone() {
+	battleServer := NewBattleServer()
+	go battleServer.ListenTCP("127.0.0.1:9999")
+
+	dummyConnection := game.NewTCPConnection("127.0.0.1:9999")
+	dummyClient := game.NewDummyClient(dummyConnection)
 	dummyClient.CreateGameSequence()
 	go dummyClient.Run()
 
 	mainthread.Call(func() {
-		realClientChannel := util.NewChannelWrapper()
-		battleServer.AddChannelClient(util.NewReverseChannelWrapper(realClientChannel))
-		terminalClient(game.NewChannelConnection(realClientChannel), "join")
+		connection := game.NewTCPConnection("127.0.0.1:9999")
+		terminalClient(connection, "join")
+	})
+}
+
+func runNetworkClient(argOne string) {
+	mainthread.Call(func() {
+		connection := game.NewTCPConnection("0.0.0.0:9999")
+		terminalClient(connection, argOne)
 	})
 }
 func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage) {
@@ -41,21 +50,14 @@ func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedM
 	height := 600
 	gameClient := client.NewBattleGame("BattleGrounds", width, height)
 	gameClient.SetConnection(con)
-	con.SetEventHandler(gameClient.OnServerMessage)
 	gameClient.LoadMap(gameInfo.MapFile)
 
 	for _, unit := range gameInfo.OwnUnits {
 		unitDef := unit.UnitDefinition
 		gameClient.AddOwnedUnit(unit.SpawnPos.ToBlockCenterVec3(), unit.GameUnitID, unitDef, unit.Name)
 	}
-
-	if gameInfo.YourTurn {
-		gameClient.Print("It's your turn!")
-		gameClient.SwitchToUnit(gameClient.FirstUnit())
-	} else {
-		gameClient.Print("Waiting for other player...")
-		gameClient.SwitchToWaitForEvents()
-	}
+	gameClient.SwitchToWaitForEvents()
+	util.MustSend(con.MapLoaded())
 
 	gameClient.Run()
 }
@@ -174,56 +176,6 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	util.WaitForTrue(&gameStarted)
 	println("[Client] Game started!")
 	startGraphicalClient(con, gameInfo)
-}
-
-func NewBattleServer() *server.BattleServer {
-	defaultCoreStats := game.UnitCoreStats{
-		Health: 10,
-		Speed:  5,
-		OccupiedBlockOffsets: []voxel.Int3{
-			{0, 0, 0},
-			{0, 1, 0},
-		},
-	}
-
-	battleServer := server.NewBattleServer()
-
-	battleServer.AddMap("Dev Map", "./assets/maps/map.bin")
-
-	battleServer.AddFaction(server.FactionDefinition{
-		Name:  "X-Com",
-		Color: mgl32.Vec3{0, 0, 1},
-		Units: []game.UnitDefinition{
-			{
-				ID:        0,
-				CoreStats: defaultCoreStats,
-				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "./assets/textures/skins/steve.png",
-				},
-			},
-			{
-				ID:        1,
-				CoreStats: defaultCoreStats,
-				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "./assets/textures/skins/soldier4.png",
-				},
-			},
-		},
-	})
-	battleServer.AddFaction(server.FactionDefinition{
-		Name:  "Deep Ones",
-		Color: mgl32.Vec3{1, 0, 0},
-		Units: []game.UnitDefinition{
-			{
-				ID:        2,
-				CoreStats: defaultCoreStats,
-				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "./assets/textures/skins/deep_monster2.png",
-				},
-			},
-		},
-	})
-	return battleServer
 }
 
 type TextItem struct {

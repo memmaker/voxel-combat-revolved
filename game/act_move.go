@@ -51,7 +51,7 @@ func (a *ActionMove) GetValidTargets(unit UnitCore) []voxel.Int3 {
 func (a *ActionMove) Execute(unit UnitCore, target voxel.Int3) {
 	currentPos := voxel.ToGridInt3(unit.GetFootPosition())
 	distance := a.distanceMap[target]
-	println(fmt.Sprintf("Moving %s: from %s to %s (dist: %d)", unit.GetName(), currentPos.ToString(), target.ToString(), distance))
+	println(fmt.Sprintf("[ActionMove] Moving %s: from %s to %s (dist: %d)", unit.GetName(), currentPos.ToString(), target.ToString(), distance))
 
 	foundPath := a.getPath(target)
 	for _, pos := range foundPath {

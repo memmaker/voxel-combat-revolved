@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
@@ -37,13 +38,14 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 		for _, target := range g.validTargets {
 			if target == groundBlock {
 				println(fmt.Sprintf("[GameStateAction] Target %s is VALID", target.ToString()))
-				g.selectedAction.Execute(g.selectedUnit, target)
+				// TODO: Should this be async?
+				util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.ID, g.selectedAction.GetName(), target))
+				//g.selectedAction.Execute(g.selectedUnit, target) // will be executed when confirmed by server
 				g.engine.voxelMap.ClearHighlights()
 				g.engine.unitSelector.Hide()
 				g.selectedUnit.EndTurn()
 				g.engine.PopState()
-				// TODO: Should this be async?
-				g.engine.server.TargetedUnitAction(g.selectedUnit.ID, g.selectedAction.GetName(), target)
+
 				return
 			}
 		}

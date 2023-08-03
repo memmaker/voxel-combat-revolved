@@ -16,9 +16,9 @@ func NewDummyClient(con *ServerConnection) *DummyClient {
 
 func (c *DummyClient) OnServerMessage(msgType string, data string) {
 	switch msgType {
-	case "NextTurn":
+	case "NextPlayer":
 		// determine if it's our turn
-		var turnInfo NextTurnMessage
+		var turnInfo NextPlayerMessage
 		util.FromJson(data, &turnInfo)
 		if turnInfo.YourTurn {
 			c.makeMove()
@@ -26,16 +26,13 @@ func (c *DummyClient) OnServerMessage(msgType string, data string) {
 	case "GameStarted":
 		// determine if it's our turn
 		println("Game started!")
-		var gameInfo GameStartedMessage
-		util.FromJson(data, &gameInfo)
-		if gameInfo.YourTurn {
-			c.makeMove()
-		}
+		util.MustSend(c.connection.MapLoaded())
 	}
 }
 
 func (c *DummyClient) makeMove() {
 	// JUST END TURN FOR NOW
+	println(fmt.Sprintf("[DummyClient] Ending turn..."))
 	util.MustSend(c.connection.EndTurn())
 }
 
