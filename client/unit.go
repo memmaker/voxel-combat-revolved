@@ -42,7 +42,7 @@ func (p *Unit) ControlledBy() uint64 {
 	return p.controlledBy
 }
 
-func (p *Unit) GameID() uint64 {
+func (p *Unit) UnitID() uint64 {
 	return p.ID
 }
 

@@ -294,6 +294,7 @@ type MapObject interface {
 	GetOccupiedBlockOffsets() []Int3
 	SetFootPosition(pos mgl32.Vec3)
 	ControlledBy() uint64
+	UnitID() uint64
 }
 
 func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {

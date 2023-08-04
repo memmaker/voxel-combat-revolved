@@ -90,7 +90,7 @@ func (c *DummyClient) CreateGameSequence() {
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)
-	util.MustSend(con.SelectUnits([]UnitChoices{
+	util.MustSend(con.SelectUnits([]UnitChoice{
 		{
 			UnitTypeID: 0,
 			Name:       "Steve",

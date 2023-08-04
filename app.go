@@ -125,7 +125,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		util.WaitForTrue(&createSuccess)
 		util.MustSend(con.SelectFaction("X-Com"))
 		util.WaitForTrue(&factionSuccess)
-		util.MustSend(con.SelectUnits([]game.UnitChoices{
+		util.MustSend(con.SelectUnits([]game.UnitChoice{
 			{
 				UnitTypeID: 0,
 				Name:       "Steve",
@@ -144,7 +144,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		util.WaitForTrue(&joinSuccess)
 		util.MustSend(con.SelectFaction("Deep Ones"))
 		util.WaitForTrue(&factionSuccess)
-		util.MustSend(con.SelectUnits([]game.UnitChoices{
+		util.MustSend(con.SelectUnits([]game.UnitChoice{
 			{
 				UnitTypeID: 2,
 				Name:       "Deep One",

@@ -46,7 +46,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		g.engine.actionbar.SetActions([]gui.ActionItem{
 			{
 				Name:         "Move",
-				TextureIndex: 1,
+				TextureIndex: 0,
 				Execute: func() {
 					if !g.selectedUnit.CanAct() {
 						println("[GameStateUnit] Unit cannot act anymore.")
@@ -58,7 +58,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 			},
 			{
 				Name:         "Fire",
-				TextureIndex: 0,
+				TextureIndex: 1,
 				Execute: func() {
 					if !g.selectedUnit.CanAct() {
 						println("[GameStateUnit] Unit cannot act anymore.")
@@ -66,7 +66,26 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 					}
 					g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine))
 				},
+				Hotkey: glfw.KeyR,
+			},
+			{
+				Name:         "Free Aim",
+				TextureIndex: 2,
+				Execute: func() {
+					if !g.selectedUnit.CanAct() {
+						println("[GameStateUnit] Unit cannot act anymore.")
+						return
+					}
+					g.engine.SwitchToFreeAim(g.selectedUnit, game.NewActionShot(g.engine))
+				},
 				Hotkey: glfw.KeyF,
+			},
+
+			{
+				Name:         "End Turn",
+				TextureIndex: 3,
+				Execute:      g.engine.EndTurn,
+				Hotkey:       glfw.KeyF8,
 			},
 		})
 	}

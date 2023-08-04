@@ -17,9 +17,6 @@ import (
 // 4. allow for resolving the name to the index
 
 func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, map[string]byte) {
-	sort.SliceStable(whiteList, func(i, j int) bool {
-		return whiteList[i] < whiteList[j]
-	})
 	indices := map[string]byte{}
 	pixels := image.NewNRGBA(image.Rect(0, 0, 256, 256)) // iterate over the files in the directory
 	textureIndex := 0

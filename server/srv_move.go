@@ -37,29 +37,33 @@ func (a ServerActionMove) Execute() ([]string, []any) {
 	messages := []any{}
 
 	var visibles []*game.UnitInstance
+	var invisibles []*game.UnitInstance
 	var exist bool
 	spottedEnemies := false
 	for index, pos := range foundPath {
 		// check if we can spot an enemy unit from here
-		if visibles, exist = a.engine.canSpotNewEnemiesFrom(a.unit, pos); exist {
-			println(" -> can spot new enemy from here")
+		if visibles, exist = a.engine.acquiredLOS(a.unit, pos); exist {
+			println(" -> can spot new enemy from here: ", pos.ToString())
 			destination = pos
 			foundPath = foundPath[:index+1]
 			spottedEnemies = true
+			break
 		}
 	}
+
 	msgTypes = append(msgTypes, "UnitMoved")
 	messages = append(messages, game.VisualUnitMoved{
-		UnitID: a.unit.GameID(),
+		UnitID: a.unit.UnitID(),
 		Path:   foundPath,
 	})
 
-	if spottedEnemies {
-		msgTypes = append(msgTypes, "UnitsSpotted")
-		messages = append(messages, game.VisualUnitsSpotted{
+	if invisibles, exist = a.engine.lostLOS(a.unit, destination); exist || spottedEnemies {
+		msgTypes = append(msgTypes, "UnitLOSUpdated")
+		messages = append(messages, game.VisualUnitLOSUpdated{
 			ObserverPosition: destination,
-			Observer:         a.unit.GameID(),
+			Observer:         a.unit.UnitID(),
 			Spotted:          visibles,
+			Lost:             invisibles,
 		})
 	}
 

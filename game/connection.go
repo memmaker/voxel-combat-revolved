@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"log"
 	"net"
@@ -88,14 +89,19 @@ func (c *ServerConnection) SetMainthreadChannel(channel chan string) {
 	c.mainthreadChannel = channel
 }
 
-func (c *ServerConnection) SelectUnits(choices []UnitChoices) error {
+func (c *ServerConnection) SelectUnits(choices []UnitChoice) error {
 	message := SelectUnitsMessage{Units: choices}
 	return c.send("SelectUnits", message)
 }
 
 func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, target voxel.Int3) error {
-	message := TargetedUnitActionMessage{GameUnitID: gameUnitID, Action: action, Target: target}
-	return c.send("TargetedUnitAction", message)
+	message := TargetedUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Target: target}
+	return c.send("UnitAction", message)
+}
+
+func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, origin mgl32.Vec3, velocity mgl32.Vec3) error {
+	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Origin: origin, Velocity: velocity}
+	return c.send("FreeAimAction", message)
 }
 
 type NoData struct {

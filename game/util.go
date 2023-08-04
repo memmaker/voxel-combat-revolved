@@ -15,3 +15,8 @@ type RayCastHit struct {
 func (h RayCastHit) HitUnit() bool {
 	return h.UnitHit != nil
 }
+
+type FreeAimHit struct {
+	RayCastHit
+	BodyPart util.PartName
+}

@@ -117,10 +117,15 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		if toJson(message, &joinGameMsg) {
 			b.JoinGame(id, joinGameMsg)
 		}
-	case "TargetedUnitAction":
+	case "UnitAction":
 		var targetedUnitActionMsg game.TargetedUnitActionMessage
 		if toJson(message, &targetedUnitActionMsg) {
-			b.TargetedUnitAction(id, targetedUnitActionMsg)
+			b.UnitAction(id, targetedUnitActionMsg)
+		}
+	case "FreeAimAction":
+		var freeAimActionMsg game.FreeAimActionMessage
+		if toJson(message, &freeAimActionMsg) {
+			b.FreeAimAction(id, freeAimActionMsg)
 		}
 	case "MapLoaded":
 		b.MapLoaded(id)
@@ -308,7 +313,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 	}
 }
 
-func (b *BattleServer) TargetedUnitAction(userID uint64, msg game.TargetedUnitActionMessage) {
+func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
 	if gameID == "" {
@@ -321,11 +326,11 @@ func (b *BattleServer) TargetedUnitAction(userID uint64, msg game.TargetedUnitAc
 		return
 	}
 
-	if msg.GameUnitID >= uint64(len(gameInstance.units)) {
+	if msg.UnitID() >= uint64(len(gameInstance.units)) {
 		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
-	unit := gameInstance.units[msg.GameUnitID]
+	unit := gameInstance.units[msg.UnitID()]
 
 	if unit.ControlledBy() != userID {
 		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "You do not control this unit"})
@@ -342,6 +347,61 @@ func (b *BattleServer) TargetedUnitAction(userID uint64, msg game.TargetedUnitAc
 	// get action for this unit, check if the target is valid
 	if !action.IsValid() {
 		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid"})
+		return
+	}
+	// this setup won't work: the client cannot know how to execute the action
+	// example movement: only the server knows if an reaction shot is triggered
+	// so executing that same action on the client will not work
+	// we need to adapt the response to include the result of the action
+	clientMsgTypes, clientMsgs := action.Execute()
+	// so for the movement example we want to communicate
+	// - the unit moved to another position than the client expected
+	// - the unit can now see another unit
+
+	unit.EndTurn()
+
+	for _, playerID := range gameInstance.players {
+		connectedUser := b.connectedClients[playerID]
+		for i := 0; i < len(clientMsgTypes); i++ {
+			b.respond(connectedUser, clientMsgTypes[i], clientMsgs[i])
+		}
+	}
+}
+
+func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessage) {
+	user := b.connectedClients[userID]
+	gameID := user.activeGame
+	if gameID == "" {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		return
+	}
+	gameInstance, exists := b.runningGames[gameID]
+	if !exists {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		return
+	}
+
+	if msg.GameUnitID >= uint64(len(gameInstance.units)) {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return
+	}
+	unit := gameInstance.units[msg.GameUnitID]
+
+	if unit.ControlledBy() != userID {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "You do not control this unit"})
+		return
+	}
+
+	if !unit.CanAct() {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		return
+	}
+
+	action := gameInstance.GetServerActionForUnit(msg, unit)
+
+	// get action for this unit, check if the target is valid
+	if !action.IsValid() {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid"})
 		return
 	}
 	// this setup won't work: the client cannot know how to execute the action
@@ -430,7 +490,6 @@ func (b *BattleServer) MapLoaded(userID uint64) {
 		b.SendNextPlayer(gameInstance)
 	}
 }
-
 func NewBattleServer() *BattleServer {
 	return &BattleServer{
 		availableMaps:     make(map[string]string),          // filename -> display name

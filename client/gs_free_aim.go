@@ -3,12 +3,13 @@ package client
 import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
 
 type GameStateFreeAim struct {
-	engine         *BattleGame
+	engine         *BattleClient
 	selectedUnit   *Unit
 	validTargets   []voxel.Int3
 	lastMouseX     float64
@@ -56,7 +57,8 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 		velocity := directionVector.Mul(10)
 		sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
 
-		g.engine.SpawnProjectile(sourceOffset, velocity)
+		//g.engine.SpawnProjectile(sourceOffset, velocity)
+		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.ID, g.selectedAction.GetName(), sourceOffset, velocity))
 	}
 }
 

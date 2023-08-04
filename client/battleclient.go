@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-type BattleGame struct {
+type BattleClient struct {
 	*util.GlApplication
 	lastMousePosX         float64
 	lastMousePosY         float64
@@ -57,12 +57,17 @@ type BattleGame struct {
 	mc                    sync.Mutex
 }
 
-func (a *BattleGame) GetVisibleUnits(instance game.UnitCore) []game.UnitCore {
-	//TODO implement me
-	panic("implement me")
+func (a *BattleClient) GetVisibleUnits(instance game.UnitCore) []game.UnitCore {
+	result := make([]game.UnitCore, 0)
+	for enemy, isVisble := range a.currentVisibleEnemies[instance.(*Unit)] {
+		if isVisble {
+			result = append(result, enemy)
+		}
+	}
+	return result
 }
 
-func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
+func (a *BattleClient) CurrentVisibleEnemiesList() map[*Unit]bool {
 	result := make(map[*Unit]bool)
 	for observer, unitsVisible := range a.currentVisibleEnemies {
 		if !observer.IsUserControlled() {
@@ -76,23 +81,23 @@ func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
 	}
 	return result
 }
-func (a *BattleGame) GetVoxelMap() *voxel.Map {
+func (a *BattleClient) GetVoxelMap() *voxel.Map {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *BattleGame) state() GameState {
+func (a *BattleClient) state() GameState {
 	return a.stateStack[len(a.stateStack)-1]
 }
 
-func (a *BattleGame) IsOccludingBlock(x, y, z int) bool {
+func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
 	if a.voxelMap.IsSolidBlockAt(int32(x), int32(y), int32(z)) {
 		return !a.voxelMap.GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
 	}
 	return false
 }
 
-func NewBattleGame(title string, width int, height int) *BattleGame {
+func NewBattleGame(title string, width int, height int) *BattleClient {
 	window, terminateFunc := util.InitOpenGL(title, width, height)
 	glApp := &util.GlApplication{
 		WindowWidth:   width,
@@ -105,7 +110,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	window.SetMouseButtonCallback(glApp.MouseButtonCallback)
 	window.SetScrollCallback(glApp.ScrollCallback)
 
-	myApp := &BattleGame{
+	myApp := &BattleClient{
 		GlApplication:         glApp,
 		isoCamera:             util.NewISOCamera(width, height),
 		fpsCamera:             util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
@@ -134,7 +139,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.modelShader)
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
 
-	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "reticule"})
+	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn"})
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
 	myApp.SwitchToBlockSelector()
@@ -157,36 +162,7 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	return myApp
 }
 
-func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
-	blockSelector := util.NewLineMesh(shader, [][2]mgl32.Vec3{
-		// we need to draw 12 lines, each line has 2 points, should be a wireframe cube
-		// bottom
-		{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{1, 0, 0}},
-		{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 0, 1}},
-		{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{0, 0, 1}},
-		{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 0, 0}},
-		// top
-		{mgl32.Vec3{0, 1, 0}, mgl32.Vec3{1, 1, 0}},
-		{mgl32.Vec3{1, 1, 0}, mgl32.Vec3{1, 1, 1}},
-		{mgl32.Vec3{1, 1, 1}, mgl32.Vec3{0, 1, 1}},
-		{mgl32.Vec3{0, 1, 1}, mgl32.Vec3{0, 1, 0}},
-
-		// sides
-		{mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0}},
-		{mgl32.Vec3{1, 0, 0}, mgl32.Vec3{1, 1, 0}},
-		{mgl32.Vec3{1, 0, 1}, mgl32.Vec3{1, 1, 1}},
-		{mgl32.Vec3{0, 0, 1}, mgl32.Vec3{0, 1, 1}},
-	})
-
-	return blockSelector
-}
-
-type PositionDrawable interface {
-	SetPosition(pos mgl32.Vec3)
-	Draw()
-}
-
-func (a *BattleGame) LoadModel(filename string) *util.CompoundMesh {
+func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
 	compoundMesh := util.LoadGLTF(filename)
 	compoundMesh.ConvertVertexData(a.modelShader)
 	return compoundMesh
@@ -194,7 +170,7 @@ func (a *BattleGame) LoadModel(filename string) *util.CompoundMesh {
 
 // Q: when do we add the other units?
 // A: when first seen.
-func (a *BattleGame) AddOwnedUnit(unitInstance *game.UnitInstance, playerID uint64) *Unit {
+func (a *BattleClient) AddOwnedUnit(unitInstance *game.UnitInstance, playerID uint64) *Unit {
 	unitID := unitInstance.GameUnitID
 	unitDefinition := unitInstance.UnitDefinition
 	spawnPos := unitInstance.SpawnPos.ToBlockCenterVec3()
@@ -215,11 +191,23 @@ func (a *BattleGame) AddOwnedUnit(unitInstance *game.UnitInstance, playerID uint
 	a.unitMap[unitID] = unit
 	return unit
 }
-func (a *BattleGame) AddVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
+func (a *BattleClient) RemoveVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
+	unitID := unitInstance.GameUnitID
+	if unit, ok := a.unitMap[unitID]; ok {
+		if _, hasVisionMap := a.currentVisibleEnemies[observer]; !hasVisionMap {
+			a.currentVisibleEnemies[observer] = make(map[*Unit]bool)
+		}
+		a.currentVisibleEnemies[observer][unit] = false
+	}
+}
+func (a *BattleClient) AddVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
 	unitID := unitInstance.GameUnitID
 
-	if _, ok := a.unitMap[unitID]; ok {
-		// already added
+	if unit, ok := a.unitMap[unitID]; ok {
+		// already added, just change the visibility and update the position
+		a.voxelMap.MoveUnitTo(unit, unit.GetFootPosition(), unitInstance.Position.ToBlockCenterVec3())
+		//unit.SetFootPosition(unitInstance.Position.ToBlockCenterVec3())
+		a.currentVisibleEnemies[observer][unit] = true
 		return
 	}
 
@@ -246,7 +234,7 @@ func (a *BattleGame) AddVisibleEnemyUnit(observer *Unit, unitInstance *game.Unit
 	a.currentVisibleEnemies[observer][unit] = true
 	a.unitMap[unitID] = unit
 }
-func (a *BattleGame) SpawnProjectile(pos, velocity mgl32.Vec3) {
+func (a *BattleClient) SpawnProjectile(pos, velocity mgl32.Vec3) {
 	projectile := NewProjectile(a.modelShader, a.projectileTexture, pos)
 	//projectile.SetCollisionHandler(a.GetCollisionHandler())
 	a.collisionSolver.AddProjectile(projectile)
@@ -254,15 +242,15 @@ func (a *BattleGame) SpawnProjectile(pos, velocity mgl32.Vec3) {
 	a.projectiles = append(a.projectiles, projectile)
 }
 
-func (a *BattleGame) SetCrosshair(crosshair PositionDrawable) {
+func (a *BattleClient) SetCrosshair(crosshair PositionDrawable) {
 	a.crosshair = crosshair
 }
 
-func (a *BattleGame) Print(text string) {
+func (a *BattleClient) Print(text string) {
 	a.textLabel = a.textRenderer.DrawText(text)
 }
 
-func (a *BattleGame) Update(elapsed float64) {
+func (a *BattleClient) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
 
 	a.mu.Lock()
@@ -296,7 +284,7 @@ func (a *BattleGame) Update(elapsed float64) {
 
 }
 
-func (a *BattleGame) updateUnits(deltaTime float64) {
+func (a *BattleClient) updateUnits(deltaTime float64) {
 	for i := len(a.allUnits) - 1; i >= 0; i-- {
 		actor := a.allUnits[i]
 		actor.Update(deltaTime)
@@ -306,7 +294,7 @@ func (a *BattleGame) updateUnits(deltaTime float64) {
 	}
 }
 
-func (a *BattleGame) Draw(elapsed float64) {
+func (a *BattleClient) Draw(elapsed float64) {
 	stopDrawTimer := a.timer.Start("> Draw()")
 
 	var camera util.Camera = a.isoCamera
@@ -324,7 +312,7 @@ func (a *BattleGame) Draw(elapsed float64) {
 	stopDrawTimer()
 }
 
-func (a *BattleGame) drawWorld(cam util.Camera) {
+func (a *BattleClient) drawWorld(cam util.Camera) {
 	a.chunkShader.Begin()
 
 	a.chunkShader.SetUniformAttr(0, cam.GetProjectionMatrix())
@@ -336,7 +324,7 @@ func (a *BattleGame) drawWorld(cam util.Camera) {
 	a.chunkShader.End()
 }
 
-func (a *BattleGame) drawModels(cam util.Camera) {
+func (a *BattleClient) drawModels(cam util.Camera) {
 	a.modelShader.Begin()
 
 	a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
@@ -361,7 +349,7 @@ func (a *BattleGame) drawModels(cam util.Camera) {
 	a.modelShader.End()
 }
 
-func (a *BattleGame) drawProjectiles() {
+func (a *BattleClient) drawProjectiles() {
 	for i := len(a.projectiles) - 1; i >= 0; i-- {
 		projectile := a.projectiles[i]
 		projectile.Draw()
@@ -370,7 +358,7 @@ func (a *BattleGame) drawProjectiles() {
 		}
 	}
 }
-func (a *BattleGame) drawLines(cam util.Camera) {
+func (a *BattleClient) drawLines(cam util.Camera) {
 	a.lineShader.Begin()
 	a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
 	if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
@@ -395,7 +383,7 @@ func (a *BattleGame) drawLines(cam util.Camera) {
 	a.lineShader.End()
 }
 
-func (a *BattleGame) drawGUI() {
+func (a *BattleClient) drawGUI() {
 	a.guiShader.Begin()
 
 	if a.textLabel != nil {
@@ -411,27 +399,27 @@ func (a *BattleGame) drawGUI() {
 	a.guiShader.End()
 }
 
-func (a *BattleGame) SwitchToUnit(unit *Unit) {
+func (a *BattleClient) SwitchToUnit(unit *Unit) {
 	a.stateStack = []GameState{&GameStateUnit{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit}}
 	a.state().Init(false)
 }
 
-func (a *BattleGame) SwitchToAction(unit *Unit, action game.TargetAction) {
+func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
 	a.stateStack = append(a.stateStack, &GameStateAction{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, selectedAction: action})
 	a.state().Init(false)
 }
 
-func (a *BattleGame) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
+func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
 	a.stateStack = append(a.stateStack, &GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action})
 	a.state().Init(false)
 }
 
-func (a *BattleGame) SwitchToEditMap() {
+func (a *BattleClient) SwitchToEditMap() {
 	a.stateStack = append(a.stateStack, &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}})
 	a.state().Init(false)
 }
 
-func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
+func (a *BattleClient) scheduleUpdate(f func(deltaTime float64)) {
 	a.mu.Lock()
 	a.updateQueue = append(a.updateQueue, f)
 	a.mu.Unlock()
@@ -442,19 +430,19 @@ type ConditionalCall struct {
 	function  func()
 }
 
-func (a *BattleGame) scheduleWaitForCondition(condition func() bool, function func()) {
+func (a *BattleClient) scheduleWaitForCondition(condition func() bool, function func()) {
 	a.mc.Lock()
 	a.conditionQueue = append(a.conditionQueue, ConditionalCall{condition: condition, function: function})
 	a.mc.Unlock()
 }
 
-func (a *BattleGame) PopState() {
+func (a *BattleClient) PopState() {
 	if len(a.stateStack) > 1 {
 		a.stateStack = a.stateStack[:len(a.stateStack)-1]
 	}
 	a.state().Init(true)
 }
-func (a *BattleGame) UpdateMousePicking(newX, newY float64) {
+func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	rayStart, rayEnd := a.isoCamera.GetPickingRayFromScreenPosition(newX, newY)
 	//a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
 	hitInfo := a.RayCast(rayStart, rayEnd)
@@ -470,54 +458,17 @@ func (a *BattleGame) UpdateMousePicking(newX, newY float64) {
 	}
 }
 
-func (a *BattleGame) SwitchToGroundSelector() {
+func (a *BattleClient) SwitchToGroundSelector() {
 	a.selector = a.groundSelector
 	a.isBlockSelection = false
 }
 
-type GroundSelector struct {
-	mesh   *util.CompoundMesh
-	shader *glhf.Shader
-	hide   bool
-}
-
-func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {
-	offset := mgl32.Vec3{0.5, 0.025, 0.5}
-	g.mesh.SetPosition(pos.Add(offset))
-	g.hide = false
-}
-
-func (g *GroundSelector) Hide() {
-	g.hide = true
-}
-
-func (g *GroundSelector) Draw() {
-	if g.hide {
-		return
-	}
-	g.mesh.Draw(g.shader)
-}
-
-func (g *GroundSelector) GetBlockPosition() voxel.Int3 {
-	return voxel.ToGridInt3(g.mesh.GetPosition())
-}
-
-func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSelector {
-	groundSelector := &GroundSelector{
-		mesh:   mesh,
-		shader: shader,
-		hide:   true,
-	}
-	mesh.ConvertVertexData(shader)
-	return groundSelector
-}
-
-func (a *BattleGame) SwitchToBlockSelector() {
+func (a *BattleClient) SwitchToBlockSelector() {
 	a.selector = a.blockSelector
 	a.isBlockSelection = true
 }
 
-func (a *BattleGame) GetNextUnit(unit *Unit) (*Unit, bool) {
+func (a *BattleClient) GetNextUnit(unit *Unit) (*Unit, bool) {
 	units := a.userUnits
 	for i, u := range units {
 		if u == unit {
@@ -533,21 +484,21 @@ func (a *BattleGame) GetNextUnit(unit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleGame) SwitchToFirstPerson(position mgl32.Vec3) {
+func (a *BattleClient) SwitchToFirstPerson(position mgl32.Vec3) {
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
 	a.cameraIsFirstPerson = true
 }
 
-func (a *BattleGame) SwitchToIsoCamera() {
+func (a *BattleClient) SwitchToIsoCamera() {
 	a.freeMouse()
 	a.cameraIsFirstPerson = false
 }
 
-func (a *BattleGame) SetConnection(connection *game.ServerConnection) {
+func (a *BattleClient) SetConnection(connection *game.ServerConnection) {
 	a.server = connection
 	scheduleOnMainthread := func(msgType, data string) {
-		println(fmt.Sprintf("[BattleGame] Received message %s", msgType))
+		println(fmt.Sprintf("[BattleClient] Received message %s", msgType))
 		a.scheduleUpdate(func(deltaTime float64) {
 			a.OnServerMessage(msgType, data)
 		})
@@ -555,17 +506,17 @@ func (a *BattleGame) SetConnection(connection *game.ServerConnection) {
 	connection.SetEventHandler(scheduleOnMainthread)
 }
 
-func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
+func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 	switch msgType {
 	case "UnitMoved":
 		var msg game.VisualUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnUnitMoved(msg)
 		}
-	case "UnitsSpotted":
-		var msg game.VisualUnitsSpotted
+	case "UnitLOSUpdated":
+		var msg game.VisualUnitLOSUpdated
 		if util.FromJson(messageAsJson, &msg) {
-			a.OnUnitsSpotted(msg)
+			a.OnUnitsLOSUpdate(msg)
 		}
 	case "ProjectileFired":
 		var msg game.VisualProjectileFired
@@ -586,38 +537,41 @@ func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
 
 }
 
-func (a *BattleGame) OnTargetedUnitActionResponse(msg game.ActionResponse) {
+func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 	if !msg.Success {
-		println(fmt.Sprintf("[BattleGame] Action failed: %s", msg.Message))
+		println(fmt.Sprintf("[BattleClient] Action failed: %s", msg.Message))
 		a.Print(fmt.Sprintf("Action failed: %s", msg.Message))
 	}
 }
-func (a *BattleGame) OnUnitsSpotted(msg game.VisualUnitsSpotted) {
-	addVisibleUnit := func() {
+func (a *BattleClient) OnUnitsLOSUpdate(msg game.VisualUnitLOSUpdated) {
+	changeLOS := func() {
 		observer := a.unitMap[msg.Observer]
 		for _, unit := range msg.Spotted {
 			a.AddVisibleEnemyUnit(observer, unit)
+		}
+		for _, unit := range msg.Lost {
+			a.RemoveVisibleEnemyUnit(observer, unit)
 		}
 	}
 	observerPositionReached := func() bool {
 		observer := a.unitMap[msg.Observer]
 		return voxel.ToGridInt3(observer.GetFootPosition()) == msg.ObserverPosition
 	}
-	a.scheduleWaitForCondition(observerPositionReached, addVisibleUnit)
+	a.scheduleWaitForCondition(observerPositionReached, changeLOS)
 }
 
-func (a *BattleGame) OnProjectileFired(msg game.VisualProjectileFired) {
+func (a *BattleClient) OnProjectileFired(msg game.VisualProjectileFired) {
 	// TODO: animate unit firing
-	a.SpawnProjectile(msg.SourcePosition, msg.Velocity)
+	a.SpawnProjectile(msg.Origin, msg.Velocity)
 }
 
-func (a *BattleGame) OnUnitMoved(msg game.VisualUnitMoved) {
+func (a *BattleClient) OnUnitMoved(msg game.VisualUnitMoved) {
 	unit, known := a.unitMap[msg.UnitID]
 	if !known {
-		println(fmt.Sprintf("[BattleGame] Unknown unit %d", msg.UnitID))
+		println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
 		return
 	}
-	println(fmt.Sprintf("[BattleGame] Moving %d to %v", msg.UnitID, msg.Path[len(msg.Path)-1]))
+	println(fmt.Sprintf("[BattleClient] Moving %d to %v", msg.UnitID, msg.Path[len(msg.Path)-1]))
 
 	a.voxelMap.ClearHighlights()
 	a.unitSelector.Hide()
@@ -626,8 +580,8 @@ func (a *BattleGame) OnUnitMoved(msg game.VisualUnitMoved) {
 	unit.EndTurn()
 }
 
-func (a *BattleGame) OnNextPlayer(msg game.NextPlayerMessage) {
-	println(fmt.Sprintf("[BattleGame] NextPlayer: %v", msg))
+func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
+	println(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
 	if msg.YourTurn {
 		a.ResetUnitsForNextTurn()
 		a.Print("It's your turn!")
@@ -638,17 +592,17 @@ func (a *BattleGame) OnNextPlayer(msg game.NextPlayerMessage) {
 	}
 }
 
-func (a *BattleGame) EndTurn() {
+func (a *BattleClient) EndTurn() {
 	util.MustSend(a.server.EndTurn())
 	a.SwitchToWaitForEvents()
 }
 
-func (a *BattleGame) SwitchToWaitForEvents() {
+func (a *BattleClient) SwitchToWaitForEvents() {
 	a.stateStack = []GameState{&GameStateWaitForEvents{IsoMovementState{engine: a}}}
 	a.state().Init(false)
 }
 
-func (a *BattleGame) FirstUnit() *Unit {
+func (a *BattleClient) FirstUnit() *Unit {
 	for _, unit := range a.userUnits {
 		if unit.CanAct() {
 			return unit
@@ -657,7 +611,7 @@ func (a *BattleGame) FirstUnit() *Unit {
 	return nil
 }
 
-func (a *BattleGame) ResetUnitsForNextTurn() {
+func (a *BattleClient) ResetUnitsForNextTurn() {
 	for _, unit := range a.userUnits {
 		unit.NextTurn()
 	}

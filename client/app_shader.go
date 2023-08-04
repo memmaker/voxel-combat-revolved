@@ -39,7 +39,7 @@ var (
 	guiFragmentShaderSource string
 )
 
-func (a *BattleGame) loadGuiShader() *glhf.Shader {
+func (a *BattleClient) loadGuiShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "position", Type: glhf.Vec2},
@@ -64,7 +64,7 @@ func (a *BattleGame) loadGuiShader() *glhf.Shader {
 	return shader
 }
 
-func (a *BattleGame) loadLineShader() *glhf.Shader {
+func (a *BattleClient) loadLineShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "position", Type: glhf.Vec3},
@@ -93,7 +93,7 @@ func (a *BattleGame) loadLineShader() *glhf.Shader {
 	return shader
 }
 
-func (a *BattleGame) loadChunkShader() *glhf.Shader {
+func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "compressedValue", Type: glhf.Int},
@@ -133,7 +133,7 @@ func (a *BattleGame) loadChunkShader() *glhf.Shader {
 	return shader
 }
 
-func (a *BattleGame) loadHighlightShader() *glhf.Shader {
+func (a *BattleClient) loadHighlightShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "compressedValue", Type: glhf.Int},
@@ -172,7 +172,7 @@ func (a *BattleGame) loadHighlightShader() *glhf.Shader {
 	shader.End()
 	return shader
 }
-func (a *BattleGame) loadModelShader() *glhf.Shader {
+func (a *BattleClient) loadModelShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "position", Type: glhf.Vec3},

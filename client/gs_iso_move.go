@@ -1,7 +1,7 @@
 package client
 
 type IsoMovementState struct {
-	engine     *BattleGame
+	engine     *BattleClient
 	lastMouseY float64
 	lastMouseX float64
 }

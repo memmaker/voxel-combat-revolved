@@ -8,11 +8,11 @@ import (
 	"runtime/pprof"
 )
 
-func (a *BattleGame) isMouseExclusive() bool {
+func (a *BattleClient) isMouseExclusive() bool {
 	return a.Window.GetInputMode(glfw.CursorMode) == glfw.CursorDisabled
 }
 
-func (a *BattleGame) isMouseInWindow() bool {
+func (a *BattleClient) isMouseInWindow() bool {
 	if a.isMouseExclusive() {
 		return true
 	}
@@ -22,7 +22,7 @@ func (a *BattleGame) isMouseInWindow() bool {
 	return false
 }
 
-func (a *BattleGame) handleMousePosEvents(xpos float64, ypos float64) {
+func (a *BattleClient) handleMousePosEvents(xpos float64, ypos float64) {
 	if a.lastMousePosX == xpos && a.lastMousePosY == ypos {
 		return
 	}
@@ -32,7 +32,7 @@ func (a *BattleGame) handleMousePosEvents(xpos float64, ypos float64) {
 	a.lastMousePosX = xpos
 	a.lastMousePosY = ypos
 }
-func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+func (a *BattleClient) handleMouseButtonEvents(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if !a.isMouseInWindow() {
 		return
 	}
@@ -44,7 +44,7 @@ func (a *BattleGame) handleMouseButtonEvents(button glfw.MouseButton, action glf
 		}
 	}
 }
-func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
+func (a *BattleClient) pollInput(deltaTime float64) (bool, [2]int) {
 	cameraMoved := false
 	movementVector := [2]int{0, 0}
 	if a.Window.GetKey(glfw.KeyW) == glfw.Press {
@@ -67,7 +67,7 @@ func (a *BattleGame) pollInput(deltaTime float64) (bool, [2]int) {
 	return cameraMoved, movementVector
 }
 
-func (a *BattleGame) handleScrollEvents(xoff float64, yoff float64) {
+func (a *BattleClient) handleScrollEvents(xoff float64, yoff float64) {
 	if !a.isMouseInWindow() {
 		return
 	}
@@ -75,7 +75,7 @@ func (a *BattleGame) handleScrollEvents(xoff float64, yoff float64) {
 		a.state().OnScroll(deltaTime, xoff, yoff)
 	})
 }
-func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 
 	if key == glfw.KeyE && action == glfw.Press {
 		a.state().OnUpperRightAction()
@@ -129,11 +129,6 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 		a.SwitchToEditMap()
 	}
 
-	if key == glfw.KeyF8 && action == glfw.Press {
-		//a.player.SetHeight(1.9)
-		a.EndTurn()
-	}
-
 	if key == glfw.KeyF9 && action == glfw.Press {
 		pprof.StopCPUProfile()
 		f, err := os.Create("cpu_running.prof")
@@ -157,21 +152,21 @@ func (a *BattleGame) handleKeyEvents(key glfw.Key, scancode int, action glfw.Act
 	}
 }
 
-func (a *BattleGame) captureMouse() {
+func (a *BattleClient) captureMouse() {
 	a.Window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 	if glfw.RawMouseMotionSupported() {
 		a.Window.SetInputMode(glfw.RawMouseMotion, glfw.True)
 	}
 }
 
-func (a *BattleGame) freeMouse() {
+func (a *BattleClient) freeMouse() {
 	a.Window.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
 	if glfw.RawMouseMotionSupported() {
 		a.Window.SetInputMode(glfw.RawMouseMotion, glfw.False)
 	}
 }
 
-func (a *BattleGame) debugToggleWireFrame() {
+func (a *BattleClient) debugToggleWireFrame() {
 	if a.wireFrame {
 		a.wireFrame = false
 		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)

@@ -28,6 +28,7 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        0,
 				CoreStats: defaultCoreStats,
+				ModelFile: "./assets/models/Guard3.glb",
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "./assets/textures/skins/steve.png",
 				},
@@ -35,6 +36,7 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        1,
 				CoreStats: defaultCoreStats,
+				ModelFile: "./assets/models/Guard3.glb",
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "./assets/textures/skins/soldier4.png",
 				},
@@ -48,6 +50,7 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        2,
 				CoreStats: defaultCoreStats,
+				ModelFile: "./assets/models/Guard3.glb",
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "./assets/textures/skins/deep_monster2.png",
 				},

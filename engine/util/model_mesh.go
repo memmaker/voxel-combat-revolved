@@ -137,6 +137,18 @@ func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
 	}
 }
 
+func (m *MeshNode) CreateColliders() {
+	if m.mesh != nil {
+		for _, subMesh := range m.mesh.SubMeshes {
+			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GlobalMatrix})
+		}
+		m.mesh = nil
+	}
+	for _, child := range m.children {
+		child.CreateColliders()
+	}
+}
+
 func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
 	shader.SetUniformAttr(2, m.GlobalMatrix())
 
@@ -402,7 +414,7 @@ func (m *MeshNode) GetNodeByName(name string) *MeshNode {
 func (m *MeshNode) GetColliders() []Collider {
 	var result []Collider
 
-	if m.HasMesh() {
+	if len(m.colliders) > 0 {
 		colliderName := m.parent.Name
 		for _, collider := range m.colliders {
 			collider.SetName(colliderName)

@@ -6,6 +6,7 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
+	"math"
 	"path"
 )
 
@@ -149,7 +150,7 @@ func (g *GameInstance) OnUnitMoved(unitMapObject voxel.MapObject) {
 	}
 }
 
-func (g *GameInstance) canSpotNewEnemiesFrom(unit *game.UnitInstance, pos voxel.Int3) ([]*game.UnitInstance, bool) {
+func (g *GameInstance) acquiredLOS(unit *game.UnitInstance, pos voxel.Int3) ([]*game.UnitInstance, bool) {
 	currentlyVisibleEnemies := g.currentVisibleEnemies[unit]
 	newEnemies := make([]*game.UnitInstance, 0)
 	own := g.currentPlayerFaction()
@@ -166,6 +167,21 @@ func (g *GameInstance) canSpotNewEnemiesFrom(unit *game.UnitInstance, pos voxel.
 		}
 	}
 	return newEnemies, len(newEnemies) > 0
+}
+
+func (g *GameInstance) lostLOS(unit *game.UnitInstance, pos voxel.Int3) ([]*game.UnitInstance, bool) {
+	currentlyVisibleEnemies := g.currentVisibleEnemies[unit]
+	lostEnemies := make([]*game.UnitInstance, 0)
+	for enemy, wasVisible := range currentlyVisibleEnemies {
+		if !wasVisible {
+			continue
+		}
+		if g.CanSeeFrom(unit, enemy, pos.ToBlockCenterVec3().Add(unit.GetEyeOffset())) {
+			continue
+		}
+		lostEnemies = append(lostEnemies, enemy)
+	}
+	return lostEnemies, len(lostEnemies) > 0
 }
 
 func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject) *game.RayCastHit {
@@ -194,6 +210,64 @@ func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, tar
 	insideMap := voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)
 
 	return &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
+}
+
+func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *game.UnitInstance) *game.FreeAimHit {
+	rayHitObject := false
+	var hitPart util.Collider
+	var hitPoint mgl32.Vec3
+	var hitUnit voxel.MapObject
+	var visitedBlocks []voxel.Int3
+	checkedCollision := make(map[voxel.MapObject]bool)
+	rayHitInfo := util.DDARaycast(rayStart, rayEnd, func(x, y, z int32) bool {
+		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
+		if g.voxelMap.IsSolidBlockAt(x, y, z) || !g.voxelMap.Contains(x, y, z) {
+			return true
+		}
+		block := g.voxelMap.GetGlobalBlock(x, y, z)
+
+		if block != nil && block.IsOccupied() {
+			collidingObject := block.GetOccupant().(*game.UnitInstance)
+			if collidingObject == sourceUnit {
+				return false
+			}
+			var rayPoint mgl32.Vec3
+			rayHit := false
+			if _, checkedBefore := checkedCollision[collidingObject]; checkedBefore {
+				return false
+			}
+			minDistance := float32(math.MaxFloat32)
+			//println(fmt.Sprintf("Checking %s against %s", obj.GetName(), collidingObject.GetName()))
+			for _, meshPartCollider := range collidingObject.GetColliders() {
+				//meshsCollided, _ = util.GJK(projectile.GetCollider(), meshPartCollider) // we made this sweeping for the projectiles only for now
+				rayHit, rayPoint = meshPartCollider.IntersectsRay(rayStart, rayEnd)
+				if rayHit {
+					rayHitObject = true
+					dist := rayPoint.Sub(rayStart).Len()
+					if dist < minDistance {
+						minDistance = dist
+						hitPart = meshPartCollider
+						hitPoint = rayPoint
+						hitUnit = collidingObject
+					}
+				}
+				checkedCollision[collidingObject] = true
+			}
+			if rayHitObject {
+				return true
+			}
+		}
+		return false
+	})
+	if rayHitObject {
+		rayHitInfo = rayHitInfo.WithCollisionWorldPosition(hitPoint)
+	}
+	insideMap := g.voxelMap.ContainsGrid(rayHitInfo.CollisionGridPosition) || g.voxelMap.ContainsGrid(rayHitInfo.PreviousGridPosition)
+	partName := util.BodyPartNone
+	if hitPart != nil {
+		partName = hitPart.GetName()
+	}
+	return &game.FreeAimHit{RayCastHit: game.RayCastHit{HitInfo3D: rayHitInfo, VisitedBlocks: visitedBlocks, UnitHit: hitUnit, InsideMap: insideMap}, BodyPart: partName}
 }
 
 func (g *GameInstance) AddPlayer(id uint64) {
@@ -241,11 +315,33 @@ func (g *GameInstance) GetPlayerUnits(userID uint64) []*game.UnitInstance {
 	return g.playerUnits[userID]
 }
 
-func (g *GameInstance) GetServerActionForUnit(actionMessage game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
-	switch actionMessage.Action {
-	case "Move":
-		return NewServerActionMove(g, game.NewActionMove(g.voxelMap), unit, actionMessage.Target)
+func (g *GameInstance) GetServerActionForUnit(actionMessage game.UnitActionMessage, unit *game.UnitInstance) ServerAction {
+	switch typedMsg := actionMessage.(type) {
+	case game.TargetedUnitActionMessage:
+		return g.GetTargetedAction(typedMsg, unit)
+	case game.FreeAimActionMessage:
+		return g.GetFreeAimAction(typedMsg, unit)
 	}
+	return nil
+}
+
+func (g *GameInstance) GetTargetedAction(targetAction game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
+	switch targetAction.Action {
+	case "Move":
+		return NewServerActionMove(g, game.NewActionMove(g.voxelMap), unit, targetAction.Target)
+	case "Shot":
+		return NewServerActionSnapShot(g, unit, targetAction.Target)
+	}
+	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", targetAction.Action))
+	return nil
+}
+
+func (g *GameInstance) GetFreeAimAction(msg game.FreeAimActionMessage, unit *game.UnitInstance) ServerAction {
+	switch msg.Action {
+	case "Shot":
+		return NewServerActionFreeShot(g, unit, msg.Origin, msg.Velocity)
+	}
+	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", msg.Action))
 	return nil
 }
 

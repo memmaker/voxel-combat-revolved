@@ -7,7 +7,7 @@ import (
 	"github.com/memmaker/battleground/game"
 )
 
-func (a *BattleGame) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
+func (a *BattleClient) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
 	voxelMap := a.voxelMap
 	var visitedBlocks []voxel.Int3
 	var unitHit voxel.MapObject
@@ -30,7 +30,7 @@ func (a *BattleGame) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
 	return a.lastHitInfo
 }
 
-func (a *BattleGame) PlaceBlockAtCurrentSelection() {
+func (a *BattleClient) PlaceBlockAtCurrentSelection() {
 	if a.lastHitInfo == nil {
 		return
 	}
@@ -39,7 +39,7 @@ func (a *BattleGame) PlaceBlockAtCurrentSelection() {
 	a.PlaceBlock(previousGridPosition, voxel.NewTestBlock(a.blockTypeToPlace))
 }
 
-func (a *BattleGame) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
+func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
 	voxelMap := a.voxelMap
 	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
 		voxelMap.SetBlock(int32(pos.X), int32(pos.Y), int32(pos.Z), block)
@@ -47,7 +47,7 @@ func (a *BattleGame) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
 	}
 }
 
-func (a *BattleGame) RemoveBlock() {
+func (a *BattleClient) RemoveBlock() {
 	voxelMap := a.voxelMap
 	if a.lastHitInfo == nil {
 		return
@@ -60,7 +60,7 @@ func (a *BattleGame) RemoveBlock() {
 	}
 }
 
-func (a *BattleGame) LoadVoxelMap(filename string) *voxel.Map {
+func (a *BattleClient) LoadVoxelMap(filename string) *voxel.Map {
 	construction := voxel.LoadConstruction(filename)
 	listOfBlocks := voxel.GetBlocksNeededByConstruction(construction)
 	listOfBlockEntities := voxel.GetBlockEntitiesNeededByConstruction(construction)
@@ -77,7 +77,7 @@ func (a *BattleGame) LoadVoxelMap(filename string) *voxel.Map {
 	return loadedMap
 }
 
-func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
+func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 	listOfBlocks := []string{
 		"selection",
 		"brick",
@@ -112,7 +112,7 @@ func (a *BattleGame) LoadEmptyWorld() *voxel.Map {
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
 }
-func (a *BattleGame) LoadMap(filename string) *voxel.Map {
+func (a *BattleClient) LoadMap(filename string) *voxel.Map {
 	listOfBlocks := []string{
 		"selection",
 		"brick",
@@ -141,7 +141,7 @@ func (a *BattleGame) LoadMap(filename string) *voxel.Map {
 	return loadedMap
 }
 
-func (a *BattleGame) SetVoxelMap(testMap *voxel.Map) {
+func (a *BattleClient) SetVoxelMap(testMap *voxel.Map) {
 	a.voxelMap = testMap
 	//a.voxelMap.SetUnitMovedHandler(a.OnUnitMoved)
 }

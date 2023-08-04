@@ -7,7 +7,7 @@ import (
 	"github.com/memmaker/battleground/engine/voxel"
 )
 
-func (a *BattleGame) createTestMap(sizeX, sizeY, sizeZ int32) {
+func (a *BattleClient) createTestMap(sizeX, sizeY, sizeZ int32) {
 	testMap := a.voxelMap
 	for x := int32(0); x < sizeX; x++ {
 		for y := int32(0); y < sizeY; y++ {
@@ -30,13 +30,13 @@ func createTestBlocks(testChunk *voxel.Chunk) {
 	}
 }
 
-func (a *BattleGame) debugFunc() {
+func (a *BattleClient) debugFunc() {
 	//chunk := a.voxelMap.GetChunk(0, 0, 0)
 	util.CheckForGLError()
 	a.Print("Hello World")
 }
 
-func (a *BattleGame) updateDebugInfo() {
+func (a *BattleClient) updateDebugInfo() {
 	if !a.showDebugInfo {
 		return
 	}
@@ -71,7 +71,7 @@ func (a *BattleGame) updateDebugInfo() {
 	a.Print(debugInfo)
 }
 
-func (a *BattleGame) placeDebugLine(startEnd [2]mgl32.Vec3) {
+func (a *BattleClient) placeDebugLine(startEnd [2]mgl32.Vec3) {
 	a.debugObjects = a.debugObjects[:0]
 	//camDirection := a.player.cam.GetFront()
 	var lines [][2]mgl32.Vec3
