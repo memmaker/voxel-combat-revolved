@@ -18,9 +18,9 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeySpace && g.selectedUnit.CanAct() {
 		g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.voxelMap))
 	} else if key == glfw.KeyF {
-		g.engine.SwitchToAction(g.selectedUnit, &ActionShot{engine: g.engine})
+		g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine))
 	} else if key == glfw.KeyEnter {
-		g.engine.SwitchToFreeAim(g.selectedUnit, &ActionShot{engine: g.engine})
+		g.engine.SwitchToFreeAim(g.selectedUnit, game.NewActionShot(g.engine))
 	} else if key == glfw.KeyTab {
 		g.nextUnit()
 	}
@@ -64,7 +64,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 						println("[GameStateUnit] Unit cannot act anymore.")
 						return
 					}
-					g.engine.SwitchToAction(g.selectedUnit, &ActionShot{engine: g.engine})
+					g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine))
 				},
 				Hotkey: glfw.KeyF,
 			},

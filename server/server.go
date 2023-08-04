@@ -256,6 +256,7 @@ func (b *BattleServer) startGame(battleGame *GameInstance) {
 			GameID:           battleGame.id,
 			PlayerNameMap:    playerNames,
 			PlayerFactionMap: playerFactions,
+			OwnID:            playerID,
 			OwnUnits:         units,
 			MapFile:          battleGame.mapFile,
 		})
@@ -326,7 +327,7 @@ func (b *BattleServer) TargetedUnitAction(userID uint64, msg game.TargetedUnitAc
 	}
 	unit := gameInstance.units[msg.GameUnitID]
 
-	if unit.ControlledBy != userID {
+	if unit.ControlledBy() != userID {
 		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "You do not control this unit"})
 		return
 	}
@@ -336,31 +337,29 @@ func (b *BattleServer) TargetedUnitAction(userID uint64, msg game.TargetedUnitAc
 		return
 	}
 
-	action := gameInstance.GetAction(msg.Action)
-	validTargets := action.GetValidTargets(unit)
-	targetIsValid := false
-	for _, target := range validTargets {
-		if target == msg.Target {
-			targetIsValid = true
-			break
-		}
-	}
+	action := gameInstance.GetServerActionForUnit(msg, unit)
+
 	// get action for this unit, check if the target is valid
-	if !targetIsValid {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Target is not valid"})
+	if !action.IsValid() {
+		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid"})
 		return
 	}
+	// this setup won't work: the client cannot know how to execute the action
+	// example movement: only the server knows if an reaction shot is triggered
+	// so executing that same action on the client will not work
+	// we need to adapt the response to include the result of the action
+	clientMsgTypes, clientMsgs := action.Execute()
+	// so for the movement example we want to communicate
+	// - the unit moved to another position than the client expected
+	// - the unit can now see another unit
 
-	action.Execute(unit, msg.Target)
 	unit.EndTurn()
 
 	for _, playerID := range gameInstance.players {
 		connectedUser := b.connectedClients[playerID]
-		b.respond(connectedUser, "ConfirmedTargetedUnitAction", game.TargetedUnitActionMessage{
-			GameUnitID: msg.GameUnitID,
-			Action:     msg.Action,
-			Target:     msg.Target,
-		})
+		for i := 0; i < len(clientMsgTypes); i++ {
+			b.respond(connectedUser, clientMsgTypes[i], clientMsgs[i])
+		}
 	}
 }
 

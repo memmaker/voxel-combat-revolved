@@ -292,7 +292,8 @@ func (m *Map) SetSetRandomStuff(block *Block) {
 
 type MapObject interface {
 	GetOccupiedBlockOffsets() []Int3
-	GetPosition() mgl32.Vec3
+	SetFootPosition(pos mgl32.Vec3)
+	ControlledBy() uint64
 }
 
 func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {
@@ -338,6 +339,7 @@ func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 		block.AddUnit(unit)
 	}
+	unit.SetFootPosition(pos)
 }
 
 func GetBlocksNeededByConstruction(construction *Construction) []string {

@@ -51,6 +51,7 @@ func (c *ServerConnection) send(messageType string, message any) error {
 	if err != nil {
 		return err
 	}
+	println(fmt.Sprintf("[ServerConnection] Sending message: %s", messageType))
 	_, err = c.connection.Write(append([]byte(messageType), '\n'))
 	_, err = c.connection.Write(append(dataAsJson, '\n'))
 	return err

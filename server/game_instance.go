@@ -9,6 +9,11 @@ import (
 	"path"
 )
 
+type ServerAction interface {
+	IsValid() bool
+	Execute() ([]string, []any)
+}
+
 func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool) *GameInstance {
 	mapDir := "./assets/maps"
 	mapFile = path.Join(mapDir, mapFile)
@@ -23,7 +28,7 @@ func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool)
 		players:               make([]uint64, 0),
 		factionMap:            make(map[*game.UnitInstance]*Faction),
 		playerFactions:        make(map[uint64]*Faction),
-		currentVisibleEnemies: make(map[*game.UnitInstance][]*game.UnitInstance),
+		currentVisibleEnemies: make(map[*game.UnitInstance]map[*game.UnitInstance]bool),
 		playerUnits:           make(map[uint64][]*game.UnitInstance),
 		playersNeeded:         2,
 		voxelMap:              loadedMap,
@@ -40,7 +45,7 @@ type GameInstance struct {
 	currentPlayerIndex    int
 	units                 []*game.UnitInstance
 	factionMap            map[*game.UnitInstance]*Faction
-	currentVisibleEnemies map[*game.UnitInstance][]*game.UnitInstance
+	currentVisibleEnemies map[*game.UnitInstance]map[*game.UnitInstance]bool
 	voxelMap              *voxel.Map
 	players               []uint64
 	playerFactions        map[uint64]*Faction
@@ -85,51 +90,82 @@ func (g *GameInstance) currentPlayerID() uint64 {
 
 func (g *GameInstance) UpdateVisibleEnemies() {
 	own := g.currentPlayerFaction()
-	visibleEnemies := make(map[*game.UnitInstance][]*game.UnitInstance)
-	for _, ownUnit := range g.currentPlayerUnits() {
+	for _, ownUnit := range g.currentPlayerUnits() { // for all own units
 		for _, unit := range g.units {
 			if g.factionMap[unit] == own {
 				continue
 			}
+			// check against all other units
+			if _, ok := g.currentVisibleEnemies[ownUnit]; !ok {
+				g.currentVisibleEnemies[ownUnit] = make(map[*game.UnitInstance]bool)
+			}
 			if g.CanSee(ownUnit, unit) {
-				if _, ok := visibleEnemies[ownUnit]; !ok {
-					visibleEnemies[ownUnit] = make([]*game.UnitInstance, 0)
-				}
-				visibleEnemies[ownUnit] = append(visibleEnemies[ownUnit], unit)
+				g.currentVisibleEnemies[ownUnit][unit] = true
+			} else {
+				g.currentVisibleEnemies[ownUnit][unit] = false
 			}
 		}
 	}
-	g.currentVisibleEnemies = visibleEnemies
 }
 
 func (g *GameInstance) CanSee(one, another *game.UnitInstance) bool {
-	if one == another || one.ControlledBy == another.ControlledBy {
+	return g.CanSeeFrom(one, another, one.GetEyePosition())
+}
+
+func (g *GameInstance) CanSeeFrom(observer, another *game.UnitInstance, observerEyePosition mgl32.Vec3) bool {
+	if observer == another || observer.ControlledBy() == another.ControlledBy() {
 		return true
 	}
-	source := one.GetEyePosition()
 	targetOne := another.GetEyePosition()
 	targetTwo := another.GetFootPosition()
 
-	rayOne := g.RayCastUnits(source, targetOne, one, another)
-	rayTwo := g.RayCastUnits(source, targetTwo, one, another)
+	rayOne := g.RayCastUnits(observerEyePosition, targetOne, observer, another)
+	rayTwo := g.RayCastUnits(observerEyePosition, targetTwo, observer, another)
 
-	return rayOne.UnitHit == another || rayTwo.UnitHit == another
+	lineOfSight := rayOne.UnitHit == another || rayTwo.UnitHit == another
+
+	println(fmt.Sprintf("[GameInstance] Could %s at (%v) see %s?: %t", observer.Name, observerEyePosition, another.Name, lineOfSight))
+
+	return lineOfSight
 }
 
 func (g *GameInstance) OnUnitMoved(unitMapObject voxel.MapObject) {
 	unit := unitMapObject.(*game.UnitInstance)
 	own := g.currentPlayerFaction()
 	if g.factionMap[unit] == own {
-		g.currentVisibleEnemies[unit] = make([]*game.UnitInstance, 0)
+		if _, notExists := g.currentVisibleEnemies[unit]; notExists {
+			g.currentVisibleEnemies[unit] = make(map[*game.UnitInstance]bool)
+		}
 		for _, enemy := range g.units {
 			if g.factionMap[enemy] == own {
 				continue
 			}
 			if g.CanSee(unit, enemy) {
-				g.currentVisibleEnemies[unit] = append(g.currentVisibleEnemies[unit], enemy)
+				g.currentVisibleEnemies[unit][enemy] = true
+			} else {
+				g.currentVisibleEnemies[unit][enemy] = false
 			}
 		}
 	}
+}
+
+func (g *GameInstance) canSpotNewEnemiesFrom(unit *game.UnitInstance, pos voxel.Int3) ([]*game.UnitInstance, bool) {
+	currentlyVisibleEnemies := g.currentVisibleEnemies[unit]
+	newEnemies := make([]*game.UnitInstance, 0)
+	own := g.currentPlayerFaction()
+	for _, enemy := range g.units {
+		if g.factionMap[enemy] == own {
+			continue
+		}
+		unitWasVisible, wasKnown := currentlyVisibleEnemies[enemy]
+		if wasKnown && unitWasVisible {
+			continue
+		}
+		if g.CanSeeFrom(unit, enemy, pos.ToBlockCenterVec3().Add(unit.GetEyeOffset())) {
+			newEnemies = append(newEnemies, enemy)
+		}
+	}
+	return newEnemies, len(newEnemies) > 0
 }
 
 func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject) *game.RayCastHit {
@@ -141,11 +177,16 @@ func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, tar
 		if voxelMap.Contains(x, y, z) {
 			block := voxelMap.GetGlobalBlock(x, y, z)
 			if block != nil && !block.IsAir() {
+				println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
 				return true
-			} else if block.IsOccupied() && (block.GetOccupant() != sourceUnit && block.GetOccupant() == targetUnit) {
+			} else if block.IsOccupied() && (block.GetOccupant().ControlledBy() != sourceUnit.ControlledBy() || block.GetOccupant() == targetUnit) {
 				unitHit = block.GetOccupant().(*game.UnitInstance)
+				println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
 				return true
 			}
+		} else {
+			println(fmt.Sprintf("[GameInstance] Raycast hit out of bounds at %d, %d, %d", x, y, z))
+			return true
 		}
 		return false
 	}
@@ -183,6 +224,8 @@ func (g *GameInstance) AddUnit(userID uint64, unit *game.UnitInstance) uint64 {
 	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.UnitDefinition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unit)
 	g.units = append(g.units, unit)
+	g.factionMap[unit] = g.playerFactions[userID]
+	g.voxelMap.AddUnit(unit, unit.SpawnPos.ToBlockCenterVec3())
 	return unitInstanceID
 }
 
@@ -198,10 +241,10 @@ func (g *GameInstance) GetPlayerUnits(userID uint64) []*game.UnitInstance {
 	return g.playerUnits[userID]
 }
 
-func (g *GameInstance) GetAction(action string) game.Action {
-	switch action {
+func (g *GameInstance) GetServerActionForUnit(actionMessage game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
+	switch actionMessage.Action {
 	case "Move":
-		return game.NewActionMove(g.voxelMap)
+		return NewServerActionMove(g, game.NewActionMove(g.voxelMap), unit, actionMessage.Target)
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import "image"
 import "golang.org/x/image/math/fixed"
 import "golang.org/x/image/font/sfnt"
 
-
 // Rasterizer is an interface for 2D vector graphics rasterization to an
 // alpha mask. This interface is offered as an open alternative to the
 // concrete [golang.org/x/image/vector.Rasterizer] type (as used by
@@ -69,11 +68,10 @@ type vectorTracer interface {
 	CubeTo(fixed.Point26_6, fixed.Point26_6, fixed.Point26_6)
 }
 
-
 // A low level method to rasterize glyph masks.
 //
 // Returned masks have their coordinates adjusted so the mask is drawn at
-// dot origin (0, 0) + the given fractional position by default. To draw it at
+// dot origin (0, 0) + the given fractional position by default. Destination draw it at
 // a specific dot with a matching fractional position, translate the mask by
 // dot.X.Floor() and dot.Y.Floor(). If you don't want to adjust the fractional
 // pixel position, you can call Rasterize with a zero-value fixed.Point26_6{}.
@@ -92,11 +90,13 @@ func Rasterize(outline sfnt.Segments, rasterizer Rasterizer, dot fixed.Point26_6
 			break
 		}
 	}
-	if !somethingToDraw { return nil, nil }
+	if !somethingToDraw {
+		return nil, nil
+	}
 
 	// obtain the fractional part of the coordinate
 	// (always positive, between 0 and 0:63 [0.984375])
-	fract := fixed.Point26_6 {
+	fract := fixed.Point26_6{
 		X: dot.X & 0x0000003F,
 		Y: dot.Y & 0x0000003F,
 	}
@@ -115,10 +115,14 @@ func Rasterize(outline sfnt.Segments, rasterizer Rasterizer, dot fixed.Point26_6
 func processOutline(tracer vectorTracer, outline sfnt.Segments) {
 	for _, segment := range outline {
 		switch segment.Op {
-		case sfnt.SegmentOpMoveTo: tracer.MoveTo(segment.Args[0])
-		case sfnt.SegmentOpLineTo: tracer.LineTo(segment.Args[0])
-		case sfnt.SegmentOpQuadTo: tracer.QuadTo(segment.Args[0], segment.Args[1])
-		case sfnt.SegmentOpCubeTo: tracer.CubeTo(segment.Args[0], segment.Args[1], segment.Args[2])
+		case sfnt.SegmentOpMoveTo:
+			tracer.MoveTo(segment.Args[0])
+		case sfnt.SegmentOpLineTo:
+			tracer.LineTo(segment.Args[0])
+		case sfnt.SegmentOpQuadTo:
+			tracer.QuadTo(segment.Args[0], segment.Args[1])
+		case sfnt.SegmentOpCubeTo:
+			tracer.CubeTo(segment.Args[0], segment.Args[1], segment.Args[2])
 		default:
 			panic("unexpected segment.Op case")
 		}

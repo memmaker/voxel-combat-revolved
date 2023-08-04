@@ -42,18 +42,43 @@ type BattleGame struct {
 	collisionSolver       *util.CollisionSolver
 	stateStack            []GameState
 	updateQueue           []func(deltaTime float64)
+	conditionQueue        []ConditionalCall
 	isBlockSelection      bool
 	groundSelector        *GroundSelector
 	unitSelector          *GroundSelector
 	blockSelector         *util.LineMesh
 	currentFactionIndex   int
-	currentVisibleEnemies map[*Unit][]*Unit
+	currentVisibleEnemies map[*Unit]map[*Unit]bool
 	projectileTexture     *glhf.Texture
 	actionbar             *gui.ActionBar
 	server                *game.ServerConnection
 	unitMap               map[uint64]*Unit
+	mu                    sync.Mutex
+	mc                    sync.Mutex
+}
 
-	mu sync.Mutex
+func (a *BattleGame) GetVisibleUnits(instance game.UnitCore) []game.UnitCore {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
+	result := make(map[*Unit]bool)
+	for observer, unitsVisible := range a.currentVisibleEnemies {
+		if !observer.IsUserControlled() {
+			continue
+		}
+		for unit, isVisible := range unitsVisible {
+			if isVisible {
+				result[unit] = true
+			}
+		}
+	}
+	return result
+}
+func (a *BattleGame) GetVoxelMap() *voxel.Map {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (a *BattleGame) state() GameState {
@@ -81,11 +106,12 @@ func NewBattleGame(title string, width int, height int) *BattleGame {
 	window.SetScrollCallback(glApp.ScrollCallback)
 
 	myApp := &BattleGame{
-		GlApplication: glApp,
-		isoCamera:     util.NewISOCamera(width, height),
-		fpsCamera:     util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
-		timer:         util.NewTimer(),
-		unitMap:       make(map[uint64]*Unit),
+		GlApplication:         glApp,
+		isoCamera:             util.NewISOCamera(width, height),
+		fpsCamera:             util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
+		timer:                 util.NewTimer(),
+		unitMap:               make(map[uint64]*Unit),
+		currentVisibleEnemies: make(map[*Unit]map[*Unit]bool),
 	}
 	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
@@ -168,7 +194,11 @@ func (a *BattleGame) LoadModel(filename string) *util.CompoundMesh {
 
 // Q: when do we add the other units?
 // A: when first seen.
-func (a *BattleGame) AddOwnedUnit(spawnPos mgl32.Vec3, unitID uint64, unitDefinition *game.UnitDefinition, name string) *Unit {
+func (a *BattleGame) AddOwnedUnit(unitInstance *game.UnitInstance, playerID uint64) *Unit {
+	unitID := unitInstance.GameUnitID
+	unitDefinition := unitInstance.UnitDefinition
+	spawnPos := unitInstance.SpawnPos.ToBlockCenterVec3()
+	name := unitInstance.Name
 	//model := a.LoadModel("./assets/model.gltf")
 	model := a.LoadModel("./assets/models/Guard3.glb")
 	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
@@ -176,6 +206,8 @@ func (a *BattleGame) AddOwnedUnit(spawnPos mgl32.Vec3, unitID uint64, unitDefini
 	model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
 	model.SetAnimation("animation.idle")
 	unit := NewUnit(unitID, name, spawnPos, model, &unitDefinition.CoreStats)
+	unit.SetControlledBy(playerID)
+	unit.SetUserControlled()
 	unit.SetMap(a.voxelMap)
 	a.collisionSolver.AddObject(unit)
 	a.allUnits = append(a.allUnits, unit)
@@ -183,7 +215,37 @@ func (a *BattleGame) AddOwnedUnit(spawnPos mgl32.Vec3, unitID uint64, unitDefini
 	a.unitMap[unitID] = unit
 	return unit
 }
+func (a *BattleGame) AddVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
+	unitID := unitInstance.GameUnitID
 
+	if _, ok := a.unitMap[unitID]; ok {
+		// already added
+		return
+	}
+
+	unitDefinition := unitInstance.UnitDefinition
+	spawnPos := unitInstance.SpawnPos.ToBlockCenterVec3()
+	name := unitInstance.Name
+
+	model := a.LoadModel("./assets/models/Guard3.glb")
+	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
+	//model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
+	model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
+	model.SetAnimation("animation.idle")
+	unit := NewUnit(unitID, name, spawnPos, model, &unitDefinition.CoreStats)
+	unit.SetControlledBy(unitInstance.ControlledBy())
+	unit.SetMap(a.voxelMap)
+
+	a.collisionSolver.AddObject(unit)
+
+	a.allUnits = append(a.allUnits, unit)
+
+	if _, ok := a.currentVisibleEnemies[observer]; !ok {
+		a.currentVisibleEnemies[observer] = make(map[*Unit]bool)
+	}
+	a.currentVisibleEnemies[observer][unit] = true
+	a.unitMap[unitID] = unit
+}
 func (a *BattleGame) SpawnProjectile(pos, velocity mgl32.Vec3) {
 	projectile := NewProjectile(a.modelShader, a.projectileTexture, pos)
 	//projectile.SetCollisionHandler(a.GetCollisionHandler())
@@ -210,6 +272,15 @@ func (a *BattleGame) Update(elapsed float64) {
 	// what happens when we try writing to this slice exactly in between these two lines?
 	a.updateQueue = a.updateQueue[:0]
 	a.mu.Unlock()
+	a.mc.Lock()
+	for i := len(a.conditionQueue) - 1; i >= 0; i-- {
+		c := a.conditionQueue[i]
+		if c.condition() {
+			c.function()
+			a.conditionQueue = append(a.conditionQueue[:i], a.conditionQueue[i+1:]...)
+		}
+	}
+	a.mc.Unlock()
 
 	camMoved, movementVector := a.pollInput(elapsed)
 	if camMoved {
@@ -345,12 +416,12 @@ func (a *BattleGame) SwitchToUnit(unit *Unit) {
 	a.state().Init(false)
 }
 
-func (a *BattleGame) SwitchToAction(unit *Unit, action game.Action) {
+func (a *BattleGame) SwitchToAction(unit *Unit, action game.TargetAction) {
 	a.stateStack = append(a.stateStack, &GameStateAction{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, selectedAction: action})
 	a.state().Init(false)
 }
 
-func (a *BattleGame) SwitchToFreeAim(unit *Unit, action *ActionShot) {
+func (a *BattleGame) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
 	a.stateStack = append(a.stateStack, &GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action})
 	a.state().Init(false)
 }
@@ -364,6 +435,17 @@ func (a *BattleGame) scheduleUpdate(f func(deltaTime float64)) {
 	a.mu.Lock()
 	a.updateQueue = append(a.updateQueue, f)
 	a.mu.Unlock()
+}
+
+type ConditionalCall struct {
+	condition func() bool
+	function  func()
+}
+
+func (a *BattleGame) scheduleWaitForCondition(condition func() bool, function func()) {
+	a.mc.Lock()
+	a.conditionQueue = append(a.conditionQueue, ConditionalCall{condition: condition, function: function})
+	a.mc.Unlock()
 }
 
 func (a *BattleGame) PopState() {
@@ -451,14 +533,6 @@ func (a *BattleGame) GetNextUnit(unit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-
-func (a *BattleGame) GetVisibleUnits(unit *Unit) []*Unit {
-	if _, ok := a.currentVisibleEnemies[unit]; ok {
-		return a.currentVisibleEnemies[unit]
-	}
-	return make([]*Unit, 0)
-}
-
 func (a *BattleGame) SwitchToFirstPerson(position mgl32.Vec3) {
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
@@ -483,10 +557,25 @@ func (a *BattleGame) SetConnection(connection *game.ServerConnection) {
 
 func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
 	switch msgType {
-	case "ConfirmedTargetedUnitAction":
-		var msg game.TargetedUnitActionMessage
+	case "UnitMoved":
+		var msg game.VisualUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
-			a.OnConfirmedTargetedUnitAction(msg)
+			a.OnUnitMoved(msg)
+		}
+	case "UnitsSpotted":
+		var msg game.VisualUnitsSpotted
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnUnitsSpotted(msg)
+		}
+	case "ProjectileFired":
+		var msg game.VisualProjectileFired
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnProjectileFired(msg)
+		}
+	case "TargetedUnitActionResponse":
+		var msg game.ActionResponse
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnTargetedUnitActionResponse(msg)
 		}
 	case "NextPlayer":
 		var msg game.NextPlayerMessage
@@ -497,18 +586,44 @@ func (a *BattleGame) OnServerMessage(msgType, messageAsJson string) {
 
 }
 
-func (a *BattleGame) OnConfirmedTargetedUnitAction(msg game.TargetedUnitActionMessage) {
-	unit, known := a.unitMap[msg.GameUnitID]
-	if !known {
-		println(fmt.Sprintf("[BattleGame] Unknown unit %d", msg.GameUnitID))
-		return
+func (a *BattleGame) OnTargetedUnitActionResponse(msg game.ActionResponse) {
+	if !msg.Success {
+		println(fmt.Sprintf("[BattleGame] Action failed: %s", msg.Message))
+		a.Print(fmt.Sprintf("Action failed: %s", msg.Message))
 	}
-	clientAction := a.animateAction(unit, msg.Action, msg.Target)
-	if clientAction != nil {
-		if clientAction.IsValidTarget(unit, msg.Target) {
-			clientAction.Execute(unit, msg.Target)
+}
+func (a *BattleGame) OnUnitsSpotted(msg game.VisualUnitsSpotted) {
+	addVisibleUnit := func() {
+		observer := a.unitMap[msg.Observer]
+		for _, unit := range msg.Spotted {
+			a.AddVisibleEnemyUnit(observer, unit)
 		}
 	}
+	observerPositionReached := func() bool {
+		observer := a.unitMap[msg.Observer]
+		return voxel.ToGridInt3(observer.GetFootPosition()) == msg.ObserverPosition
+	}
+	a.scheduleWaitForCondition(observerPositionReached, addVisibleUnit)
+}
+
+func (a *BattleGame) OnProjectileFired(msg game.VisualProjectileFired) {
+	// TODO: animate unit firing
+	a.SpawnProjectile(msg.SourcePosition, msg.Velocity)
+}
+
+func (a *BattleGame) OnUnitMoved(msg game.VisualUnitMoved) {
+	unit, known := a.unitMap[msg.UnitID]
+	if !known {
+		println(fmt.Sprintf("[BattleGame] Unknown unit %d", msg.UnitID))
+		return
+	}
+	println(fmt.Sprintf("[BattleGame] Moving %d to %v", msg.UnitID, msg.Path[len(msg.Path)-1]))
+
+	a.voxelMap.ClearHighlights()
+	a.unitSelector.Hide()
+
+	unit.SetPath(msg.Path)
+	unit.EndTurn()
 }
 
 func (a *BattleGame) OnNextPlayer(msg game.NextPlayerMessage) {
@@ -521,16 +636,6 @@ func (a *BattleGame) OnNextPlayer(msg game.NextPlayerMessage) {
 		a.Print("Waiting for other players...")
 		a.SwitchToWaitForEvents()
 	}
-}
-
-func (a *BattleGame) CurrentVisibleEnemiesList() map[*Unit]bool {
-	result := make(map[*Unit]bool)
-	for _, visibles := range a.currentVisibleEnemies {
-		for _, visible := range visibles {
-			result[visible] = true
-		}
-	}
-	return result
 }
 
 func (a *BattleGame) EndTurn() {
@@ -548,20 +653,6 @@ func (a *BattleGame) FirstUnit() *Unit {
 		if unit.CanAct() {
 			return unit
 		}
-	}
-	return nil
-}
-
-// concept: actions
-// actions are split between client and server
-// the server action contains the actual game logic that will alter the world state
-// the corresponding client action contains the animation logic that will be played on the client
-// so server changes state and client visualizes it
-
-func (a *BattleGame) animateAction(unit *Unit, action string, target voxel.Int3) game.Action {
-	switch action {
-	case "Move":
-		return game.NewActionMove(a.voxelMap)
 	}
 	return nil
 }

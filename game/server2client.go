@@ -12,10 +12,11 @@ type LoginResponse struct {
 }
 
 type GameStartedMessage struct {
+	OwnID            uint64
+	OwnUnits         []*UnitInstance
 	GameID           string
 	PlayerFactionMap map[uint64]string
 	PlayerNameMap    map[uint64]string
-	OwnUnits         []*UnitInstance
 	MapFile          string
 }
 

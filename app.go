@@ -53,8 +53,7 @@ func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedM
 	gameClient.LoadMap(gameInfo.MapFile)
 
 	for _, unit := range gameInfo.OwnUnits {
-		unitDef := unit.UnitDefinition
-		gameClient.AddOwnedUnit(unit.SpawnPos.ToBlockCenterVec3(), unit.GameUnitID, unitDef, unit.Name)
+		gameClient.AddOwnedUnit(unit, gameInfo.OwnID)
 	}
 	gameClient.SwitchToWaitForEvents()
 	util.MustSend(con.MapLoaded())

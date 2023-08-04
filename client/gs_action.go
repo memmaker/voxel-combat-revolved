@@ -11,7 +11,7 @@ import (
 type GameStateAction struct {
 	IsoMovementState
 	selectedUnit   *Unit
-	selectedAction game.Action
+	selectedAction game.TargetAction
 	validTargets   []voxel.Int3
 }
 
@@ -37,16 +37,9 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 		// check if target is valid
 		for _, target := range g.validTargets {
 			if target == groundBlock {
-				println(fmt.Sprintf("[GameStateAction] Target %s is VALID", target.ToString()))
-				// TODO: Should this be async?
+				println(fmt.Sprintf("[GameStateAction] Target %s is VALID, sending to server.", target.ToString()))
 				util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.ID, g.selectedAction.GetName(), target))
-				//g.selectedAction.Execute(g.selectedUnit, target) // will be executed when confirmed by server
-				g.engine.voxelMap.ClearHighlights()
-				g.engine.unitSelector.Hide()
-				g.selectedUnit.EndTurn()
 				g.engine.PopState()
-
-				return
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"github.com/memmaker/battleground/engine/path"
 	"github.com/memmaker/battleground/engine/voxel"
 )
@@ -14,7 +13,9 @@ type ActionMove struct {
 }
 
 func (a *ActionMove) IsValidTarget(unit UnitCore, target voxel.Int3) bool {
-	a.GetValidTargets(unit)
+	if a.distanceMap == nil || a.previousNodeMap == nil || len(a.distanceMap) == 0 || len(a.previousNodeMap) == 0 {
+		a.GetValidTargets(unit)
+	}
 	distance, ok := a.distanceMap[target]
 	return ok && distance <= unit.MovesLeft()
 }
@@ -48,20 +49,7 @@ func (a *ActionMove) GetValidTargets(unit UnitCore) []voxel.Int3 {
 	return valid
 }
 
-func (a *ActionMove) Execute(unit UnitCore, target voxel.Int3) {
-	currentPos := voxel.ToGridInt3(unit.GetFootPosition())
-	distance := a.distanceMap[target]
-	println(fmt.Sprintf("[ActionMove] Moving %s: from %s to %s (dist: %d)", unit.GetName(), currentPos.ToString(), target.ToString(), distance))
-
-	foundPath := a.getPath(target)
-	for _, pos := range foundPath {
-		println(fmt.Sprintf(" -> %s", pos.ToString()))
-	}
-
-	unit.SetPath(foundPath)
-}
-
-func (a *ActionMove) getPath(target voxel.Int3) []voxel.Int3 {
+func (a *ActionMove) GetPath(target voxel.Int3) []voxel.Int3 {
 	pathToTarget := make([]voxel.Int3, a.distanceMap[target]+1)
 	current := target
 	index := len(pathToTarget) - 1
@@ -76,6 +64,10 @@ func (a *ActionMove) getPath(target voxel.Int3) []voxel.Int3 {
 	}
 	// remove first element, which is the current position
 	return pathToTarget[1:]
+}
+
+func (a *ActionMove) GetCost(target voxel.Int3) int {
+	return a.distanceMap[target]
 }
 
 type VoxelPather struct {

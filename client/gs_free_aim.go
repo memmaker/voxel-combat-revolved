@@ -13,7 +13,7 @@ type GameStateFreeAim struct {
 	validTargets   []voxel.Int3
 	lastMouseX     float64
 	lastMouseY     float64
-	selectedAction game.Action
+	selectedAction game.TargetAction
 }
 
 func (g *GameStateFreeAim) OnScroll(deltaTime float64, xoff float64, yoff float64) {

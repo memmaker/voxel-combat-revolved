@@ -12,6 +12,10 @@ type UnitCore interface {
 	MovesLeft() int
 	GetEyePosition() mgl32.Vec3
 	GetPosition() mgl32.Vec3
+	SetPosition(pos mgl32.Vec3)
+	SetFootPosition(pos mgl32.Vec3)
+	GameID() uint64
+	GetOccupiedBlockOffsets() []voxel.Int3
 }
 
 type UnitClientDefinition struct {
@@ -33,13 +37,21 @@ type UnitDefinition struct {
 
 type UnitInstance struct {
 	GameUnitID     uint64 // ID of the unit in the current game instance
-	ControlledBy   uint64 // ID of the player controlling this unit
+	controlledBy   uint64 // ID of the player controlling this unit
 	Name           string
 	Position       voxel.Int3
 	SpawnPos       voxel.Int3
 	UnitDefinition *UnitDefinition // ID of the unit definition (= unit type)
 	canAct         bool
 	voxelMap       *voxel.Map
+}
+
+func (u *UnitInstance) ControlledBy() uint64 {
+	return u.controlledBy
+}
+
+func (u *UnitInstance) GameID() uint64 {
+	return u.GameUnitID
 }
 
 func (u *UnitInstance) GetName() string {
@@ -60,10 +72,6 @@ func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
 	return u.UnitDefinition.CoreStats.OccupiedBlockOffsets
 }
 
-func (u *UnitInstance) GetPosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1, 0})
-}
-
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	return &UnitInstance{
 		Name:           name,
@@ -81,7 +89,7 @@ func (u *UnitInstance) SetSpawnPosition(pos voxel.Int3) {
 }
 
 func (u *UnitInstance) SetControlledBy(playerID uint64) {
-	u.ControlledBy = playerID
+	u.controlledBy = playerID
 }
 
 func (u *UnitInstance) IsActive() bool {
@@ -92,12 +100,24 @@ func (u *UnitInstance) NextTurn() {
 	u.canAct = true
 }
 
+func (u *UnitInstance) GetPosition() mgl32.Vec3 {
+	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1, 0})
+}
+
+func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
+	u.Position = voxel.ToGridInt3(pos.Sub(mgl32.Vec3{0, 1, 0}))
+}
+
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1.75, 0})
+	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
 }
 
 func (u *UnitInstance) GetFootPosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3()
+}
+
+func (u *UnitInstance) SetFootPosition(pos mgl32.Vec3) {
+	u.Position = voxel.ToGridInt3(pos)
 }
 
 func (u *UnitInstance) CanAct() bool {
@@ -110,4 +130,8 @@ func (u *UnitInstance) EndTurn() {
 
 func (u *UnitInstance) SetVoxelMap(voxelMap *voxel.Map) {
 	u.voxelMap = voxelMap
+}
+
+func (u *UnitInstance) GetEyeOffset() mgl32.Vec3 {
+	return mgl32.Vec3{0, 1.75, 0}
 }

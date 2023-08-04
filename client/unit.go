@@ -31,6 +31,19 @@ type Unit struct {
 	currentMapPosition mgl32.Vec3
 	canAct             bool
 	controlledByUser   bool
+	controlledBy       uint64
+}
+
+func (p *Unit) SetControlledBy(id uint64) {
+	p.controlledBy = id
+}
+
+func (p *Unit) ControlledBy() uint64 {
+	return p.controlledBy
+}
+
+func (p *Unit) GameID() uint64 {
+	return p.ID
 }
 
 func (p *Unit) MovesLeft() int {
@@ -244,6 +257,10 @@ func (p *Unit) EndTurn() {
 
 func (p *Unit) IsUserControlled() bool {
 	return p.controlledByUser
+}
+
+func (p *Unit) SetUserControlled() {
+	p.controlledByUser = true
 }
 
 func NewUnit(id uint64, name string, pos mgl32.Vec3, model *util.CompoundMesh, coreStats *game.UnitCoreStats) *Unit {
