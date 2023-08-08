@@ -35,7 +35,7 @@ func (a *ActionMove) GetName() string {
 func (a *ActionMove) GetValidTargets(unit UnitCore) []voxel.Int3 {
 	footPosInt := voxel.ToGridInt3(unit.GetFootPosition())
 	var valid []voxel.Int3
-	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), unit.MovesLeft(), NewPather(a.gameMap))
+	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), unit.MovesLeft(), NewPather(a.gameMap, unit))
 	for node, distance := range dist {
 		if node == footPosInt {
 			continue
@@ -72,6 +72,7 @@ func (a *ActionMove) GetCost(target voxel.Int3) int {
 
 type VoxelPather struct {
 	voxelMap *voxel.Map
+	unit     UnitCore
 }
 
 func (v *VoxelPather) GetNeighbors(node voxel.Int3) []voxel.Int3 {
@@ -89,12 +90,9 @@ func (v *VoxelPather) GetCost(currentNode, neighbor voxel.Int3) int {
 }
 
 func (v *VoxelPather) isWalkable(neighbor voxel.Int3) bool {
-	tBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y+1, neighbor.Z)
-	nBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y, neighbor.Z)
-	bBlock := v.voxelMap.GetGlobalBlock(neighbor.X, neighbor.Y-1, neighbor.Z)
-	return !nBlock.IsOccupied() && tBlock.IsAir() && nBlock.IsAir() && !bBlock.IsAir()
+	return v.voxelMap.IsUnitPlaceable(v.unit, neighbor)
 }
 
-func NewPather(voxelMap *voxel.Map) *VoxelPather {
-	return &VoxelPather{voxelMap: voxelMap}
+func NewPather(voxelMap *voxel.Map, unit UnitCore) *VoxelPather {
+	return &VoxelPather{voxelMap: voxelMap, unit: unit}
 }

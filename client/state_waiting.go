@@ -19,5 +19,5 @@ func (a *ActorWaitingBehavior) GetName() ActorState {
 func (a *ActorWaitingBehavior) Init(actor *Unit) {
 	a.actor = actor
 	actor.model.StopAnimations()
-	actor.model.StartAnimationLoop("animation.idle", 0.25)
+	actor.StartIdleAnimationLoop()
 }

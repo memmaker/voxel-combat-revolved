@@ -24,7 +24,7 @@ func (a *ActionShot) GetName() string {
 
 func (a *ActionShot) GetValidTargets(unit UnitCore) []voxel.Int3 {
 	valid := make([]voxel.Int3, 0)
-	for _, otherUnit := range a.engine.GetVisibleUnits(unit) {
+	for _, otherUnit := range a.engine.GetVisibleUnits(unit.UnitID()) {
 		valid = append(valid, voxel.ToGridInt3(otherUnit.GetFootPosition()))
 	}
 	return valid

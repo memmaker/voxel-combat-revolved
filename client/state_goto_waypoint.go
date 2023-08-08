@@ -15,7 +15,7 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 			a.waitForAnimation = false
 			// re-position unit to match animation position
 			// reset animation position
-			a.unit.model.StartAnimationLoop("animation.idle", 1.0)
+			a.unit.StartIdleAnimationLoop()
 			wp := a.unit.GetWaypoint()
 			fp := a.unit.GetFootPosition()
 			resolvedPosition := mgl32.Vec3{wp.X(), fp.Y() + float32(a.yOffset), wp.Z()}
@@ -48,16 +48,16 @@ func (a *UnitGotoWaypointBehavior) startWaypointAnimation() {
 	a.unit.TurnTowardsWaypoint()
 	if a.unit.IsCurrentWaypointAClimb() {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
-		a.unit.model.PlayAnimation("animation.climb", 1.0)
+		a.unit.model.PlayAnimation(AnimationClimb.Str(), 1.0)
 		a.yOffset = 1
 		a.waitForAnimation = true
 	} else if a.unit.IsCurrentWaypointADrop() {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
-		a.unit.model.PlayAnimation("animation.drop", 1.0)
+		a.unit.model.PlayAnimation(AnimationDrop.Str(), 1.0)
 		a.yOffset = -1
 		a.waitForAnimation = true
 	} else {
-		a.unit.model.StartAnimationLoop("animation.walk", 1.0)
+		a.unit.model.StartAnimationLoop(AnimationWeaponWalk.Str(), 1.0)
 	}
 }
 

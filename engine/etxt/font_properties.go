@@ -6,7 +6,7 @@ import "errors"
 
 var ErrNotFound = errors.New("font property not found or empty")
 
-// We allocate one sfnt.Buffer so it can be used in FontProperty() calls.
+// We allocate one sfnt.buffer so it can be used in FontProperty() calls.
 // These buffers can't be used concurrently though, so sfntBuffer will only
 // be used if no one else is using it at the moment. We don't bother creating
 // a pool because that would be waaay overkill, and this simple trick already
@@ -14,12 +14,17 @@ var ErrNotFound = errors.New("font property not found or empty")
 // price.
 var sfntBuffer sfnt.Buffer
 var usingSfntBuffer uint32 = 0
+
 func getSfntBuffer() *sfnt.Buffer {
-	if !atomic.CompareAndSwapUint32(&usingSfntBuffer, 0, 1) { return nil }
+	if !atomic.CompareAndSwapUint32(&usingSfntBuffer, 0, 1) {
+		return nil
+	}
 	return &sfntBuffer
 }
 func releaseSfntBuffer(buffer *sfnt.Buffer) {
-	if buffer != nil { atomic.StoreUint32(&usingSfntBuffer, 0) }
+	if buffer != nil {
+		atomic.StoreUint32(&usingSfntBuffer, 0)
+	}
 }
 
 // Returns the requested font property for the given font.
@@ -28,7 +33,9 @@ func FontProperty(font *Font, property sfnt.NameID) (string, error) {
 	buffer := getSfntBuffer()
 	str, err := font.Name(buffer, property)
 	releaseSfntBuffer(buffer)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return str, nil
 }
 
@@ -37,7 +44,9 @@ func FontProperty(font *Font, property sfnt.NameID) (string, error) {
 // possible (e.g., if the font naming table is invalid).
 func FontFamily(font *Font) (string, error) {
 	value, err := FontProperty(font, sfnt.NameIDFamily)
-	if err == sfnt.ErrNotFound || value == "" { err = ErrNotFound }
+	if err == sfnt.ErrNotFound || value == "" {
+		err = ErrNotFound
+	}
 	return value, err
 }
 
@@ -46,10 +55,12 @@ func FontFamily(font *Font) (string, error) {
 // possible (e.g., if the font naming table is invalid).
 //
 // In most cases, the subfamily value will be one of:
-//  - Regular, Italic, Bold, Bold Italic
+//   - Regular, Italic, Bold, Bold Italic
 func FontSubfamily(font *Font) (string, error) {
 	value, err := FontProperty(font, sfnt.NameIDSubfamily)
-	if err == sfnt.ErrNotFound || value == "" { err = ErrNotFound }
+	if err == sfnt.ErrNotFound || value == "" {
+		err = ErrNotFound
+	}
 	return value, err
 }
 
@@ -58,7 +69,9 @@ func FontSubfamily(font *Font) (string, error) {
 // if the font naming table is invalid).
 func FontName(font *Font) (string, error) {
 	value, err := FontProperty(font, sfnt.NameIDFull)
-	if err == sfnt.ErrNotFound || value == "" { err = ErrNotFound }
+	if err == sfnt.ErrNotFound || value == "" {
+		err = ErrNotFound
+	}
 	return value, err
 }
 
@@ -67,7 +80,9 @@ func FontName(font *Font) (string, error) {
 // if the font naming table is invalid).
 func FontIdentifier(font *Font) (string, error) {
 	value, err := FontProperty(font, sfnt.NameIDUniqueIdentifier)
-	if err == sfnt.ErrNotFound || value == "" { err = ErrNotFound }
+	if err == sfnt.ErrNotFound || value == "" {
+		err = ErrNotFound
+	}
 	return value, err
 }
 
@@ -84,8 +99,12 @@ func GetMissingRunes(font *Font, text string) ([]rune, error) {
 	missing := make([]rune, 0)
 	for _, codePoint := range text {
 		index, err := font.GlyphIndex(buffer, codePoint)
-		if err != nil { return missing, err }
-		if index == 0 { missing = append(missing, codePoint) }
+		if err != nil {
+			return missing, err
+		}
+		if index == 0 {
+			missing = append(missing, codePoint)
+		}
 	}
 	return missing, nil
 }

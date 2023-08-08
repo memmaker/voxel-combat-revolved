@@ -15,6 +15,17 @@ import (
 	"path"
 )
 
+func LoadGLTFWithTextures(filename string) *CompoundMesh {
+	result := LoadGLTF(filename)
+	doc, err := gltf.Open(filename)
+	if err != nil {
+		println(err.Error())
+		return nil
+	}
+	result.textures = tryLoadTextures(doc)
+	return result
+}
+
 func LoadGLTF(filename string) *CompoundMesh {
 	doc, err := gltf.Open(filename)
 	if err != nil {
@@ -50,8 +61,6 @@ func LoadGLTF(filename string) *CompoundMesh {
 			flatNodes[nodeIndex].mesh = flatMeshes[*node.Mesh]
 		}
 	}
-	result.textures = tryLoadTextures(doc)
-
 	for _, anim := range doc.Animations {
 		//println(fmt.Sprintf("\nFound Animation: %s", anim.GameIdentifier))
 		samplerFrames := make([][]float32, len(anim.Samplers))
@@ -102,7 +111,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 	results := make([]*glhf.Texture, len(doc.Textures))
 	for texIndex, texture := range doc.Textures {
-		print(fmt.Sprintf("[LoadGLTF] Texture at index %d ('%s'): ", texIndex, texture.Name))
+		print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.Name))
 		imageSource := doc.Images[*texture.Source]
 		if imageSource.IsEmbeddedResource() {
 			embeddedTexture, err := loadEmbeddedTexture(imageSource)

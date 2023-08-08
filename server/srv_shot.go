@@ -40,7 +40,7 @@ func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, orig
 		velocity: velocity,
 	}
 }
-func (a *ServerActionShot) Execute() ([]string, []any) {
+func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
 	println(fmt.Sprintf("[ServerActionShot] Attacking %s: from %s. Dir.: %v", a.unit.GetName(), currentPos.ToString(), a.velocity))
 	//a.engine.SpawnProjectile(sourceOffset, velocity)
@@ -49,11 +49,11 @@ func (a *ServerActionShot) Execute() ([]string, []any) {
 	if rayHitInfo.UnitHit != nil {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 	}
-	return []string{"ProjectileFired"}, []any{game.VisualProjectileFired{
+	mb.AddMessageForAll(game.VisualProjectileFired{
 		Origin:      a.origin,
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
 		Velocity:    a.velocity,
 		UnitHit:     unitHidID,
 		BodyPart:    rayHitInfo.BodyPart,
-	}}
+	})
 }

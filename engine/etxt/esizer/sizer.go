@@ -13,9 +13,9 @@ import "golang.org/x/image/math/fixed"
 //
 // You rarely need to care about Sizers, but they can be useful
 // in the following cases:
-//  - Disable kerning and adjust horizontal spacing.
-//  - Make full size adjustments for a custom rasterizer (e.g.,
-//    a rasterizer that puts glyphs into boxes, bubbles or frames).
+//   - Disable kerning and adjust horizontal spacing.
+//   - Make full size adjustments for a custom rasterizer (e.g.,
+//     a rasterizer that puts glyphs into boxes, bubbles or frames).
 type Sizer interface {
 	Metrics(*Font, fixed.Int26_6) font.Metrics
 	Advance(*Font, GlyphIndex, fixed.Int26_6) fixed.Int26_6
@@ -23,5 +23,5 @@ type Sizer interface {
 
 	// We could have a method for bounds too, but we
 	// don't need it in etxt, so it doesn't exist yet.
-	//Bounds(*Font, GlyphIndex, fixed.Int26_6, *sfnt.Buffer) fixed.Rect26_6
+	//Bounds(*Font, GlyphIndex, fixed.Int26_6, *sfnt.buffer) fixed.Rect26_6
 }

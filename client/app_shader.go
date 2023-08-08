@@ -126,7 +126,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	lightPos := mgl32.Vec3{1, 5, 0}
 	shader.SetUniformAttr(3, lightPos)
 
-	lightColor := mgl32.Vec3{1, 1, 1}
+	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
 	shader.SetUniformAttr(4, lightColor)
 
 	shader.End()
@@ -207,7 +207,7 @@ func (a *BattleClient) loadModelShader() *glhf.Shader {
 	lightPos := mgl32.Vec3{1, 5, 0}
 	shader.SetUniformAttr(3, lightPos)
 
-	lightColor := mgl32.Vec3{1, 1, 1}
+	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
 	shader.SetUniformAttr(4, lightColor)
 
 	shader.End()

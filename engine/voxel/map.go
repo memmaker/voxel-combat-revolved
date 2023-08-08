@@ -20,7 +20,7 @@ type Map struct {
 	chunkShader      *glhf.Shader
 	terrainTexture   *glhf.Texture
 	highlightShader  *glhf.Shader
-	unitMovedHandler func(unit MapObject, oldPos, newPos mgl32.Vec3)
+	unitMovedHandler func(unit MapObject, oldPos, newPos Int3)
 }
 
 func NewMap(width, height, depth int32) *Map {
@@ -297,7 +297,7 @@ type MapObject interface {
 	UnitID() uint64
 }
 
-func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {
+func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos Int3) bool {
 	if m.IsUnitPlaceable(unit, newPos) {
 		m.RemoveUnit(unit, oldPos)
 		m.AddUnit(unit, newPos)
@@ -309,30 +309,31 @@ func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos mgl32.Vec3) bool {
 func ToGridInt3(pos mgl32.Vec3) Int3 {
 	return Int3{int32(math.Floor(float64(pos.X()))), int32(math.Floor(float64(pos.Y()))), int32(math.Floor(float64(pos.Z())))}
 }
-func (m *Map) IsUnitPlaceable(unit MapObject, pos mgl32.Vec3) bool {
-	blockPos := ToGridInt3(pos)
+func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) bool {
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
 		occupiedBlockPos := blockPos.Add(offset)
-		if !m.ContainsGrid(occupiedBlockPos) || m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z) {
+		if !m.ContainsGrid(occupiedBlockPos) || m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z) || m.IsOccupiedExcept(occupiedBlockPos, unit) {
+			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+			println(fmt.Sprintf("[Map] Block %d prevents placement", block.ID))
 			return false
 		}
 	}
 	return true
 }
 
-func (m *Map) RemoveUnit(unit MapObject, position mgl32.Vec3) {
-	blockPos := ToGridInt3(position)
+func (m *Map) RemoveUnit(unit MapObject, blockPos Int3) {
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
 		occupiedBlockPos := blockPos.Add(offset)
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
-		block.RemoveUnit(unit)
+		if block != nil {
+			block.RemoveUnit(unit)
+		}
 	}
 }
 
-func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
-	blockPos := ToGridInt3(pos)
+func (m *Map) AddUnit(unit MapObject, blockPos Int3) {
 	println(fmt.Sprintf("[Map] Adding unit %s", blockPos.ToString()))
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
@@ -340,7 +341,7 @@ func (m *Map) AddUnit(unit MapObject, pos mgl32.Vec3) {
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 		block.AddUnit(unit)
 	}
-	unit.SetFootPosition(pos)
+	unit.SetFootPosition(blockPos.ToBlockCenterVec3())
 }
 
 func GetBlocksNeededByConstruction(construction *Construction) []string {
@@ -581,13 +582,18 @@ func (m *Map) IsOccupied(blockPos Int3) bool {
 	return block != nil && block.IsOccupied()
 }
 
-func (m *Map) onUnitMoved(unit MapObject, oldPos mgl32.Vec3, newPos mgl32.Vec3) {
+func (m *Map) IsOccupiedExcept(blockPos Int3, unit MapObject) bool {
+	block := m.GetBlockFromVec(blockPos)
+	return block != nil && block.IsOccupied() && block.GetOccupant() != unit
+}
+
+func (m *Map) onUnitMoved(unit MapObject, oldPos, newPos Int3) {
 	if m.unitMovedHandler != nil {
 		m.unitMovedHandler(unit, oldPos, newPos)
 	}
 }
 
-func (m *Map) SetUnitMovedHandler(handler func(unit MapObject, oldPos, newPos mgl32.Vec3)) {
+func (m *Map) SetUnitMovedHandler(handler func(unit MapObject, oldPos, newPos Int3)) {
 	m.unitMovedHandler = handler
 }
 

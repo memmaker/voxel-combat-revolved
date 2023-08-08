@@ -16,6 +16,7 @@ type UnitCore interface {
 	SetPosition(pos mgl32.Vec3)
 	SetFootPosition(pos mgl32.Vec3)
 	UnitID() uint64
+	ControlledBy() uint64
 	GetOccupiedBlockOffsets() []voxel.Int3
 }
 
@@ -24,16 +25,18 @@ type UnitClientDefinition struct {
 }
 
 type UnitCoreStats struct {
-	Health               int
-	Speed                int
-	OccupiedBlockOffsets []voxel.Int3
+	Health int
+	Speed  int
 }
 
 type UnitDefinition struct {
-	ID                   uint64 // ID of the unit definition (= unit type)
+	ID uint64 // ID of the unit definition (= unit type)
+
 	ClientRepresentation UnitClientDefinition
 	CoreStats            UnitCoreStats
+
 	ModelFile            string
+	OccupiedBlockOffsets []voxel.Int3
 }
 
 type UnitInstance struct {
@@ -41,11 +44,11 @@ type UnitInstance struct {
 	controlledBy   uint64 // ID of the player controlling this unit
 	Name           string
 	Position       voxel.Int3
-	SpawnPos       voxel.Int3
 	UnitDefinition *UnitDefinition // ID of the unit definition (= unit type)
 	canAct         bool
 	voxelMap       *voxel.Map
 	model          *util.CompoundMesh
+	Weapon         string
 }
 
 func (u *UnitInstance) SetPath(path []voxel.Int3) {
@@ -67,7 +70,7 @@ func (u *UnitInstance) GetName() string {
 func (u *UnitInstance) MoveUnit(targetPos voxel.Int3) {
 	oldPos := u.Position
 	u.SetFootPosition(targetPos.ToBlockCenterVec3())
-	u.voxelMap.MoveUnitTo(u, oldPos.ToBlockCenterVec3(), u.Position.ToBlockCenterVec3())
+	u.voxelMap.MoveUnitTo(u, oldPos, u.Position)
 }
 
 func (u *UnitInstance) MovesLeft() int {
@@ -75,7 +78,7 @@ func (u *UnitInstance) MovesLeft() int {
 }
 
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
-	return u.UnitDefinition.CoreStats.OccupiedBlockOffsets
+	return u.UnitDefinition.OccupiedBlockOffsets
 }
 
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
@@ -93,7 +96,6 @@ func (u *UnitInstance) SetGameUnitID(id uint64) {
 	u.GameUnitID = id
 }
 func (u *UnitInstance) SetSpawnPosition(pos voxel.Int3) {
-	u.SpawnPos = pos
 	u.SetFootPosition(pos.ToBlockCenterVec3())
 }
 
@@ -155,4 +157,16 @@ func (u *UnitInstance) GetEyeOffset() mgl32.Vec3 {
 
 func (u *UnitInstance) GetColliders() []util.Collider {
 	return u.model.RootNode.GetColliders()
+}
+
+func (u *UnitInstance) SetWeapon(weapon string) {
+	u.Weapon = weapon
+}
+
+func (u *UnitInstance) GetWeapon() string {
+	return u.Weapon
+}
+
+func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
+	return u.Position
 }

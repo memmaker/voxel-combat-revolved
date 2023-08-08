@@ -22,6 +22,7 @@ type ActionBar struct {
 	actions           []ActionItem
 	bounds            Rectangle
 	currentHoverIndex int
+	isHidden          bool
 }
 
 type Rectangle struct {
@@ -51,6 +52,7 @@ func NewActionBar(shader *glhf.Shader, textureAtlas *glhf.Texture, screenWidth, 
 }
 
 func (a *ActionBar) SetActions(actions []ActionItem) {
+	a.isHidden = false
 	a.actions = make([]ActionItem, len(actions))
 	vertexCount := len(actions) * 6
 	a.vertex = glhf.MakeVertexSlice(a.shader, vertexCount, vertexCount)
@@ -98,7 +100,7 @@ func (a *ActionBar) SetActions(actions []ActionItem) {
 }
 
 func (a *ActionBar) Draw() {
-	if a.actions == nil || len(a.actions) == 0 {
+	if a.actions == nil || len(a.actions) == 0 || a.isHidden {
 		return
 	}
 	a.shader.SetUniformAttr(1, mgl32.Translate3D(0, 0, 0))
@@ -110,6 +112,9 @@ func (a *ActionBar) Draw() {
 }
 
 func (a *ActionBar) IsMouseOver(screenX, screenY float64) bool {
+	if a.isHidden {
+		return false
+	}
 	overBar := a.bounds.Contains(screenX, screenY)
 	if !overBar {
 		return false
@@ -124,9 +129,24 @@ func (a *ActionBar) IsMouseOver(screenX, screenY float64) bool {
 	a.currentHoverIndex = -1
 	return false
 }
-
+func (a *ActionBar) HoverText() string {
+	if a.isHidden {
+		return ""
+	}
+	if a.currentHoverIndex == -1 {
+		return ""
+	}
+	return a.actions[a.currentHoverIndex].Name
+}
 func (a *ActionBar) OnMouseClicked(x float64, y float64) {
+	if a.isHidden {
+		return
+	}
 	if a.IsMouseOver(x, y) {
 		a.actions[a.currentHoverIndex].Execute()
 	}
+}
+
+func (a *ActionBar) Hide() {
+	a.isHidden = true
 }

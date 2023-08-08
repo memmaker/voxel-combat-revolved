@@ -14,54 +14,54 @@ import (
 
 type BattleClient struct {
 	*util.GlApplication
-	lastMousePosX         float64
-	lastMousePosY         float64
-	voxelMap              *voxel.Map
-	wireFrame             bool
-	selector              PositionDrawable
-	crosshair             PositionDrawable
-	modelShader           *glhf.Shader
-	chunkShader           *glhf.Shader
-	lineShader            *glhf.Shader
-	guiShader             *glhf.Shader
-	highlightShader       *glhf.Shader
-	textLabel             *etxt.TextMesh
-	textRenderer          *etxt.OpenGLTextRenderer
-	lastHitInfo           *game.RayCastHit
-	allUnits              []*Unit
-	userUnits             []*Unit
-	projectiles           []*Projectile
-	debugObjects          []PositionDrawable
-	blockTypeToPlace      byte
-	isoCamera             *util.ISOCamera
-	fpsCamera             *util.FPSCamera
-	cameraIsFirstPerson   bool
-	drawBoundingBoxes     bool
-	showDebugInfo         bool
-	timer                 *util.Timer
-	collisionSolver       *util.CollisionSolver
-	stateStack            []GameState
-	updateQueue           []func(deltaTime float64)
-	conditionQueue        []ConditionalCall
-	isBlockSelection      bool
-	groundSelector        *GroundSelector
-	unitSelector          *GroundSelector
-	blockSelector         *util.LineMesh
-	currentFactionIndex   int
-	currentVisibleEnemies map[*Unit]map[*Unit]bool
-	projectileTexture     *glhf.Texture
-	actionbar             *gui.ActionBar
-	server                *game.ServerConnection
-	unitMap               map[uint64]*Unit
-	mu                    sync.Mutex
-	mc                    sync.Mutex
+	lastMousePosX       float64
+	lastMousePosY       float64
+	voxelMap            *voxel.Map
+	wireFrame           bool
+	selector            PositionDrawable
+	crosshair           PositionDrawable
+	modelShader         *glhf.Shader
+	chunkShader         *glhf.Shader
+	lineShader          *glhf.Shader
+	guiShader           *glhf.Shader
+	highlightShader     *glhf.Shader
+	textLabel           *etxt.TextMesh
+	textRenderer        *etxt.OpenGLTextRenderer
+	lastHitInfo         *game.RayCastHit
+	allUnits            []*Unit
+	userUnits           []*Unit
+	projectiles         []*Projectile
+	debugObjects        []PositionDrawable
+	blockTypeToPlace    byte
+	isoCamera           *util.ISOCamera
+	fpsCamera           *util.FPSCamera
+	cameraIsFirstPerson bool
+	drawBoundingBoxes   bool
+	showDebugInfo       bool
+	timer               *util.Timer
+	collisionSolver     *util.CollisionSolver
+	stateStack          []GameState
+	updateQueue         []func(deltaTime float64)
+	conditionQueue      []ConditionalCall
+	isBlockSelection    bool
+	groundSelector      *GroundSelector
+	unitSelector        *GroundSelector
+	blockSelector       *util.LineMesh
+	currentFactionIndex int
+	losMatrix           map[uint64]map[uint64]bool
+	projectileTexture   *glhf.Texture
+	actionbar           *gui.ActionBar
+	server              *game.ServerConnection
+	unitMap             map[uint64]*Unit
+	mu                  sync.Mutex
+	mc                  sync.Mutex
 }
 
-func (a *BattleClient) GetVisibleUnits(instance game.UnitCore) []game.UnitCore {
+func (a *BattleClient) GetVisibleUnits(unitID uint64) []game.UnitCore {
 	result := make([]game.UnitCore, 0)
-	for enemy, isVisble := range a.currentVisibleEnemies[instance.(*Unit)] {
+	for enemyID, isVisble := range a.losMatrix[unitID] {
 		if isVisble {
-			result = append(result, enemy)
+			result = append(result, a.unitMap[enemyID])
 		}
 	}
 	return result
@@ -69,13 +69,14 @@ func (a *BattleClient) GetVisibleUnits(instance game.UnitCore) []game.UnitCore {
 
 func (a *BattleClient) CurrentVisibleEnemiesList() map[*Unit]bool {
 	result := make(map[*Unit]bool)
-	for observer, unitsVisible := range a.currentVisibleEnemies {
+	for observerID, unitsVisible := range a.losMatrix {
+		observer := a.unitMap[observerID]
 		if !observer.IsUserControlled() {
 			continue
 		}
-		for unit, isVisible := range unitsVisible {
+		for unitID, isVisible := range unitsVisible {
 			if isVisible {
-				result[unit] = true
+				result[a.unitMap[unitID]] = true
 			}
 		}
 	}
@@ -111,12 +112,12 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	window.SetScrollCallback(glApp.ScrollCallback)
 
 	myApp := &BattleClient{
-		GlApplication:         glApp,
-		isoCamera:             util.NewISOCamera(width, height),
-		fpsCamera:             util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
-		timer:                 util.NewTimer(),
-		unitMap:               make(map[uint64]*Unit),
-		currentVisibleEnemies: make(map[*Unit]map[*Unit]bool),
+		GlApplication: glApp,
+		isoCamera:     util.NewISOCamera(width, height),
+		fpsCamera:     util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
+		timer:         util.NewTimer(),
+		unitMap:       make(map[uint64]*Unit),
+		losMatrix:     make(map[uint64]map[uint64]bool),
 	}
 	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
@@ -132,9 +133,9 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
 	myApp.ScrollHandler = myApp.handleScrollEvents
 
-	myApp.unitSelector = NewGroundSelector(util.LoadGLTF("./assets/models/flatselector.glb"), myApp.modelShader)
+	myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.modelShader)
 
-	selectorMesh := util.LoadGLTF("./assets/models/selector.glb")
+	selectorMesh := util.LoadGLTFWithTextures("./assets/models/selector.glb")
 	selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
 	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.modelShader)
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
@@ -163,7 +164,7 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 }
 
 func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
-	compoundMesh := util.LoadGLTF(filename)
+	compoundMesh := util.LoadGLTFWithTextures(filename)
 	compoundMesh.ConvertVertexData(a.modelShader)
 	return compoundMesh
 }
@@ -173,65 +174,61 @@ func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
 func (a *BattleClient) AddOwnedUnit(unitInstance *game.UnitInstance, playerID uint64) *Unit {
 	unitID := unitInstance.GameUnitID
 	unitDefinition := unitInstance.UnitDefinition
-	spawnPos := unitInstance.SpawnPos.ToBlockCenterVec3()
 	name := unitInstance.Name
 	//model := a.LoadModel("./assets/model.gltf")
-	model := a.LoadModel("./assets/models/Guard3.glb")
+	model := a.LoadModel(unitDefinition.ModelFile)
+	model.HideChildrenOfBoneExcept("Weapon", unitInstance.GetWeapon())
 	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
 	//model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
-	model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
-	model.SetAnimation("animation.idle")
-	unit := NewUnit(unitID, name, spawnPos, model, &unitDefinition.CoreStats)
+	if unitDefinition.ClientRepresentation.TextureFile != "" {
+		model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
+	}
+	unit := NewUnit(unitID, name, unitInstance.GetFootPosition(), model, unitDefinition, a.voxelMap)
 	unit.SetControlledBy(playerID)
 	unit.SetUserControlled()
-	unit.SetMap(a.voxelMap)
+	unit.StartIdleAnimationLoop()
 	a.collisionSolver.AddObject(unit)
 	a.allUnits = append(a.allUnits, unit)
 	a.userUnits = append(a.userUnits, unit)
 	a.unitMap[unitID] = unit
 	return unit
 }
-func (a *BattleClient) RemoveVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
-	unitID := unitInstance.GameUnitID
-	if unit, ok := a.unitMap[unitID]; ok {
-		if _, hasVisionMap := a.currentVisibleEnemies[observer]; !hasVisionMap {
-			a.currentVisibleEnemies[observer] = make(map[*Unit]bool)
-		}
-		a.currentVisibleEnemies[observer][unit] = false
+func (a *BattleClient) SetLOSLost(observer, unitID uint64) {
+	if _, hasVisionMap := a.losMatrix[observer]; !hasVisionMap {
+		a.losMatrix[observer] = make(map[uint64]bool)
 	}
+	a.losMatrix[observer][unitID] = false
 }
-func (a *BattleClient) AddVisibleEnemyUnit(observer *Unit, unitInstance *game.UnitInstance) {
-	unitID := unitInstance.GameUnitID
 
-	if unit, ok := a.unitMap[unitID]; ok {
-		// already added, just change the visibility and update the position
-		a.voxelMap.MoveUnitTo(unit, unit.GetFootPosition(), unitInstance.Position.ToBlockCenterVec3())
-		//unit.SetFootPosition(unitInstance.Position.ToBlockCenterVec3())
-		a.currentVisibleEnemies[observer][unit] = true
+func (a *BattleClient) SetLOSAcquired(observer, unitID uint64) {
+	if _, hasVisionMap := a.losMatrix[observer]; !hasVisionMap {
+		a.losMatrix[observer] = make(map[uint64]bool)
+	}
+	a.losMatrix[observer][unitID] = true
+}
+func (a *BattleClient) AddOrUpdateUnit(currentUnit *game.UnitInstance) {
+	unitID := currentUnit.GameUnitID
+	if knownUnit, ok := a.unitMap[unitID]; ok {
+		a.voxelMap.MoveUnitTo(knownUnit, knownUnit.GetBlockPosition(), currentUnit.GetBlockPosition())
 		return
 	}
 
-	unitDefinition := unitInstance.UnitDefinition
-	spawnPos := unitInstance.SpawnPos.ToBlockCenterVec3()
-	name := unitInstance.Name
+	unitDefinition := currentUnit.UnitDefinition
+	name := currentUnit.Name
 
-	model := a.LoadModel("./assets/models/Guard3.glb")
-	//model.SetTexture(0, util.MustLoadTexture("./assets/mc.fire.ice.png"))
-	//model.SetTexture(0, util.MustLoadTexture("./assets/Agent_47.png"))
-	model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
-	model.SetAnimation("animation.idle")
-	unit := NewUnit(unitID, name, spawnPos, model, &unitDefinition.CoreStats)
-	unit.SetControlledBy(unitInstance.ControlledBy())
-	unit.SetMap(a.voxelMap)
+	model := a.LoadModel(unitDefinition.ModelFile)
+	model.HideChildrenOfBoneExcept("Weapon", currentUnit.GetWeapon())
+	if unitDefinition.ClientRepresentation.TextureFile != "" {
+		model.SetTexture(0, util.MustLoadTexture(unitDefinition.ClientRepresentation.TextureFile))
+	}
+	unit := NewUnit(unitID, name, currentUnit.GetFootPosition(), model, unitDefinition, a.voxelMap)
+	unit.StartIdleAnimationLoop()
+	unit.SetControlledBy(currentUnit.ControlledBy())
 
 	a.collisionSolver.AddObject(unit)
 
 	a.allUnits = append(a.allUnits, unit)
 
-	if _, ok := a.currentVisibleEnemies[observer]; !ok {
-		a.currentVisibleEnemies[observer] = make(map[*Unit]bool)
-	}
-	a.currentVisibleEnemies[observer][unit] = true
 	a.unitMap[unitID] = unit
 }
 func (a *BattleClient) SpawnProjectile(pos, velocity mgl32.Vec3) {
@@ -449,6 +446,7 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	if hitInfo.HitUnit() {
 		unitHit := hitInfo.UnitHit.(*Unit)
 		a.selector.SetPosition(util.ToGrid(unitHit.GetFootPosition()))
+		a.Print(unitHit.Description())
 	} else if hitInfo.Hit {
 		if a.isBlockSelection {
 			a.selector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
@@ -508,15 +506,15 @@ func (a *BattleClient) SetConnection(connection *game.ServerConnection) {
 
 func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 	switch msgType {
-	case "UnitMoved":
-		var msg game.VisualUnitMoved
+	case "OwnUnitMoved":
+		var msg game.VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
-			a.OnUnitMoved(msg)
+			a.OnOwnUnitMoved(msg)
 		}
-	case "UnitLOSUpdated":
-		var msg game.VisualUnitLOSUpdated
+	case "EnemyUnitMoved":
+		var msg game.VisualEnemyUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
-			a.OnUnitsLOSUpdate(msg)
+			a.OnEnemyUnitMoved(msg)
 		}
 	case "ProjectileFired":
 		var msg game.VisualProjectileFired
@@ -543,29 +541,53 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 		a.Print(fmt.Sprintf("Action failed: %s", msg.Message))
 	}
 }
-func (a *BattleClient) OnUnitsLOSUpdate(msg game.VisualUnitLOSUpdated) {
-	changeLOS := func() {
-		observer := a.unitMap[msg.Observer]
-		for _, unit := range msg.Spotted {
-			a.AddVisibleEnemyUnit(observer, unit)
-		}
-		for _, unit := range msg.Lost {
-			a.RemoveVisibleEnemyUnit(observer, unit)
-		}
-	}
-	observerPositionReached := func() bool {
-		observer := a.unitMap[msg.Observer]
-		return voxel.ToGridInt3(observer.GetFootPosition()) == msg.ObserverPosition
-	}
-	a.scheduleWaitForCondition(observerPositionReached, changeLOS)
-}
 
 func (a *BattleClient) OnProjectileFired(msg game.VisualProjectileFired) {
 	// TODO: animate unit firing
 	a.SpawnProjectile(msg.Origin, msg.Velocity)
 }
 
-func (a *BattleClient) OnUnitMoved(msg game.VisualUnitMoved) {
+func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
+	if _, ok := a.unitMap[msg.MovingUnit]; !ok && msg.UpdatedUnit == nil {
+		println(fmt.Sprintf("[BattleClient] Received LOS update for unknown unit %d", msg.MovingUnit))
+		return
+	}
+	if msg.UpdatedUnit != nil {
+		a.AddOrUpdateUnit(msg.UpdatedUnit)
+	}
+	movingUnit := a.unitMap[msg.MovingUnit]
+
+	changeLOS := func() {
+		for _, unit := range msg.LOSAcquiredBy {
+			a.SetLOSAcquired(unit, movingUnit.UnitID())
+		}
+		for _, unit := range msg.LOSLostBy {
+			a.SetLOSLost(unit, movingUnit.UnitID())
+		}
+	}
+	currentPathPart := 0
+	observerPositionReached := func() bool { return false }
+	observerPositionReached = func() bool {
+		reachedLastWaypoint := voxel.ToGridInt3(movingUnit.GetFootPosition()) == movingUnit.GetLastWaypoint()
+		if !reachedLastWaypoint { // not yet at last waypoint
+			return false
+		}
+		if currentPathPart < len(msg.PathParts)-1 && len(msg.PathParts[currentPathPart+1]) > 0 { // not yet at last path part
+			// TODO: add a delay here with invisibility
+			currentPathPart++
+			startPos := msg.PathParts[currentPathPart][0]
+			a.voxelMap.MoveUnitTo(movingUnit, movingUnit.GetBlockPosition(), startPos)
+			movingUnit.SetPath(msg.PathParts[currentPathPart])
+			return false
+		}
+		return true
+	}
+
+	movingUnit.SetPath(msg.PathParts[currentPathPart])
+	a.scheduleWaitForCondition(observerPositionReached, changeLOS)
+}
+
+func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	unit, known := a.unitMap[msg.UnitID]
 	if !known {
 		println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
@@ -575,6 +597,22 @@ func (a *BattleClient) OnUnitMoved(msg game.VisualUnitMoved) {
 
 	a.voxelMap.ClearHighlights()
 	a.unitSelector.Hide()
+
+	changeLOS := func() {
+		for _, lostLOSUnit := range msg.Lost {
+			a.SetLOSLost(msg.UnitID, lostLOSUnit)
+		}
+
+		for _, acquiredLOSUnit := range msg.Spotted {
+			a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
+			a.AddOrUpdateUnit(acquiredLOSUnit)
+		}
+	}
+	destination := msg.Path[len(msg.Path)-1]
+	destinationReached := func() bool {
+		return voxel.ToGridInt3(unit.GetFootPosition()) == destination
+	}
+	a.scheduleWaitForCondition(destinationReached, changeLOS)
 
 	unit.SetPath(msg.Path)
 	unit.EndTurn()

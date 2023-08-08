@@ -113,6 +113,7 @@ type MeshNode struct {
 	outOfTranslationFrames bool
 	outOfRotationFrames    bool
 	outOfScaleFrames       bool
+	hidden                 bool
 }
 
 func (m *MeshNode) HasMesh() bool {
@@ -150,6 +151,9 @@ func (m *MeshNode) CreateColliders() {
 }
 
 func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
+	if m.hidden {
+		return
+	}
 	shader.SetUniformAttr(2, m.GlobalMatrix())
 
 	for _, pair := range m.drawPairs {
@@ -220,6 +224,15 @@ func (m *CompoundMesh) PlayAnimation(animationName string, speedFactor float64) 
 func (m *CompoundMesh) GetAnimationDebugString() string {
 	return m.RootNode.GetAnimationDebugString(0)
 }
+
+func (m *CompoundMesh) HideBone(name string) {
+	m.RootNode.HideBone(name)
+}
+
+func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception string) {
+	m.RootNode.HideChildrenOfBoneExcept(false, parentName, exception)
+}
+
 func (m *MeshNode) ChangeAnimation(name string) {
 	for _, child := range m.children {
 		child.ChangeAnimation(name)
@@ -460,6 +473,25 @@ func (m *MeshNode) GetAnimationDebugString(hierarchyLevel int) string {
 		result += child.GetAnimationDebugString(hierarchyLevel + 1)
 	}
 	return result
+}
+
+func (m *MeshNode) HideBone(name string) {
+	if m.Name == name {
+		m.hidden = true
+	}
+	for _, child := range m.children {
+		child.HideBone(name)
+	}
+}
+
+func (m *MeshNode) HideChildrenOfBoneExcept(isChild bool, name string, exception string) {
+	if isChild && m.Name != exception {
+		m.hidden = true
+		return
+	}
+	for _, child := range m.children {
+		child.HideChildrenOfBoneExcept(m.Name == name, name, exception)
+	}
 }
 
 type SubMesh struct {

@@ -143,5 +143,5 @@ func (a *BattleClient) LoadMap(filename string) *voxel.Map {
 
 func (a *BattleClient) SetVoxelMap(testMap *voxel.Map) {
 	a.voxelMap = testMap
-	//a.voxelMap.SetUnitMovedHandler(a.OnUnitMoved)
+	//a.voxelMap.SetUnitMovedHandler(a.OnOwnUnitMoved)
 }

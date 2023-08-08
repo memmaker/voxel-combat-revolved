@@ -15,6 +15,13 @@ const (
 	ZN
 )
 
+var North = Int3{0, 0, -1}
+var South = Int3{0, 0, 1}
+var East = Int3{1, 0, 0}
+var West = Int3{-1, 0, 0}
+var Up = Int3{0, 1, 0}
+var Down = Int3{0, -1, 0}
+
 type ChunkMesh interface {
 	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8)
 	Reset()

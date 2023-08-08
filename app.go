@@ -129,10 +129,12 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 			{
 				UnitTypeID: 0,
 				Name:       "Steve",
+				Weapon:     "Mossberg",
 			},
 			{
 				UnitTypeID: 1,
 				Name:       "Soldier X",
+				Weapon:     "Sniper",
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)
@@ -147,7 +149,13 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		util.MustSend(con.SelectUnits([]game.UnitChoice{
 			{
 				UnitTypeID: 2,
+				Name:       "Support Guy",
+				Weapon:     "Rifle",
+			},
+			{
+				UnitTypeID: 3,
 				Name:       "Deep One",
+				//Weapon:     "Rifle",
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)

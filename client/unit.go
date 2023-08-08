@@ -11,27 +11,28 @@ import (
 )
 
 type Unit struct {
-	ID                 uint64
-	unitType           *game.UnitCoreStats
-	extents            mgl32.Vec3
-	model              *util.CompoundMesh
-	velocity           mgl32.Vec3
-	currentWaypoint    int
-	animationSpeed     float32
-	waypointTimer      float64
-	state              Behavior
-	transition         *TransitionTable
-	hitInfo            HitInfo
-	removeActor        bool
-	Height             uint8
-	eventQueue         []TransitionEvent
-	name               string
-	currentPath        []voxel.Int3
-	voxelMap           *voxel.Map
-	currentMapPosition mgl32.Vec3
-	canAct             bool
-	controlledByUser   bool
-	controlledBy       uint64
+	ID                   uint64
+	unitType             game.UnitCoreStats
+	extents              mgl32.Vec3
+	model                *util.CompoundMesh
+	velocity             mgl32.Vec3
+	currentWaypoint      int
+	animationSpeed       float32
+	waypointTimer        float64
+	state                Behavior
+	transition           *TransitionTable
+	hitInfo              HitInfo
+	removeActor          bool
+	Height               uint8
+	eventQueue           []TransitionEvent
+	name                 string
+	currentPath          []voxel.Int3
+	voxelMap             *voxel.Map
+	currentMapPosition   voxel.Int3
+	canAct               bool
+	controlledByUser     bool
+	controlledBy         uint64
+	occupiedBlockOffsets []voxel.Int3
 }
 
 func (p *Unit) SetControlledBy(id uint64) {
@@ -51,7 +52,7 @@ func (p *Unit) MovesLeft() int {
 }
 
 func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
-	return p.unitType.OccupiedBlockOffsets
+	return p.occupiedBlockOffsets
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -196,6 +197,19 @@ func (p *Unit) turnToDirection(direction mgl32.Vec3) {
 	p.model.SetYRotationAngle(angle)
 }
 
+func (p *Unit) turnForWallIdle(wallDirection voxel.Int3) {
+	switch wallDirection {
+	case voxel.North:
+		p.model.SetYRotationAngle(0)
+	case voxel.East:
+		p.model.SetYRotationAngle(math.Pi / 2)
+	case voxel.South:
+		p.model.SetYRotationAngle(math.Pi)
+	case voxel.West:
+		p.model.SetYRotationAngle(3 * math.Pi / 2)
+	}
+}
+
 func (p *Unit) GetFront() mgl32.Vec3 {
 	return p.model.GetFront()
 }
@@ -227,16 +241,10 @@ func (p *Unit) IsCurrentWaypointADrop() bool {
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
 }
-
-func (p *Unit) SetMap(voxelMap *voxel.Map) {
-	p.voxelMap = voxelMap
-	p.updateMapPosition()
-}
-
 func (p *Unit) updateMapPosition() {
 	oldMapPosition := p.currentMapPosition
-	p.currentMapPosition = p.GetFootPosition()
-	p.voxelMap.MoveUnitTo(p, oldMapPosition, p.GetFootPosition())
+	p.currentMapPosition = p.GetBlockPosition()
+	p.voxelMap.MoveUnitTo(p, oldMapPosition, p.GetBlockPosition())
 }
 
 func (p *Unit) CanAct() bool {
@@ -263,19 +271,49 @@ func (p *Unit) SetUserControlled() {
 	p.controlledByUser = true
 }
 
-func NewUnit(id uint64, name string, pos mgl32.Vec3, model *util.CompoundMesh, coreStats *game.UnitCoreStats) *Unit {
-	a := &Unit{
-		ID:              id,
-		model:           model,
-		extents:         mgl32.Vec3{0.98, 1.98, 0.98},
-		animationSpeed:  4,
-		currentWaypoint: -1,
-		transition:      ActorTransitionTable, // one for all
-		name:            name,
-		canAct:          true,
-		unitType:        coreStats,
+func (p *Unit) Description() string {
+	return fmt.Sprintf("Unit: %s", p.GetName())
+}
+
+func (p *Unit) StartIdleAnimationLoop() {
+	ownPos := p.GetBlockPosition()
+	solidNeighbors := p.voxelMap.GetNeighborsForGroundMovement(ownPos, func(neighbor voxel.Int3) bool {
+		if neighbor != ownPos && p.voxelMap.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
+			return true
+		}
+		return false
+	})
+	if len(solidNeighbors) == 0 {
+		// if no wall next to us, we can idle normally
+		p.model.StartAnimationLoop(AnimationGunIdle.Str(), 1.0)
+	} else {
+		// if there is a wall next to us, we need to turn to face it
+		p.turnForWallIdle(solidNeighbors[0].Sub(ownPos))
+		p.model.StartAnimationLoop(AnimationWallIdle.Str(), 1.0)
 	}
+}
+
+func (p *Unit) GetLastWaypoint() voxel.Int3 {
+	return p.currentPath[len(p.currentPath)-1]
+}
+
+func NewUnit(id uint64, name string, pos mgl32.Vec3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {
+	a := &Unit{
+		ID:                   id,
+		model:                model,
+		extents:              mgl32.Vec3{0.98, 1.98, 0.98},
+		animationSpeed:       4,
+		currentWaypoint:      -1,
+		transition:           ActorTransitionTable, // one for all
+		name:                 name,
+		canAct:               true,
+		unitType:             unitDef.CoreStats,
+		voxelMap:             voxelMap,
+		occupiedBlockOffsets: unitDef.OccupiedBlockOffsets,
+	}
+
 	a.SetState(ActorStateIdle)
 	a.SetFootPosition(pos)
+	a.updateMapPosition()
 	return a
 }

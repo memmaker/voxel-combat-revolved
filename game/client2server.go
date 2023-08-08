@@ -16,6 +16,7 @@ type SelectFactionMessage struct {
 type UnitChoice struct {
 	UnitTypeID uint64
 	Name       string
+	Weapon     string
 }
 
 type SelectUnitsMessage struct {

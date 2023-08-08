@@ -94,10 +94,12 @@ func (c *DummyClient) CreateGameSequence() {
 		{
 			UnitTypeID: 0,
 			Name:       "Steve",
+			Weapon:     "Sniper",
 		},
 		{
 			UnitTypeID: 1,
-			Name:       "Soldier X",
+			Name:       "Walker",
+			//Weapon:     "Sniper",
 		},
 	}))
 	util.WaitForTrue(&unitSelectionSuccess)

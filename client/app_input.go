@@ -26,8 +26,14 @@ func (a *BattleClient) handleMousePosEvents(xpos float64, ypos float64) {
 	if a.lastMousePosX == xpos && a.lastMousePosY == ypos {
 		return
 	}
-	if !a.actionbar.IsMouseOver(xpos, ypos) && a.state().OnMouseMoved != nil {
+	overActionBar := a.actionbar.IsMouseOver(xpos, ypos)
+	if !overActionBar && a.state().OnMouseMoved != nil {
 		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, xpos, ypos)
+	} else if overActionBar {
+		toolTip := a.actionbar.HoverText()
+		if toolTip != "" {
+			a.Print(toolTip)
+		}
 	}
 	a.lastMousePosX = xpos
 	a.lastMousePosY = ypos

@@ -153,14 +153,23 @@ type UserConnection struct {
 
 func (b *BattleServer) respond(connection *UserConnection, messageType string, response any) {
 	asJson, _ := json.Marshal(response)
-	// our protocol is: messageType (string) + \n + data as json (string) + \n
-	println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, messageType, string(asJson)))
-	_, err := connection.raw.Write(append([]byte(messageType), '\n'))
+	b.writeToClient(connection, []byte(messageType), asJson)
+}
+func (b *BattleServer) writeFromBuffer(userID uint64, msgType, msg []byte) {
+	connection := b.connectedClients[userID]
+	if connection == nil {
+		return
+	}
+	b.writeToClient(connection, msgType, msg)
+}
+func (b *BattleServer) writeToClient(connection *UserConnection, messageType, response []byte) {
+	println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, string(messageType), string(response)))
+	_, err := connection.raw.Write(append(messageType, '\n'))
 	if err != nil {
 		println(fmt.Sprintf(err.Error()))
 		return
 	}
-	_, err = connection.raw.Write(append(asJson, '\n'))
+	_, err = connection.raw.Write(append(response, '\n'))
 	if err != nil {
 		println(fmt.Sprintf(err.Error()))
 		return
@@ -270,8 +279,9 @@ func (b *BattleServer) startGame(battleGame *GameInstance) {
 
 var debugSpawnPositions = []voxel.Int3{
 	{X: 2, Y: 1, Z: 2},
-	{X: 4, Y: 1, Z: 2},
-	{X: 4, Y: 1, Z: 12},
+	{X: 6, Y: 1, Z: 2},
+	{X: 4, Y: 1, Z: 13},
+	{X: 4, Y: 1, Z: 11},
 }
 var debugSpawnCounter = 0
 
@@ -299,6 +309,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		spawnedUnitDef := b.availableUnits[unitChoice.UnitTypeID]
 		println(fmt.Sprintf("[BattleServer] %d selected unit %d", userID, spawnedUnitDef.ID))
 		unit := game.NewUnitInstance(unitChoice.Name, spawnedUnitDef)
+		unit.SetWeapon(unitChoice.Weapon)
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.voxelMap)
 		unit.SetSpawnPosition(debugSpawnPositions[debugSpawnCounter])
@@ -353,19 +364,15 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	// example movement: only the server knows if an reaction shot is triggered
 	// so executing that same action on the client will not work
 	// we need to adapt the response to include the result of the action
-	clientMsgTypes, clientMsgs := action.Execute()
+	mb := game.NewMessageBuffer(gameInstance.players, b.writeFromBuffer)
+	action.Execute(mb)
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
 	// - the unit can now see another unit
 
 	unit.EndTurn()
 
-	for _, playerID := range gameInstance.players {
-		connectedUser := b.connectedClients[playerID]
-		for i := 0; i < len(clientMsgTypes); i++ {
-			b.respond(connectedUser, clientMsgTypes[i], clientMsgs[i])
-		}
-	}
+	mb.SendAll()
 }
 
 func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessage) {
@@ -408,19 +415,15 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 	// example movement: only the server knows if an reaction shot is triggered
 	// so executing that same action on the client will not work
 	// we need to adapt the response to include the result of the action
-	clientMsgTypes, clientMsgs := action.Execute()
+	mb := game.NewMessageBuffer(gameInstance.players, b.writeFromBuffer)
+	action.Execute(mb)
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
 	// - the unit can now see another unit
 
 	unit.EndTurn()
 
-	for _, playerID := range gameInstance.players {
-		connectedUser := b.connectedClients[playerID]
-		for i := 0; i < len(clientMsgTypes); i++ {
-			b.respond(connectedUser, clientMsgTypes[i], clientMsgs[i])
-		}
-	}
+	mb.SendAll()
 }
 
 func (b *BattleServer) EndTurn(userID uint64) {
