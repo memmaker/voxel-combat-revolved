@@ -3,7 +3,6 @@ package game
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"log"
@@ -52,7 +51,7 @@ func (c *ServerConnection) send(messageType string, message any) error {
 	if err != nil {
 		return err
 	}
-	println(fmt.Sprintf("[ServerConnection] Sending message: %s", messageType))
+	//println(fmt.Sprintf("[ServerConnection] Sending message: %s", messageType))
 	_, err = c.connection.Write(append([]byte(messageType), '\n'))
 	_, err = c.connection.Write(append(dataAsJson, '\n'))
 	return err
@@ -74,7 +73,7 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
-		println(fmt.Sprintf("[ServerConnection] Received message: %s", messageType))
+		//println(fmt.Sprintf("[ServerConnection] Received message: %s", messageType))
 		if c.eventHandler != nil {
 			c.eventHandler(messageType, message)
 		}

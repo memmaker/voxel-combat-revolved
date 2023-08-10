@@ -90,7 +90,8 @@ func (v *VoxelPather) GetCost(currentNode, neighbor voxel.Int3) int {
 }
 
 func (v *VoxelPather) isWalkable(neighbor voxel.Int3) bool {
-	return v.voxelMap.IsUnitPlaceable(v.unit, neighbor)
+	placeable, _ := v.voxelMap.IsUnitPlaceable(v.unit, neighbor)
+	return placeable
 }
 
 func NewPather(voxelMap *voxel.Map, unit UnitCore) *VoxelPather {

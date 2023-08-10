@@ -79,7 +79,7 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 		}
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
-		println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
+		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
 		b.GenerateResponse(con, id, messageType, message)
 	}
 }
@@ -163,7 +163,7 @@ func (b *BattleServer) writeFromBuffer(userID uint64, msgType, msg []byte) {
 	b.writeToClient(connection, msgType, msg)
 }
 func (b *BattleServer) writeToClient(connection *UserConnection, messageType, response []byte) {
-	println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, string(messageType), string(response)))
+	//println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, string(messageType), string(response)))
 	_, err := connection.raw.Write(append(messageType, '\n'))
 	if err != nil {
 		println(fmt.Sprintf(err.Error()))
@@ -312,7 +312,8 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.SetWeapon(unitChoice.Weapon)
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.voxelMap)
-		unit.SetSpawnPosition(debugSpawnPositions[debugSpawnCounter])
+		unit.SetBlockPosition(debugSpawnPositions[debugSpawnCounter])
+		unit.SetForward(voxel.Int3{X: 0, Y: 0, Z: 1})
 		debugSpawnCounter = (debugSpawnCounter + 1) % len(debugSpawnPositions)
 		gameInstance.AddUnit(userID, unit) // sets the instance userID
 	}
@@ -448,6 +449,11 @@ func (b *BattleServer) EndTurn(userID uint64) {
 }
 
 func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
+	println("[BattleServer] Ending turn. New map state:")
+	gameInstance.voxelMap.PrintArea2D(16, 16)
+	for _, unit := range gameInstance.units {
+		println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
+	}
 	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.players {
 		connectedUser := b.connectedClients[playerID]

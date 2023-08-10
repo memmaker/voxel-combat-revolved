@@ -95,7 +95,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[GameStateUnit] Screen clicked at (%0.1f, %0.1f)", x, y))
 	// project point from screen space to isoCamera space
 	rayStart, rayEnd := g.engine.isoCamera.GetPickingRayFromScreenPosition(x, y)
-	hitInfo := g.engine.RayCast(rayStart, rayEnd)
+	hitInfo := g.engine.RayCastGround(rayStart, rayEnd)
 
 	if hitInfo.HitUnit() {
 		unitHit := hitInfo.UnitHit.(*Unit)

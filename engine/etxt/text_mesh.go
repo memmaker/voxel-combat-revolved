@@ -1,7 +1,6 @@
 package etxt
 
 import (
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"image"
@@ -18,18 +17,18 @@ type OpenGLTextRenderer struct {
 func NewOpenGLTextRenderer(textShader *glhf.Shader) *OpenGLTextRenderer {
 	const TextSizePx = 32
 	fontFilePath := "assets/fonts/Ac437_EagleSpCGA_Alt2-2y.ttf"
-	font, fontName, err := ParseFontFrom(fontFilePath)
+	font, _, err := ParseFontFrom(fontFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("[OpenGLTextRenderer] Font loaded: %s\n", fontName)
+	//fmt.Printf("[OpenGLTextRenderer] Font loaded: %s\n", fontName)
 	renderer := NewStdRenderer()
 	cache := NewDefaultCache(1024 * 1024 * 1024) // 1GB cache
 	renderer.SetCacheHandler(cache.NewHandler())
 	renderer.SetSizePx(TextSizePx)
 	renderer.SetFont(font)
 	renderer.SetAlign(Top, Left)
-	renderer.SetColor(color.RGBA{0, 0, 0, 255}) // black
+	renderer.SetColor(color.RGBA{255, 255, 255, 255}) // black
 
 	return &OpenGLTextRenderer{
 		renderer: renderer,
@@ -40,12 +39,16 @@ func NewOpenGLTextRenderer(textShader *glhf.Shader) *OpenGLTextRenderer {
 func (r *OpenGLTextRenderer) SetSizePx(size int) {
 	r.renderer.SetSizePx(size)
 }
+func (r *OpenGLTextRenderer) SetColor(color color.RGBA) {
+	r.renderer.SetColor(color)
+}
 func (r *OpenGLTextRenderer) SetAlign(vert VertAlign, horiz HorzAlign) {
 	r.renderer.SetAlign(vert, horiz)
 }
 func (r *OpenGLTextRenderer) DrawText(text string) *TextMesh {
 	textMesh := NewTextMesh(r.shader)
 	r.renderer.SetTarget(textMesh) // we want to set something as target, that can receive the vertex and uv positions
+	r.renderer.SetColor(color.RGBA{255, 255, 255, 255})
 	r.renderer.Draw(text, 0, 0)
 	textMesh.SetTexture(Atlas.ToTexture())
 	textMesh.PrepareForRender()

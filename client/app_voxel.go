@@ -30,6 +30,28 @@ func (a *BattleClient) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
 	return a.lastHitInfo
 }
 
+func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
+	voxelMap := a.voxelMap
+	var visitedBlocks []voxel.Int3
+	var unitHit voxel.MapObject
+	stopRay := func(x, y, z int32) bool {
+		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
+		if voxelMap.Contains(x, y, z) {
+			block := voxelMap.GetGlobalBlock(x, y, z)
+			if block != nil && !block.IsAir() {
+				return true
+			} else if block.IsOccupied() {
+				unitHit = block.GetOccupant().(*Unit)
+			}
+		}
+		return false
+	}
+	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
+	insideMap := voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)
+	a.lastHitInfo = &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
+	return a.lastHitInfo
+}
+
 func (a *BattleClient) PlaceBlockAtCurrentSelection() {
 	if a.lastHitInfo == nil {
 		return

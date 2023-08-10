@@ -53,7 +53,10 @@ func (a *TextAtlas) AddGlyph(glyph *image.Alpha) *image.Rectangle {
 			pixColor := color.NRGBA{R: 255, G: 255, B: 255, A: 0}
 			if x < glyphWidth {
 				originalAlpha := glyph.Pix[y*glyph.Stride+x]
-				invertedAlpha := 255 - originalAlpha
+				invertedAlpha := originalAlpha
+				if originalAlpha != 255 {
+					invertedAlpha = 255 - originalAlpha
+				}
 				pixColor = color.NRGBA{R: invertedAlpha, G: invertedAlpha, B: invertedAlpha, A: originalAlpha}
 			}
 

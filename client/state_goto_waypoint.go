@@ -1,11 +1,14 @@
 package client
 
-import "github.com/go-gl/mathgl/mgl32"
+import (
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/voxel"
+)
 
 type UnitGotoWaypointBehavior struct {
 	unit             *Unit
 	waitForAnimation bool
-	yOffset          int
+	yOffset          int32
 }
 
 func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
@@ -17,9 +20,9 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 			// reset animation position
 			a.unit.StartIdleAnimationLoop()
 			wp := a.unit.GetWaypoint()
-			fp := a.unit.GetFootPosition()
-			resolvedPosition := mgl32.Vec3{wp.X(), fp.Y() + float32(a.yOffset), wp.Z()}
-			a.unit.SetFootPosition(resolvedPosition)
+			fp := a.unit.GetBlockPosition()
+			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
+			a.unit.SetBlockPosition(resolvedPosition)
 		} else {
 			return EventNone
 		}

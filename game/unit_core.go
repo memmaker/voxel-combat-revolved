@@ -15,11 +15,11 @@ type UnitCore interface {
 	GetPosition() mgl32.Vec3
 	SetPosition(pos mgl32.Vec3)
 	SetFootPosition(pos mgl32.Vec3)
+	SetBlockPosition(pos voxel.Int3)
 	UnitID() uint64
 	ControlledBy() uint64
 	GetOccupiedBlockOffsets() []voxel.Int3
 }
-
 type UnitClientDefinition struct {
 	TextureFile string
 }
@@ -44,6 +44,7 @@ type UnitInstance struct {
 	controlledBy   uint64 // ID of the player controlling this unit
 	Name           string
 	Position       voxel.Int3
+	Orientation    [2]int32
 	UnitDefinition *UnitDefinition // ID of the unit definition (= unit type)
 	canAct         bool
 	voxelMap       *voxel.Map
@@ -52,7 +53,7 @@ type UnitInstance struct {
 }
 
 func (u *UnitInstance) SetPath(path []voxel.Int3) {
-	u.MoveUnit(path[len(path)-1])
+	u.SetBlockPosition(path[len(path)-1])
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -65,12 +66,6 @@ func (u *UnitInstance) UnitID() uint64 {
 
 func (u *UnitInstance) GetName() string {
 	return u.Name
-}
-
-func (u *UnitInstance) MoveUnit(targetPos voxel.Int3) {
-	oldPos := u.Position
-	u.SetFootPosition(targetPos.ToBlockCenterVec3())
-	u.voxelMap.MoveUnitTo(u, oldPos, u.Position)
 }
 
 func (u *UnitInstance) MovesLeft() int {
@@ -95,10 +90,6 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 func (u *UnitInstance) SetGameUnitID(id uint64) {
 	u.GameUnitID = id
 }
-func (u *UnitInstance) SetSpawnPosition(pos voxel.Int3) {
-	u.SetFootPosition(pos.ToBlockCenterVec3())
-}
-
 func (u *UnitInstance) SetControlledBy(playerID uint64) {
 	u.controlledBy = playerID
 }
@@ -117,15 +108,18 @@ func (u *UnitInstance) GetPosition() mgl32.Vec3 {
 
 func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
 	footPosition := pos.Sub(mgl32.Vec3{0, 1, 0})
-	u.Position = voxel.ToGridInt3(footPosition)
-	u.updateModelPosition()
+	u.SetBlockPosition(voxel.ToGridInt3(footPosition))
 }
 
-func (u *UnitInstance) updateModelPosition() {
+func (u *UnitInstance) SetFootPosition(pos mgl32.Vec3) {
+	u.SetBlockPosition(voxel.ToGridInt3(pos))
+}
+
+func (u *UnitInstance) updateMapAndModelPosition(old voxel.Int3) {
 	worldPos := u.Position.ToBlockCenterVec3()
 	u.model.RootNode.Translate([3]float32{worldPos[0], worldPos[1], worldPos[2]})
+	u.voxelMap.MoveUnitTo(u, old, u.Position)
 }
-
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
 }
@@ -134,9 +128,14 @@ func (u *UnitInstance) GetFootPosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3()
 }
 
-func (u *UnitInstance) SetFootPosition(pos mgl32.Vec3) {
-	u.Position = voxel.ToGridInt3(pos)
-	u.updateModelPosition()
+func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
+	oldPos := u.Position
+	u.Position = pos
+	u.updateMapAndModelPosition(oldPos)
+}
+
+func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
+	return u.Position
 }
 
 func (u *UnitInstance) CanAct() bool {
@@ -167,6 +166,11 @@ func (u *UnitInstance) GetWeapon() string {
 	return u.Weapon
 }
 
-func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
-	return u.Position
+func (u *UnitInstance) SetForward(forward voxel.Int3) {
+	u.Orientation[0] = forward.X
+	u.Orientation[1] = forward.Z
+}
+
+func (u *UnitInstance) GetForward() voxel.Int3 {
+	return voxel.Int3{X: u.Orientation[0], Z: u.Orientation[1]}
 }

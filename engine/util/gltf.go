@@ -37,8 +37,8 @@ func LoadGLTF(filename string) *CompoundMesh {
 		defaultSceneIndex = int(*doc.Scene)
 	}
 	defaultScene := doc.Scenes[defaultSceneIndex]
-	fmt.Println(fmt.Sprintf("[LoadGLTF] Loading scene '%s' (1/%d)", defaultScene.Name, len(doc.Scenes)))
-	fmt.Println(fmt.Sprintf("[LoadGLTF] Scene contains %d node(s)", len(defaultScene.Nodes)))
+	//fmt.Println(fmt.Sprintf("[LoadGLTF] Loading scene '%s' (1/%d)", defaultScene.Name, len(doc.Scenes)))
+	//fmt.Println(fmt.Sprintf("[LoadGLTF] Scene contains %d node(s)", len(defaultScene.Nodes)))
 	result := &CompoundMesh{
 		SamplerFrames:  make(map[string][][]float32),
 		animationSpeed: 1.0,
@@ -111,7 +111,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 	results := make([]*glhf.Texture, len(doc.Textures))
 	for texIndex, texture := range doc.Textures {
-		print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.Name))
+		//print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.Name))
 		imageSource := doc.Images[*texture.Source]
 		if imageSource.IsEmbeddedResource() {
 			embeddedTexture, err := loadEmbeddedTexture(imageSource)
@@ -145,7 +145,7 @@ func loadFileTexture(imageSource *gltf.Image) (*glhf.Texture, error) {
 		}
 		loadedTexture, err := NewTextureFromReader(file, false)
 		file.Close()
-		println(fmt.Sprintf("Loaded from file %s", filePath))
+		//println(fmt.Sprintf("Loaded from file %s", filePath))
 		return loadedTexture, nil
 	}
 }
@@ -158,7 +158,7 @@ func loadBufferTexture(doc *gltf.Document, imageSource *gltf.Image) *glhf.Textur
 	if err != nil {
 		println(fmt.Sprintf("Error loading texture from buffer: %s", err.Error()))
 	} else {
-		println(fmt.Sprintf("'%s' loaded from buffer", imageSource.Name))
+		//println(fmt.Sprintf("'%s' loaded from buffer", imageSource.Name))
 	}
 	return loadedTexture
 }
@@ -178,7 +178,7 @@ func loadEmbeddedTexture(image *gltf.Image) (*glhf.Texture, error) {
 	if image.Name == "" {
 		println("Loaded from embedded resource")
 	} else {
-		println(fmt.Sprintf("'%s' loaded from embedded resource", image.Name))
+		//println(fmt.Sprintf("'%s' loaded from embedded resource", image.Name))
 	}
 	return loadedTexture, nil
 }

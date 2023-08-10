@@ -292,34 +292,45 @@ func (m *Map) SetSetRandomStuff(block *Block) {
 
 type MapObject interface {
 	GetOccupiedBlockOffsets() []Int3
-	SetFootPosition(pos mgl32.Vec3)
 	ControlledBy() uint64
 	UnitID() uint64
+	GetName() string
 }
 
 func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos Int3) bool {
-	if m.IsUnitPlaceable(unit, newPos) {
+	ok, reason := m.IsUnitPlaceable(unit, newPos)
+	if ok {
+		println(fmt.Sprintf("[Map] Moving %s(%d): %s -> %s", unit.GetName(), unit.UnitID(), oldPos.ToString(), newPos.ToString()))
 		m.RemoveUnit(unit, oldPos)
 		m.AddUnit(unit, newPos)
 		m.onUnitMoved(unit, oldPos, newPos)
 		return true
 	}
+	println(fmt.Sprintf("[Map] ERR - Failed to move %s(%d): %s -> %s (%s)", unit.GetName(), unit.UnitID(), oldPos.ToString(), newPos.ToString(), reason))
 	return false
 }
 func ToGridInt3(pos mgl32.Vec3) Int3 {
 	return Int3{int32(math.Floor(float64(pos.X()))), int32(math.Floor(float64(pos.Y()))), int32(math.Floor(float64(pos.Z())))}
 }
-func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) bool {
+func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) (bool, string) {
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
 		occupiedBlockPos := blockPos.Add(offset)
-		if !m.ContainsGrid(occupiedBlockPos) || m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z) || m.IsOccupiedExcept(occupiedBlockPos, unit) {
-			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
-			println(fmt.Sprintf("[Map] Block %d prevents placement", block.ID))
-			return false
+		outsideOfWorld := !m.ContainsGrid(occupiedBlockPos)
+		if outsideOfWorld {
+			return false, "Outside of world"
+		}
+		isWall := m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+		if isWall {
+			return false, "Wall"
+		}
+		unitIsBlocking := m.IsOccupiedExcept(occupiedBlockPos, unit)
+		if unitIsBlocking {
+			blockingUnit := m.GetBlockFromVec(occupiedBlockPos).GetOccupant()
+			return false, fmt.Sprintf("Unit %s(%d) is blocking", blockingUnit.GetName(), blockingUnit.UnitID())
 		}
 	}
-	return true
+	return true, ""
 }
 
 func (m *Map) RemoveUnit(unit MapObject, blockPos Int3) {
@@ -334,14 +345,12 @@ func (m *Map) RemoveUnit(unit MapObject, blockPos Int3) {
 }
 
 func (m *Map) AddUnit(unit MapObject, blockPos Int3) {
-	println(fmt.Sprintf("[Map] Adding unit %s", blockPos.ToString()))
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
 		occupiedBlockPos := blockPos.Add(offset)
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 		block.AddUnit(unit)
 	}
-	unit.SetFootPosition(blockPos.ToBlockCenterVec3())
 }
 
 func GetBlocksNeededByConstruction(construction *Construction) []string {
@@ -603,4 +612,25 @@ func (m *Map) GetMapObjectAt(target Int3) MapObject {
 		return block.GetOccupant()
 	}
 	return nil
+}
+
+func (m *Map) PrintArea2D(maxX, maxZ int32) {
+	for z := int32(0); z < maxZ; z++ {
+		for x := int32(0); x < maxX; x++ {
+			blockPos := Int3{X: x, Y: 1, Z: z}
+			if m.IsSolidBlockAt(x, 1, z) {
+				print("#")
+			} else if m.IsOccupied(blockPos) {
+				block := m.GetBlockFromVec(blockPos)
+				if block != nil && block.IsOccupied() {
+					print(block.GetOccupant().UnitID())
+				} else {
+					print(" ")
+				}
+			} else {
+				print(" ")
+			}
+		}
+		println()
+	}
 }

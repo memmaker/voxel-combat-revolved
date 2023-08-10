@@ -134,7 +134,7 @@ func (g *GameInstance) AddUnit(userID uint64, unit *game.UnitInstance) uint64 {
 	g.playerUnits[userID] = append(g.playerUnits[userID], unit)
 	g.units = append(g.units, unit)
 	g.factionMap[unit] = g.playerFactions[userID]
-	g.voxelMap.AddUnit(unit, voxel.ToGridInt3(unit.GetFootPosition()))
+	g.voxelMap.AddUnit(unit, unit.GetBlockPosition())
 	return unitInstanceID
 }
 

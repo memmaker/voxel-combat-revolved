@@ -41,33 +41,25 @@ func (a *BattleClient) updateDebugInfo() {
 		return
 	}
 	//camPos := a.isoCamera.GetPosition()
-	/*
-	       posString := fmt.Sprintf("Pos: %.2f, %.2f, %.2f", camPos.X(), camPos.Y(), camPos.Z())
-	   	dirString := fmt.Sprintf("Dir: %.2f, %.2f, %.2f", a.isoCamera.GetFront().X(), a.isoCamera.GetFront().Y(), a.isoCamera.GetFront().Z())
-	   	chunk := a.voxelMap.GetChunkFromPosition(camPos)
-	   	chunkString := "Chunk: none"
-	   	if chunk != nil {
-	   		chunkPos := chunk.Position()
-	   		chunkString = fmt.Sprintf("Chunk: %d, %d, %d", chunkPos.X, chunkPos.Y, chunkPos.Z)
-	   	}
-
-	*/
 
 	selectedBlockString := "Block: none"
+	unitPosString := "Unit: none"
 	if a.lastHitInfo != nil {
-		selectedBlockString = fmt.Sprintf("Col.Block: %d, %d, %d", a.lastHitInfo.CollisionGridPosition.X, a.lastHitInfo.CollisionGridPosition.Y, a.lastHitInfo.CollisionGridPosition.Z)
-		selectedBlockString += fmt.Sprintf("\nHitSide: %d", a.lastHitInfo.Side)
-		selectedBlockString += fmt.Sprintf("\nPrev.Block: %d, %d, %d", a.lastHitInfo.PreviousGridPosition.X, a.lastHitInfo.PreviousGridPosition.Y, a.lastHitInfo.PreviousGridPosition.Z)
-		selectedBlockString += fmt.Sprintf("\nHit WorldPos: %.2f, %.2f, %.2f", a.lastHitInfo.CollisionWorldPosition.X(), a.lastHitInfo.CollisionWorldPosition.Y(), a.lastHitInfo.CollisionWorldPosition.Z())
-	}
-	unitPos := a.allUnits[0].GetPosition()
-	unitPosString := fmt.Sprintf("Unit: %.2f, %.2f, %.2f", unitPos.X(), unitPos.Y(), unitPos.Z())
+		cursorPos := a.groundSelector.GetBlockPosition()
+		selectedBlockString = fmt.Sprintf("Cursor: %d, %d, %d", cursorPos.X, cursorPos.Y, cursorPos.Z)
+		if a.lastHitInfo.UnitHit != nil {
+			unit := a.lastHitInfo.UnitHit.(*Unit)
+			unitPos := unit.GetBlockPosition()
+			unitPosString = fmt.Sprintf("Unit(%d): %s @ %d, %d, %d", unit.UnitID(), unit.GetName(), unitPos.X, unitPos.Y, unitPos.Z)
+		}
 
-	animString := a.allUnits[0].model.GetAnimationDebugString()
+	}
+
+	//animString := a.allUnits[0].model.GetAnimationDebugString()
 
 	//timerString := a.timer.String()
-	//debugInfo := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", posString, dirString, chunkString, selectedBlockString, timerString)
-	debugInfo := fmt.Sprintf("\n%s\n%s", unitPosString, animString)
+	debugInfo := fmt.Sprintf("%s\n%s", selectedBlockString, unitPosString)
+	//debugInfo := fmt.Sprintf("\n%s\n%s", unitPosString, animString)
 	a.Print(debugInfo)
 }
 

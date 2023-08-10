@@ -28,7 +28,6 @@ type Unit struct {
 	name                 string
 	currentPath          []voxel.Int3
 	voxelMap             *voxel.Map
-	currentMapPosition   voxel.Int3
 	canAct               bool
 	controlledByUser     bool
 	controlledBy         uint64
@@ -104,16 +103,42 @@ func (p *Unit) Update(deltaTime float64) {
 	if p.IsDead() {
 		return
 	}
+
+	p.applyVelocity(deltaTime)
+
 	currentState := p.state.GetName()
 	currentEvent := p.state.Execute(deltaTime)
-	if currentEvent == EventWaypointReached || currentEvent == EventLastWaypointReached {
-		p.updateMapPosition()
-	}
+
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
-		println(fmt.Sprintf("[%s] Transition from %s to %s", p.GetName(), currentState.ToString(), nextState.ToString()))
+		//println(fmt.Sprintf("[%s] Transition from %s to %s", p.GetName(), currentState.ToString(), nextState.ToString()))
 		p.SetState(nextState)
 	}
+}
+
+func (p *Unit) applyVelocity(deltaTime float64) {
+	gravity := mgl32.Vec3{0, -9.8, 0}
+	previousPos := p.GetFootPosition()
+	rawVelocity := p.GetVelocity()
+	appliedVelocity := rawVelocity.Add(gravity).Mul(float32(deltaTime))
+	if appliedVelocity.Len() > 1.0 {
+		appliedVelocity = appliedVelocity.Normalize().Mul(1.0)
+	}
+	newPos := previousPos.Add(appliedVelocity)
+
+	prevGrid := voxel.ToGridInt3(previousPos)
+	newGrid := voxel.ToGridInt3(newPos)
+
+	if prevGrid != newGrid {
+		if p.voxelMap.IsSolidBlockAt(newGrid.X, newGrid.Y, newGrid.Z) {
+			newPos = previousPos.Add(mgl32.Vec3{appliedVelocity.X(), 0, appliedVelocity.Z()})
+			newGrid = voxel.ToGridInt3(newPos)
+		}
+		if prevGrid != newGrid {
+			p.voxelMap.MoveUnitTo(p, prevGrid, newGrid)
+		}
+	}
+	p.SetFootPosition(newPos)
 }
 
 func (p *Unit) SetState(nextState ActorState) {
@@ -151,6 +176,13 @@ func (p *Unit) GetColliders() []util.Collider {
 func (p *Unit) SetFootPosition(position mgl32.Vec3) {
 	p.model.SetPosition(position)
 }
+
+// SetBlockPosition Is the one method that should be used to set the position of a unit
+func (p *Unit) SetBlockPosition(newBlockPosition voxel.Int3) {
+	previousBlockPosition := p.GetBlockPosition()
+	p.SetFootPosition(newBlockPosition.ToBlockCenterVec3())
+	p.voxelMap.MoveUnitTo(p, previousBlockPosition, newBlockPosition)
+}
 func (p *Unit) GetFootPosition() mgl32.Vec3 {
 	return p.model.GetPosition()
 }
@@ -161,20 +193,20 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	return p.model.RootNode.GlobalMatrix()
 }
 func (p *Unit) HasReachedWaypoint() bool {
-	return p.GetFootPosition().Sub(p.GetWaypoint()).Len() < 0.05
+	return p.GetFootPosition().Sub(p.GetWaypoint().ToBlockCenterVec3()).Len() < 0.05
 }
 
 func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
 	p.currentWaypoint = 0
 	p.eventQueue = append(p.eventQueue, EventNewPath)
-	println(fmt.Sprintf("[%s] New waypoint at %v", p.GetName(), p.GetWaypoint()))
+	println(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
 }
-func (p *Unit) GetWaypoint() mgl32.Vec3 {
-	return p.currentPath[p.currentWaypoint].ToBlockCenterVec3()
+func (p *Unit) GetWaypoint() voxel.Int3 {
+	return p.currentPath[p.currentWaypoint]
 }
 func (p *Unit) MoveTowardsWaypoint() {
-	newVelocity := p.GetWaypoint().Sub(p.GetFootPosition()).Normalize().Mul(p.animationSpeed)
+	newVelocity := p.GetWaypoint().ToBlockCenterVec3().Sub(p.GetFootPosition()).Normalize().Mul(p.animationSpeed)
 	p.SetVelocity(newVelocity)
 }
 
@@ -188,7 +220,7 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 }
 
 func (p *Unit) TurnTowardsWaypoint() {
-	direction := p.GetWaypoint().Sub(p.GetPosition()).Normalize()
+	direction := p.GetWaypoint().Sub(p.GetBlockPosition()).ToVec3()
 	p.turnToDirection(direction)
 }
 
@@ -241,12 +273,6 @@ func (p *Unit) IsCurrentWaypointADrop() bool {
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
 }
-func (p *Unit) updateMapPosition() {
-	oldMapPosition := p.currentMapPosition
-	p.currentMapPosition = p.GetBlockPosition()
-	p.voxelMap.MoveUnitTo(p, oldMapPosition, p.GetBlockPosition())
-}
-
 func (p *Unit) CanAct() bool {
 	return p.canAct && !p.IsDead() && !p.IsDying()
 }
@@ -297,7 +323,15 @@ func (p *Unit) GetLastWaypoint() voxel.Int3 {
 	return p.currentPath[len(p.currentPath)-1]
 }
 
-func NewUnit(id uint64, name string, pos mgl32.Vec3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {
+func (p *Unit) SetForward(forward voxel.Int3) {
+	p.turnToDirection(forward.ToVec3())
+}
+
+func (p *Unit) IsIdle() bool {
+	return p.state.GetName() == ActorStateIdle
+}
+
+func NewUnit(id uint64, name string, pos voxel.Int3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {
 	a := &Unit{
 		ID:                   id,
 		model:                model,
@@ -313,7 +347,6 @@ func NewUnit(id uint64, name string, pos mgl32.Vec3, model *util.CompoundMesh, u
 	}
 
 	a.SetState(ActorStateIdle)
-	a.SetFootPosition(pos)
-	a.updateMapPosition()
+	a.SetBlockPosition(pos)
 	return a
 }

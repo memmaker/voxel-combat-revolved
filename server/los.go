@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
@@ -26,32 +25,25 @@ func (g *GameInstance) CanSeeFromTo(observer, another *game.UnitInstance, observ
 		return true
 	}
 
-	print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
 	targetTwo := targetFootPosition
 	targetOne := targetFootPosition.Add(another.GetEyeOffset())
 
-	// hacky stuff.. move the unit on the map during raycast and then move it back
-	originalTargetFootPosition := voxel.ToGridInt3(another.GetFootPosition())
-	g.voxelMap.MoveUnitTo(another, originalTargetFootPosition, voxel.ToGridInt3(targetFootPosition))
+	//print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
 
-	rayOne := g.RayCastUnits(observerEyePosition, targetOne, observer, another)
+	rayOne := g.RayCastUnitsProjected(observerEyePosition, targetOne, observer, another, voxel.ToGridInt3(targetFootPosition))
 	if rayOne.UnitHit == another { // fast exit
-		// move the unit back
-		g.voxelMap.MoveUnitTo(another, voxel.ToGridInt3(targetFootPosition), originalTargetFootPosition)
-		println("Line of sight is CLEAR")
+		//println("Line of sight is CLEAR")
 		return true
 	}
-	rayTwo := g.RayCastUnits(observerEyePosition, targetTwo, observer, another)
-
-	// move the unit back
-	g.voxelMap.MoveUnitTo(another, voxel.ToGridInt3(targetFootPosition), originalTargetFootPosition)
+	rayTwo := g.RayCastUnitsProjected(observerEyePosition, targetTwo, observer, another, voxel.ToGridInt3(targetFootPosition))
 
 	hasLos := rayTwo.UnitHit == another
 	if hasLos {
-		println("Line of sight is CLEAR")
+		//println("Line of sight is CLEAR")
 	} else {
-		println("NO LINE OF SIGHT")
+		//println("NO LINE OF SIGHT")
 	}
+
 	return hasLos
 }
 
@@ -107,15 +99,48 @@ func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, tar
 		if voxelMap.Contains(x, y, z) {
 			block := voxelMap.GetGlobalBlock(x, y, z)
 			if block != nil && !block.IsAir() {
-				println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
+				//println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
 				return true
 			} else if block.IsOccupied() && (block.GetOccupant().ControlledBy() != sourceUnit.ControlledBy() || block.GetOccupant() == targetUnit) {
 				unitHit = block.GetOccupant().(*game.UnitInstance)
-				println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
+				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
 				return true
 			}
 		} else {
-			println(fmt.Sprintf("[GameInstance] Raycast hit out of bounds at %d, %d, %d", x, y, z))
+			//println(fmt.Sprintf("[GameInstance] Raycast hit out of bounds at %d, %d, %d", x, y, z))
+			return true
+		}
+		return false
+	}
+	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
+	insideMap := voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)
+
+	return &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
+}
+
+func (g *GameInstance) RayCastUnitsProjected(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject, projectedTargetLocation voxel.Int3) *game.RayCastHit {
+	voxelMap := g.voxelMap
+	var visitedBlocks []voxel.Int3
+	var unitHit *game.UnitInstance
+	occupiedByTarget := map[voxel.Int3]bool{}
+	for _, offset := range targetUnit.GetOccupiedBlockOffsets() {
+		occupiedByTarget[projectedTargetLocation.Add(offset)] = true
+	}
+	stopRay := func(x, y, z int32) bool {
+		currentBlockPos := voxel.Int3{X: x, Y: y, Z: z}
+		visitedBlocks = append(visitedBlocks, currentBlockPos)
+		if voxelMap.Contains(x, y, z) {
+			block := voxelMap.GetGlobalBlock(x, y, z)
+			if block != nil && !block.IsAir() {
+				//println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
+				return true
+			} else if occupiedByTarget[currentBlockPos] {
+				unitHit = targetUnit.(*game.UnitInstance)
+				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
+				return true
+			}
+		} else {
+			//println(fmt.Sprintf("[GameInstance] Raycast hit out of bounds at %d, %d, %d", x, y, z))
 			return true
 		}
 		return false
