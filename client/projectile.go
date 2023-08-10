@@ -19,6 +19,12 @@ type Projectile struct {
 	quatRotation mgl32.Quat
 	scale        mgl32.Vec3
 	meshCollider *util.MeshCollider
+
+	destination mgl32.Vec3
+
+	onArrival func()
+	isDead    bool
+	startPos  mgl32.Vec3
 }
 
 func (p *Projectile) HitWithProjectile(projectile util.CollidingObject, part util.Collider) {
@@ -54,7 +60,7 @@ func (p *Projectile) GetVelocity() mgl32.Vec3 {
 }
 
 func (p *Projectile) IsDead() bool {
-	return false
+	return p.isDead
 }
 
 func (p *Projectile) SetPosition(pos mgl32.Vec3) {
@@ -135,6 +141,7 @@ func NewProjectile(shader *glhf.Shader, texture *glhf.Texture, pos mgl32.Vec3) *
 	println(fmt.Sprintf("\n>> Projectile spawned at %v", pos))
 	p := &Projectile{
 		position:     pos,
+		startPos:     pos,
 		extents:      mgl32.Vec3{float32(length), float32(length), float32(length)},
 		shader:       shader,
 		vertexData:   vd,
@@ -162,7 +169,27 @@ func (p *Projectile) Draw() {
 	p.vertexData.End()
 	p.texture.End()
 }
-
+func (p *Projectile) Update(delta float64) {
+	p.position = p.position.Add(p.velocity.Mul(float32(delta)))
+	arrived := p.position.Sub(p.destination).Len() < 0.05
+	traveled := p.position.Sub(p.startPos).Len()
+	distance := p.startPos.Sub(p.destination).Len()
+	tooFar := traveled > distance
+	if (arrived || tooFar) && !p.isDead {
+		p.isDead = true
+		if p.onArrival != nil {
+			p.onArrival()
+		}
+	}
+}
 func (p *Projectile) SetVelocity(velocity mgl32.Vec3) {
 	p.velocity = velocity
+}
+
+func (p *Projectile) SetDestination(destination mgl32.Vec3) {
+	p.destination = destination
+}
+
+func (p *Projectile) SetOnArrival(arrival func()) {
+	p.onArrival = arrival
 }

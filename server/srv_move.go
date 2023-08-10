@@ -13,8 +13,13 @@ type ServerActionMove struct {
 	target     voxel.Int3
 }
 
-func (a ServerActionMove) IsValid() bool {
-	return a.gameAction.IsValidTarget(a.unit, a.target)
+func (a ServerActionMove) IsValid() (bool, string) {
+	isValidTarget := a.gameAction.IsValidTarget(a.unit, a.target)
+	reason := ""
+	if !isValidTarget {
+		reason = fmt.Sprintf("Target %s is not valid", a.target.ToString())
+	}
+	return isValidTarget, reason
 }
 
 func NewServerActionMove(engine *GameInstance, action *game.ActionMove, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
@@ -91,6 +96,11 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		}
 	}
 
+	a.unit.SetForward(unitForward)
+	a.unit.SetBlockPosition(destination)
+
+	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward().ToString()))
+
 	// PROBLEM: We actually need to send a partial path to the players who can't see the unit
 	// for the whole path. For every step on the path, we need to check if the unit is visible
 	// to the other players.
@@ -119,7 +129,6 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 			println(fmt.Sprintf(" --> sending path parts to %d: %v", enemyUserID, allPaths))
 			enemyUnitMoved := game.VisualEnemyUnitMoved{
 				MovingUnit:    a.unit.UnitID(),
-				Forward:       unitForward,
 				LOSAcquiredBy: seenByUser,
 				LOSLostBy:     hiddenToUser,
 				PathParts:     allPaths,
@@ -145,9 +154,6 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	for _, unit := range hiddenTo {
 		a.engine.SetLOS(unit, a.unit.UnitID(), false)
 	}
-	// TODO: Rotate unit to face the destination
-	a.unit.SetForward(unitForward)
-	a.unit.SetBlockPosition(destination)
 }
 
 func getIDs(invisibles []*game.UnitInstance) []uint64 {

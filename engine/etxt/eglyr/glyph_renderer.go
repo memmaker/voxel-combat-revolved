@@ -3,16 +3,16 @@
 // instead of strings.
 //
 // This subpackage is only relevant if you are doing [text shaping] on your own.
-// 
+//
 // This subpackage also demonstrates how to use type embedding and the original
 // etxt renderer methods in order to create a more specialized renderer (in this
 // case, one that improves support for working with glyph indices).
 //
-// [text shaping]: https://github.com/memmaker/battleground/etxt/blob/main/docs/shaping.md
+// [text shaping]: https://github.com/memmaker/battleground/engine/etxt/blob/main/docs/shaping.md
 package eglyr
 
-import "github.com/memmaker/battleground/etxt"
-import "github.com/memmaker/battleground/etxt/emask"
+import "github.com/memmaker/battleground/engine/etxt"
+import "github.com/memmaker/battleground/engine/etxt/emask"
 import "golang.org/x/image/math/fixed"
 
 // A type alias to prevent exposing the internal etxt.Renderer embedded
@@ -32,7 +32,7 @@ type Renderer struct{ internalRenderer }
 //
 // This method is the eglyr equivalent to [etxt.NewStdRenderer]().
 func NewStdRenderer() *Renderer {
-    return NewRenderer(&emask.DefaultRasterizer{})
+	return NewRenderer(&emask.DefaultRasterizer{})
 }
 
 // Creates a new [Renderer] with the given glyph mask rasterizer.
@@ -40,12 +40,12 @@ func NewStdRenderer() *Renderer {
 //
 // This method is the eglyr equivalent to [etxt.NewRenderer]().
 func NewRenderer(rasterizer emask.Rasterizer) *Renderer {
-    return &Renderer{*etxt.NewRenderer(rasterizer)}
+	return &Renderer{*etxt.NewRenderer(rasterizer)}
 }
 
 // An alias for [etxt.Renderer.SelectionRectGlyphs]().
 func (self *Renderer) SelectionRect(glyphIndices []GlyphIndex) etxt.RectSize {
-    return self.internalRenderer.SelectionRectGlyphs(glyphIndices)
+	return self.internalRenderer.SelectionRectGlyphs(glyphIndices)
 }
 
 // Draws the given glyphs with the current configuration. Glyph indices
@@ -53,24 +53,24 @@ func (self *Renderer) SelectionRect(glyphIndices []GlyphIndex) etxt.RectSize {
 //
 // This method is the eglyr equivalent to [etxt.Renderer.Draw]().
 func (self *Renderer) Draw(glyphIndices []GlyphIndex, x, y int) fixed.Point26_6 {
-    fx, fy := fixed.Int26_6(x<<6), fixed.Int26_6(y<<6)
-    return self.DrawFract(glyphIndices, fx, fy)
+	fx, fy := fixed.Int26_6(x<<6), fixed.Int26_6(y<<6)
+	return self.DrawFract(glyphIndices, fx, fy)
 }
 
 // Same as [Renderer.Draw](), but accepting [fractional pixel] coordinates.
 //
 // This method is the eglyr equivalent to [etxt.Renderer.DrawFract]().
 //
-// [fractional pixel]: https://github.com/memmaker/battleground/etxt/blob/main/docs/fixed-26-6.md
+// [fractional pixel]: https://github.com/memmaker/battleground/engine/etxt/blob/main/docs/fixed-26-6.md
 func (self *Renderer) DrawFract(glyphIndices []GlyphIndex, x, y fixed.Int26_6) fixed.Point26_6 {
-    if len(glyphIndices) == 0 {
-        return fixed.Point26_6{X: x, Y: y}
-    }
+	if len(glyphIndices) == 0 {
+		return fixed.Point26_6{X: x, Y: y}
+	}
 
-    // traverse glyphs and draw them
-    return self.TraverseGlyphs(glyphIndices, fixed.Point26_6{X: x, Y: y},
-        func(currentDot fixed.Point26_6, glyphIndex GlyphIndex) {
-            mask := self.LoadGlyphMask(glyphIndex, currentDot)
-            self.DefaultDrawFunc(currentDot, mask, glyphIndex)
-        })
+	// traverse glyphs and draw them
+	return self.TraverseGlyphs(glyphIndices, fixed.Point26_6{X: x, Y: y},
+		func(currentDot fixed.Point26_6, glyphIndex GlyphIndex) {
+			mask := self.LoadGlyphMask(glyphIndex, currentDot)
+			self.DefaultDrawFunc(currentDot, mask, glyphIndex)
+		})
 }

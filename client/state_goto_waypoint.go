@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
+	"github.com/memmaker/battleground/game"
 )
 
 type UnitGotoWaypointBehavior struct {
@@ -51,16 +52,16 @@ func (a *UnitGotoWaypointBehavior) startWaypointAnimation() {
 	a.unit.TurnTowardsWaypoint()
 	if a.unit.IsCurrentWaypointAClimb() {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
-		a.unit.model.PlayAnimation(AnimationClimb.Str(), 1.0)
+		a.unit.model.PlayAnimation(game.AnimationClimb.Str(), 1.0)
 		a.yOffset = 1
 		a.waitForAnimation = true
 	} else if a.unit.IsCurrentWaypointADrop() {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
-		a.unit.model.PlayAnimation(AnimationDrop.Str(), 1.0)
+		a.unit.model.PlayAnimation(game.AnimationDrop.Str(), 1.0)
 		a.yOffset = -1
 		a.waitForAnimation = true
 	} else {
-		a.unit.model.StartAnimationLoop(AnimationWeaponWalk.Str(), 1.0)
+		a.unit.model.StartAnimationLoop(game.AnimationWeaponWalk.Str(), 1.0)
 	}
 }
 

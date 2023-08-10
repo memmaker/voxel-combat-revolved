@@ -22,7 +22,6 @@ func (v VisualOwnUnitMoved) MessageType() string {
 type VisualEnemyUnitMoved struct {
 	MovingUnit uint64
 	PathParts  [][]voxel.Int3
-	Forward    voxel.Int3
 
 	LOSAcquiredBy []uint64
 	LOSLostBy     []uint64
@@ -40,6 +39,8 @@ type VisualProjectileFired struct {
 	Destination mgl32.Vec3
 	UnitHit     int64
 	BodyPart    util.PartName
+	Damage      int
+	IsLethal    bool
 }
 
 func (v VisualProjectileFired) MessageType() string {

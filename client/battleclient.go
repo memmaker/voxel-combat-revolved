@@ -248,10 +248,12 @@ func (a *BattleClient) UpdateUnit(currentUnit *game.UnitInstance) {
 }
 
 // TODO: add target position for projectiles
-func (a *BattleClient) SpawnProjectile(pos, velocity mgl32.Vec3) {
+func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, onArrival func()) {
 	projectile := NewProjectile(a.modelShader, a.projectileTexture, pos)
 	//projectile.SetCollisionHandler(a.GetCollisionHandler())
 	projectile.SetVelocity(velocity)
+	projectile.SetDestination(destination)
+	projectile.SetOnArrival(onArrival)
 	a.projectiles = append(a.projectiles, projectile)
 }
 
@@ -288,11 +290,22 @@ func (a *BattleClient) Update(elapsed float64) {
 		//a.HandlePlayerCollision()
 		a.state().OnDirectionKeys(elapsed, movementVector)
 	}
+	a.updateProjectiles(elapsed)
 	a.updateUnits(elapsed)
 
 	a.updateDebugInfo()
 	stopUpdateTimer()
 
+}
+
+func (a *BattleClient) updateProjectiles(elapsed float64) {
+	for i := len(a.projectiles) - 1; i >= 0; i-- {
+		projectile := a.projectiles[i]
+		projectile.Update(elapsed)
+		if projectile.IsDead() {
+			a.projectiles = append(a.projectiles[:i], a.projectiles[i+1:]...)
+		}
+	}
 }
 
 func (a *BattleClient) updateUnits(deltaTime float64) {
@@ -364,9 +377,6 @@ func (a *BattleClient) drawProjectiles() {
 	for i := len(a.projectiles) - 1; i >= 0; i-- {
 		projectile := a.projectiles[i]
 		projectile.Draw()
-		if projectile.IsDead() {
-			a.projectiles = append(a.projectiles[:i], a.projectiles[i+1:]...)
-		}
 	}
 }
 func (a *BattleClient) drawLines(cam util.Camera) {
@@ -502,11 +512,13 @@ func (a *BattleClient) SwitchToFirstPerson(position mgl32.Vec3) {
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
 	a.cameraIsFirstPerson = true
+	a.freezeIdleAnimations()
 }
 
 func (a *BattleClient) SwitchToIsoCamera() {
 	a.freeMouse()
 	a.cameraIsFirstPerson = false
+	a.resumeIdleAnimations()
 }
 
 func (a *BattleClient) SetConnection(connection *game.ServerConnection) {
@@ -560,7 +572,15 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 
 func (a *BattleClient) OnProjectileFired(msg game.VisualProjectileFired) {
 	// TODO: animate unit firing
-	a.SpawnProjectile(msg.Origin, msg.Velocity)
+	a.SpawnProjectile(msg.Origin, msg.Velocity, msg.Destination, func() {
+		// on arrival
+		if msg.UnitHit >= 0 {
+			if unit, ok := a.unitMap[uint64(msg.UnitHit)]; ok {
+				println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
+				unit.HitWithProjectile(msg.Velocity, msg.BodyPart)
+			}
+		}
+	})
 }
 
 func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
@@ -572,9 +592,8 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	if msg.UpdatedUnit != nil {
 		a.AddOrUpdateUnit(msg.UpdatedUnit)
 		movingUnit = a.unitMap[msg.MovingUnit]
+		println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.forwardVector.ToString()))
 	}
-	// TODO: find the bug that occurs with enemy movement..
-
 	println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
 	for i, path := range msg.PathParts {
 		println(fmt.Sprintf("[BattleClient] Path %d", i))
@@ -590,7 +609,9 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 		for _, unit := range msg.LOSLostBy {
 			a.SetLOSLost(unit, movingUnit.UnitID())
 		}
-		movingUnit.SetForward(msg.Forward)
+		if msg.UpdatedUnit != nil {
+			movingUnit.SetForward(msg.UpdatedUnit.ForwardVector)
+		}
 	}
 	currentPathPart := 0
 	observerPositionReached := func() bool { return false }
@@ -700,5 +721,21 @@ func (a *BattleClient) FirstUnit() *Unit {
 func (a *BattleClient) ResetUnitsForNextTurn() {
 	for _, unit := range a.userUnits {
 		unit.NextTurn()
+	}
+}
+
+func (a *BattleClient) freezeIdleAnimations() {
+	for _, unit := range a.allUnits {
+		if unit.IsActive() {
+			unit.FreezeIdleAnimation()
+		}
+	}
+}
+
+func (a *BattleClient) resumeIdleAnimations() {
+	for _, unit := range a.allUnits {
+		if unit.IsActive() {
+			unit.StartIdleAnimationLoop()
+		}
 	}
 }

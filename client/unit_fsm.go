@@ -1,21 +1,5 @@
 package client
 
-type MeshAnimation string
-
-func (a MeshAnimation) Str() string {
-	return string(a)
-}
-
-const (
-	AnimationIdle       MeshAnimation = "animation.idle"
-	AnimationGunIdle    MeshAnimation = "animation.weapon_idle"
-	AnimationWallIdle   MeshAnimation = "animation.wall_idle"
-	AnimationWalk       MeshAnimation = "animation.walk"
-	AnimationWeaponWalk MeshAnimation = "animation.weapon_walk"
-	AnimationClimb      MeshAnimation = "animation.climb"
-	AnimationDrop       MeshAnimation = "animation.drop"
-	AnimationDeath      MeshAnimation = "animation.death"
-)
 
 // state transition table
 // currentState, event, nextState

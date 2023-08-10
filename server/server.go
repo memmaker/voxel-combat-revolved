@@ -357,8 +357,8 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	action := gameInstance.GetServerActionForUnit(msg, unit)
 
 	// get action for this unit, check if the target is valid
-	if !action.IsValid() {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid"})
+	if isValid, reason := action.IsValid();!isValid {
+		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
 	// this setup won't work: the client cannot know how to execute the action
@@ -408,8 +408,8 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 	action := gameInstance.GetServerActionForUnit(msg, unit)
 
 	// get action for this unit, check if the target is valid
-	if !action.IsValid() {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid"})
+	if isValid, reason := action.IsValid();!isValid {
+		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
 	// this setup won't work: the client cannot know how to execute the action

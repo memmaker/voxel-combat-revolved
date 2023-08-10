@@ -1,9 +1,27 @@
 package game
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
+)
+
+type MeshAnimation string
+
+func (a MeshAnimation) Str() string {
+	return string(a)
+}
+
+const (
+	AnimationIdle       MeshAnimation = "animation.idle"
+	AnimationGunIdle    MeshAnimation = "animation.weapon_idle"
+	AnimationWallIdle   MeshAnimation = "animation.wall_idle"
+	AnimationWalk       MeshAnimation = "animation.walk"
+	AnimationWeaponWalk MeshAnimation = "animation.weapon_walk"
+	AnimationClimb      MeshAnimation = "animation.climb"
+	AnimationDrop       MeshAnimation = "animation.drop"
+	AnimationDeath      MeshAnimation = "animation.death"
 )
 
 type UnitCore interface {
@@ -44,12 +62,12 @@ type UnitInstance struct {
 	controlledBy   uint64 // ID of the player controlling this unit
 	Name           string
 	Position       voxel.Int3
-	Orientation    [2]int32
 	UnitDefinition *UnitDefinition // ID of the unit definition (= unit type)
 	canAct         bool
 	voxelMap       *voxel.Map
 	model          *util.CompoundMesh
 	Weapon         string
+	ForwardVector  voxel.Int3
 }
 
 func (u *UnitInstance) SetPath(path []voxel.Int3) {
@@ -119,6 +137,11 @@ func (u *UnitInstance) updateMapAndModelPosition(old voxel.Int3) {
 	worldPos := u.Position.ToBlockCenterVec3()
 	u.model.RootNode.Translate([3]float32{worldPos[0], worldPos[1], worldPos[2]})
 	u.voxelMap.MoveUnitTo(u, old, u.Position)
+	println(fmt.Sprintf("[UnitInstance] Moved %s(%d) to %v facing %v", u.GetName(), u.UnitID(), u.Position, u.ForwardVector))
+	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Position, u.ForwardVector)
+	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
+	u.SetForward(newForward)
+	u.model.SetAnimationPose(animation.Str())
 }
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
@@ -167,10 +190,40 @@ func (u *UnitInstance) GetWeapon() string {
 }
 
 func (u *UnitInstance) SetForward(forward voxel.Int3) {
-	u.Orientation[0] = forward.X
-	u.Orientation[1] = forward.Z
+	u.ForwardVector = forward
+	u.model.SetYRotationAngle(util.DirectionToAngle(forward))
 }
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
-	return voxel.Int3{X: u.Orientation[0], Z: u.Orientation[1]}
+	return u.ForwardVector
+}
+
+func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {
+	solidNeighbors := voxelMap.GetNeighborsForGroundMovement(unitPosition, func(neighbor voxel.Int3) bool {
+		if neighbor != unitPosition && voxelMap.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
+			return true
+		}
+		return false
+	})
+	if len(solidNeighbors) == 0 {
+		// if no wall next to us, we can idle normally
+		return AnimationGunIdle, unitForward
+	} else {
+		// if there is a wall next to us, we need to turn to face it
+		newFront := getWallIdleDirection(solidNeighbors[0].Sub(unitPosition))
+		return AnimationWallIdle, newFront
+	}
+}
+func getWallIdleDirection(wallDirection voxel.Int3) voxel.Int3 {
+	switch wallDirection {
+	case voxel.North:
+		return voxel.East
+	case voxel.East:
+		return voxel.South
+	case voxel.South:
+		return voxel.West
+	case voxel.West:
+		return voxel.North
+	}
+	return voxel.North
 }

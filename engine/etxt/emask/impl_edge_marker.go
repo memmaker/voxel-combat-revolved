@@ -25,34 +25,34 @@ import "golang.org/x/image/font/sfnt"
 // rasterizer manually through [EdgeMarkerRasterizer.SetCurveThreshold]() and
 // [EdgeMarkerRasterizer.SetMaxCurveSplits]().
 //
-// [well-documented]: https://github.com/memmaker/battleground/etxt/blob/main/docs/rasterize-outlines.md
+// [well-documented]: https://github.com/memmaker/battleground/engine/etxt/blob/main/docs/rasterize-outlines.md
 type EdgeMarkerRasterizer struct {
-    // All relevant algorithms are implemented inside the unexported
-    // edgeMarker type (see emask/edge_marker.go), except for final
-    // buffer accumulation which is done directly on the Rasterize()
-    // method. The rest is only a wrapper to comply with the
-    // emask.Rasterizer interface.
-    rasterizer     edgeMarker
-    onChange       func(Rasterizer)
-    cacheSignature uint64
-    rectOffset     image.Point
-    normOffset     fixed.Point26_6
+	// All relevant algorithms are implemented inside the unexported
+	// edgeMarker type (see emask/edge_marker.go), except for final
+	// buffer accumulation which is done directly on the Rasterize()
+	// method. The rest is only a wrapper to comply with the
+	// emask.Rasterizer interface.
+	rasterizer     edgeMarker
+	onChange       func(Rasterizer)
+	cacheSignature uint64
+	rectOffset     image.Point
+	normOffset     fixed.Point26_6
 }
 
 // Creates a new [EdgeMarkerRasterizer] with reasonable default values.
 func NewStdEdgeMarkerRasterizer() *EdgeMarkerRasterizer {
-    rast := &EdgeMarkerRasterizer{}
-    rast.SetCurveThreshold(0.1)
-    rast.SetMaxCurveSplits(8) // this is excessive for most glyph rendering
-    return rast
+	rast := &EdgeMarkerRasterizer{}
+	rast.SetCurveThreshold(0.1)
+	rast.SetMaxCurveSplits(8) // this is excessive for most glyph rendering
+	return rast
 }
 
 // Satisfies the [UserCfgCacheSignature] interface.
 func (self *EdgeMarkerRasterizer) SetHighByte(value uint8) {
-    self.cacheSignature = uint64(value) << 56
-    if self.onChange != nil {
-        self.onChange(self)
-    }
+	self.cacheSignature = uint64(value) << 56
+	if self.onChange != nil {
+		self.onChange(self)
+	}
 }
 
 // Sets the threshold distance to use when splitting Bézier curves into
@@ -67,13 +67,13 @@ func (self *EdgeMarkerRasterizer) SetHighByte(value uint8) {
 // Reasonable values range from 0.01 to 1.0. [NewStdEdgeMarkerRasterizer]()
 // uses 0.1 by default.
 func (self *EdgeMarkerRasterizer) SetCurveThreshold(threshold float32) {
-    self.rasterizer.CurveSegmenter.SetThreshold(threshold)
-    bits := math.Float32bits(threshold)
-    self.cacheSignature &= 0xFFFFFFFF00000000
-    self.cacheSignature |= uint64(bits)
-    if self.onChange != nil {
-        self.onChange(self)
-    }
+	self.rasterizer.CurveSegmenter.SetThreshold(threshold)
+	bits := math.Float32bits(threshold)
+	self.cacheSignature &= 0xFFFFFFFF00000000
+	self.cacheSignature |= uint64(bits)
+	if self.onChange != nil {
+		self.onChange(self)
+	}
 }
 
 // Sets the maximum amount of times a curve can be recursively split
@@ -89,77 +89,77 @@ func (self *EdgeMarkerRasterizer) SetCurveThreshold(threshold float32) {
 // Values outside the [0, 255] range will be silently clamped. Reasonable
 // values range from 0 to 10. [NewStdEdgeMarkerRasterizer]() uses 8 by default.
 func (self *EdgeMarkerRasterizer) SetMaxCurveSplits(maxCurveSplits int) {
-    segmenter := &self.rasterizer.CurveSegmenter
-    segmenter.SetMaxSplits(maxCurveSplits)
-    self.cacheSignature &= 0xFFFFFF00FFFFFFFF
-    self.cacheSignature |= uint64(segmenter.maxCurveSplits) << 32
-    if self.onChange != nil {
-        self.onChange(self)
-    }
+	segmenter := &self.rasterizer.CurveSegmenter
+	segmenter.SetMaxSplits(maxCurveSplits)
+	self.cacheSignature &= 0xFFFFFF00FFFFFFFF
+	self.cacheSignature |= uint64(segmenter.maxCurveSplits) << 32
+	if self.onChange != nil {
+		self.onChange(self)
+	}
 }
 
 // Satisfies the [Rasterizer] interface.
 func (self *EdgeMarkerRasterizer) SetOnChangeFunc(onChange func(Rasterizer)) {
-    self.onChange = onChange
+	self.onChange = onChange
 }
 
 // Satisfies the [Rasterizer] interface.
 func (self *EdgeMarkerRasterizer) CacheSignature() uint64 {
-    self.cacheSignature &= 0xFF00FFFFFFFFFFFF
-    self.cacheSignature |= 0x00E6000000000000
-    return self.cacheSignature
+	self.cacheSignature &= 0xFF00FFFFFFFFFFFF
+	self.cacheSignature |= 0x00E6000000000000
+	return self.cacheSignature
 }
 
 // See [DefaultRasterizer.MoveTo]().
 func (self *EdgeMarkerRasterizer) MoveTo(point fixed.Point26_6) {
-    x, y := self.fixedToFloat64Coords(point)
-    self.rasterizer.MoveTo(x, y)
+	x, y := self.fixedToFloat64Coords(point)
+	self.rasterizer.MoveTo(x, y)
 }
 
 // See [DefaultRasterizer.LineTo]().
 func (self *EdgeMarkerRasterizer) LineTo(point fixed.Point26_6) {
-    x, y := self.fixedToFloat64Coords(point)
-    self.rasterizer.LineTo(x, y)
+	x, y := self.fixedToFloat64Coords(point)
+	self.rasterizer.LineTo(x, y)
 }
 
 // See [DefaultRasterizer.QuadTo]().
 func (self *EdgeMarkerRasterizer) QuadTo(control, target fixed.Point26_6) {
-    cx, cy := self.fixedToFloat64Coords(control)
-    tx, ty := self.fixedToFloat64Coords(target)
-    self.rasterizer.QuadTo(cx, cy, tx, ty)
+	cx, cy := self.fixedToFloat64Coords(control)
+	tx, ty := self.fixedToFloat64Coords(target)
+	self.rasterizer.QuadTo(cx, cy, tx, ty)
 }
 
 // See [DefaultRasterizer.CubeTo]().
 func (self *EdgeMarkerRasterizer) CubeTo(controlA, controlB, target fixed.Point26_6) {
-    cax, cay := self.fixedToFloat64Coords(controlA)
-    cbx, cby := self.fixedToFloat64Coords(controlB)
-    tx, ty := self.fixedToFloat64Coords(target)
-    self.rasterizer.CubeTo(cax, cay, cbx, cby, tx, ty)
+	cax, cay := self.fixedToFloat64Coords(controlA)
+	cbx, cby := self.fixedToFloat64Coords(controlB)
+	tx, ty := self.fixedToFloat64Coords(target)
+	self.rasterizer.CubeTo(cax, cay, cbx, cby, tx, ty)
 }
 
 // Satisfies the [Rasterizer] interface.
 func (self *EdgeMarkerRasterizer) Rasterize(outline sfnt.Segments, fract fixed.Point26_6) (*image.Alpha, error) {
-    // prepare rasterizer
-    var size image.Point
-    size, self.normOffset, self.rectOffset = figureOutBounds(outline.Bounds(), fract)
-    buffer := &self.rasterizer.Buffer
-    buffer.Resize(size.X, size.Y)
+	// prepare rasterizer
+	var size image.Point
+	size, self.normOffset, self.rectOffset = figureOutBounds(outline.Bounds(), fract)
+	buffer := &self.rasterizer.Buffer
+	buffer.Resize(size.X, size.Y)
 
-    // process outline
-    processOutline(self, outline)
+	// process outline
+	processOutline(self, outline)
 
-    // allocate glyph mask and apply buffer accumulation
-    // (this takes around 50% of the time of the process)
-    mask := image.NewAlpha(image.Rect(0, 0, buffer.Width, buffer.Height))
-    buffer.AccumulateUint8(mask.Pix)
+	// allocate glyph mask and apply buffer accumulation
+	// (this takes around 50% of the time of the process)
+	mask := image.NewAlpha(image.Rect(0, 0, buffer.Width, buffer.Height))
+	buffer.AccumulateUint8(mask.Pix)
 
-    // translate the mask to its final position
-    mask.Rect = mask.Rect.Add(self.rectOffset)
-    return mask, nil
+	// translate the mask to its final position
+	mask.Rect = mask.Rect.Add(self.rectOffset)
+	return mask, nil
 }
 
 func (self *EdgeMarkerRasterizer) fixedToFloat64Coords(point fixed.Point26_6) (float64, float64) {
-    x := float64(point.X+self.normOffset.X) / 64
-    y := float64(point.Y+self.normOffset.Y) / 64
-    return x, y
+	x := float64(point.X+self.normOffset.X) / 64
+	y := float64(point.Y+self.normOffset.Y) / 64
+	return x, y
 }

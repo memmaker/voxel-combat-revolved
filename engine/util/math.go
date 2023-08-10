@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -92,4 +93,13 @@ func LerpQuatMgl(one, two mgl32.Quat, factor float64) mgl32.Quat {
 	a := math.Acos(math.Abs(dotProduct))
 	s := dotProduct / math.Abs(dotProduct)
 	return one.Scale(float32(math.Sin(a*(1-factor)) / math.Sin(a))).Add(two.Scale(float32(s * math.Sin(a*factor) / math.Sin(a))))
+}
+
+func DirectionToAngle(direction voxel.Int3) float32 {
+	angle := float32(math.Atan2(float64(direction.X), float64(direction.Z))) + math.Pi
+	return angle
+}
+func DirectionToAngleVec(direction mgl32.Vec3) float32 {
+	angle := float32(math.Atan2(float64(direction.X()), float64(direction.Z()))) + math.Pi
+	return angle
 }

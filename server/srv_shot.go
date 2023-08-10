@@ -10,14 +10,15 @@ import (
 // for snap
 
 type ServerActionShot struct {
-	engine   *GameInstance
-	unit     *game.UnitInstance
-	origin   mgl32.Vec3
-	velocity mgl32.Vec3
+	engine     *GameInstance
+	unit       *game.UnitInstance
+	origin     mgl32.Vec3
+	velocity   mgl32.Vec3
+	isCheating bool
 }
 
-func (a *ServerActionShot) IsValid() bool {
-	return true
+func (a *ServerActionShot) IsValid() (bool, string) {
+	return !a.isCheating, "Cheating detected"
 }
 func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionShot {
 	otherUnit := engine.voxelMap.GetMapObjectAt(target).(*game.UnitInstance)
@@ -25,20 +26,25 @@ func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, targ
 	directionVector := otherUnit.GetPosition().Sub(sourceOfProjectile).Normalize()
 	sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
 	velocity := directionVector.Mul(10)
-	return &ServerActionShot{
+	s := &ServerActionShot{
 		engine:   engine,
 		unit:     unit,
 		origin:   sourceOffset,
 		velocity: velocity,
 	}
+	s.checkForCheating()
+	return s
 }
 func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, origin mgl32.Vec3, velocity mgl32.Vec3) *ServerActionShot {
-	return &ServerActionShot{
+
+	s := &ServerActionShot{
 		engine:   engine,
 		unit:     unit,
 		origin:   origin,
 		velocity: velocity,
 	}
+	s.checkForCheating()
+	return s
 }
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
@@ -48,12 +54,28 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	unitHidID := int64(-1)
 	if rayHitInfo.UnitHit != nil {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
+		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
+		// TODO: Apply damage on server.. eg. kill and remove unit from map
+	} else {
+		println("[ServerActionShot] Shot MISSed")
 	}
+
 	mb.AddMessageForAll(game.VisualProjectileFired{
 		Origin:      a.origin,
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
 		Velocity:    a.velocity,
 		UnitHit:     unitHidID,
 		BodyPart:    rayHitInfo.BodyPart,
+		Damage:      1,
+		IsLethal:    true,
 	})
+}
+
+func (a *ServerActionShot) checkForCheating() {
+	// check distance of origin and unit eye position
+	dist := a.origin.Sub(a.unit.GetEyePosition()).Len()
+	if dist > 1.0 {
+		a.isCheating = true
+	}
+	// check if velocity is not too high
 }

@@ -103,6 +103,7 @@ type MeshNode struct {
 	animations       map[string]*SimpleAnimationData
 	currentAnimation string
 	animationTimer   float64
+	holdAnimation    bool
 
 	currentTranslationFrame int
 	currentRotationFrame    int
@@ -233,6 +234,10 @@ func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception str
 	m.RootNode.HideChildrenOfBoneExcept(false, parentName, exception)
 }
 
+func (m *CompoundMesh) SetAnimationPose(animation string) {
+	m.RootNode.ChangeAnimation(animation)
+	m.RootNode.holdAnimation = true
+}
 func (m *MeshNode) ChangeAnimation(name string) {
 	for _, child := range m.children {
 		child.ChangeAnimation(name)
@@ -257,6 +262,7 @@ func (m *MeshNode) ResetAnimation() {
 	m.outOfTranslationFrames = false
 	m.outOfRotationFrames = false
 	m.outOfScaleFrames = false
+	m.holdAnimation = false
 }
 func (m *MeshNode) InitAnimationPose() {
 	if m.IsAnimated() {
@@ -276,6 +282,9 @@ func (m *MeshNode) InitAnimationPose() {
 	}
 }
 func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64) bool {
+	if m.holdAnimation {
+		return false
+	}
 	animationFinished := false
 	if m.IsAnimated() {
 		m.animationTimer += deltaTime
@@ -427,7 +436,7 @@ func (m *MeshNode) GetNodeByName(name string) *MeshNode {
 func (m *MeshNode) GetColliders() []Collider {
 	var result []Collider
 
-	if len(m.colliders) > 0 {
+	if len(m.colliders) > 0 && !m.hidden {
 		colliderName := m.parent.Name
 		for _, collider := range m.colliders {
 			collider.SetName(colliderName)

@@ -7,7 +7,6 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
-	"math"
 )
 
 type Unit struct {
@@ -32,6 +31,7 @@ type Unit struct {
 	controlledByUser     bool
 	controlledBy         uint64
 	occupiedBlockOffsets []voxel.Int3
+	forwardVector        voxel.Int3
 }
 
 func (p *Unit) SetControlledBy(id uint64) {
@@ -148,13 +148,12 @@ func (p *Unit) SetState(nextState ActorState) {
 
 type HitInfo struct {
 	ForceOfImpact mgl32.Vec3
-	BodyPart      util.Collider
+	BodyPart      util.PartName
 }
 
-func (p *Unit) HitWithProjectile(projectile util.CollidingObject, bodyPart util.Collider) {
+func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartName) {
 	event := EventHit
 	// needs to be passed to the new state, we do indirectly via the unit
-	forceOfImpact := projectile.GetVelocity()
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
@@ -220,26 +219,21 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 }
 
 func (p *Unit) TurnTowardsWaypoint() {
-	direction := p.GetWaypoint().Sub(p.GetBlockPosition()).ToVec3()
+	direction := p.GetWaypoint().Sub(p.GetBlockPosition())
 	p.turnToDirection(direction)
 }
 
-func (p *Unit) turnToDirection(direction mgl32.Vec3) {
-	angle := float32(math.Atan2(float64(direction.X()), float64(direction.Z()))) + math.Pi
+func (p *Unit) turnToDirection(direction voxel.Int3) {
+	p.forwardVector = direction
+	angle := util.DirectionToAngle(direction)
 	p.model.SetYRotationAngle(angle)
 }
 
-func (p *Unit) turnForWallIdle(wallDirection voxel.Int3) {
-	switch wallDirection {
-	case voxel.North:
-		p.model.SetYRotationAngle(0)
-	case voxel.East:
-		p.model.SetYRotationAngle(math.Pi / 2)
-	case voxel.South:
-		p.model.SetYRotationAngle(math.Pi)
-	case voxel.West:
-		p.model.SetYRotationAngle(3 * math.Pi / 2)
-	}
+
+
+func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
+	angle := util.DirectionToAngleVec(direction)
+	p.model.SetYRotationAngle(angle)
 }
 
 func (p *Unit) GetFront() mgl32.Vec3 {
@@ -303,20 +297,10 @@ func (p *Unit) Description() string {
 
 func (p *Unit) StartIdleAnimationLoop() {
 	ownPos := p.GetBlockPosition()
-	solidNeighbors := p.voxelMap.GetNeighborsForGroundMovement(ownPos, func(neighbor voxel.Int3) bool {
-		if neighbor != ownPos && p.voxelMap.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
-			return true
-		}
-		return false
-	})
-	if len(solidNeighbors) == 0 {
-		// if no wall next to us, we can idle normally
-		p.model.StartAnimationLoop(AnimationGunIdle.Str(), 1.0)
-	} else {
-		// if there is a wall next to us, we need to turn to face it
-		p.turnForWallIdle(solidNeighbors[0].Sub(ownPos))
-		p.model.StartAnimationLoop(AnimationWallIdle.Str(), 1.0)
-	}
+	animation, front := game.GetIdleAnimationAndForwardVector(p.voxelMap, ownPos, p.forwardVector)
+	println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
+	p.model.StartAnimationLoop(animation.Str(), 1.0)
+	p.SetForward(front)
 }
 
 func (p *Unit) GetLastWaypoint() voxel.Int3 {
@@ -324,11 +308,20 @@ func (p *Unit) GetLastWaypoint() voxel.Int3 {
 }
 
 func (p *Unit) SetForward(forward voxel.Int3) {
-	p.turnToDirection(forward.ToVec3())
+	p.turnToDirection(forward)
 }
 
 func (p *Unit) IsIdle() bool {
 	return p.state.GetName() == ActorStateIdle
+}
+
+func (p *Unit) FreezeIdleAnimation() {
+	p.StartIdleAnimationLoop()
+	p.model.StopAnimations()
+}
+
+func (p *Unit) IsActive() bool {
+	return !p.IsDead() && !p.IsDying()
 }
 
 func NewUnit(id uint64, name string, pos voxel.Int3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {

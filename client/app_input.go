@@ -124,10 +124,10 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	}
 
 	if key == glfw.KeyF5 && action == glfw.Press {
-		a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8000))
+		//a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8000),, nil)
 	}
 	if key == glfw.KeyF6 && action == glfw.Press {
-		a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8))
+		//a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8),, nil)
 	}
 
 	if key == glfw.KeyF7 && action == glfw.Press {

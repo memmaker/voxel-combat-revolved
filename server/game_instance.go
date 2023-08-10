@@ -8,7 +8,7 @@ import (
 )
 
 type ServerAction interface {
-	IsValid() bool
+	IsValid() (bool, string)
 	Execute(mb *game.MessageBuffer)
 }
 

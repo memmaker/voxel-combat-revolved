@@ -11,8 +11,8 @@ import "strings"
 import "golang.org/x/image/math/fixed"
 import "golang.org/x/image/font/sfnt"
 
-import "github.com/memmaker/battleground/etxt"
-import "github.com/memmaker/battleground/etxt/emetric"
+import "github.com/memmaker/battleground/engine/etxt"
+import "github.com/memmaker/battleground/engine/etxt/emetric"
 
 // Must be compiled with '-tags gtxt'
 
