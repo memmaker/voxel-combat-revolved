@@ -24,3 +24,8 @@ type NextPlayerMessage struct {
 	CurrentPlayer uint64
 	YourTurn      bool
 }
+
+type GameOverMessage struct {
+	WinnerID uint64
+	YouWon   bool
+}

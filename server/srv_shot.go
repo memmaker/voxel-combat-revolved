@@ -56,6 +56,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
 		// TODO: Apply damage on server.. eg. kill and remove unit from map
+		a.engine.Kill(a.unit, rayHitInfo.UnitHit.(*game.UnitInstance))
 	} else {
 		if rayHitInfo.Hit {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s", rayHitInfo.HitInfo3D.PreviousGridPosition.ToString()))

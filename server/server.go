@@ -444,16 +444,35 @@ func (b *BattleServer) EndTurn(userID uint64) {
 		b.respond(user, "EndTurnResponse", game.ActionResponse{Success: false, Message: "It is not your turn"})
 		return
 	}
-
-	b.SendNextPlayer(gameInstance)
+	isGameOver, winner := gameInstance.IsGameOver()
+	if isGameOver {
+		b.SendGameOver(gameInstance, winner)
+	} else {
+		b.SendNextPlayer(gameInstance)
+	}
 }
 
+func (b *BattleServer) SendGameOver(instance *GameInstance, winner uint64) {
+	println(fmt.Sprintf("[BattleServer] Game '%s' is over, winner is %d", instance.id, winner))
+	for _, playerID := range instance.players {
+		connectedUser := b.connectedClients[playerID]
+		connectedUser.activeGame = ""
+		connectedUser.isReady = false
+		b.respond(connectedUser, "GameOver", game.GameOverMessage{
+			WinnerID: winner,
+			YouWon:   playerID == winner,
+		})
+	}
+	delete(b.runningGames, instance.id)
+	println(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.id))
+}
 func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
 	println("[BattleServer] Ending turn. New map state:")
 	gameInstance.voxelMap.PrintArea2D(16, 16)
 	for _, unit := range gameInstance.units {
 		println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
+
 	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.players {
 		connectedUser := b.connectedClients[playerID]
@@ -499,6 +518,7 @@ func (b *BattleServer) MapLoaded(userID uint64) {
 		b.SendNextPlayer(gameInstance)
 	}
 }
+
 func NewBattleServer() *BattleServer {
 	return &BattleServer{
 		availableMaps:     make(map[string]string),          // filename -> display name

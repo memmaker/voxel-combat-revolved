@@ -189,3 +189,25 @@ func (g *GameInstance) SetLOS(observer uint64, target uint64, canSee bool) {
 	}
 	g.currentVisibleEnemies[observer][target] = canSee
 }
+
+func (g *GameInstance) IsGameOver() (bool, uint64) {
+	playersWithActiveUnits := make(map[uint64]bool)
+	for playerID, units := range g.playerUnits {
+		for _, unit := range units {
+			if unit.IsActive() {
+				playersWithActiveUnits[playerID] = true
+				break
+			}
+		}
+	}
+	if len(playersWithActiveUnits) == 1 {
+		for playerID := range playersWithActiveUnits {
+			return true, playerID
+		}
+	}
+	return false, 0
+}
+
+func (g *GameInstance) Kill(killer, victim *game.UnitInstance) {
+	victim.Kill()
+}

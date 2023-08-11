@@ -69,6 +69,7 @@ type UnitInstance struct {
 	model          *util.CompoundMesh
 	Weapon         string
 	ForwardVector  voxel.Int3
+	isDead         bool
 }
 
 func (u *UnitInstance) SetPath(path []voxel.Int3) {
@@ -114,7 +115,7 @@ func (u *UnitInstance) SetControlledBy(playerID uint64) {
 }
 
 func (u *UnitInstance) IsActive() bool {
-	return true
+	return !u.isDead
 }
 
 func (u *UnitInstance) NextTurn() {
@@ -198,6 +199,12 @@ func (u *UnitInstance) SetForward(forward voxel.Int3) {
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
 	return u.ForwardVector
+}
+
+func (u *UnitInstance) Kill() {
+	u.canAct = false
+	u.isDead = true
+	u.voxelMap.RemoveUnit(u, u.Position)
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {

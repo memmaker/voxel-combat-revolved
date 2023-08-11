@@ -545,6 +545,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnNextPlayer(msg)
 		}
+	case "GameOver":
+		var msg game.GameOverMessage
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnGameOver(msg)
+		}
 	}
 
 }
@@ -744,4 +749,15 @@ func (a *BattleClient) PollNetwork() {
 		a.OnServerMessage(msg.MessageType, msg.Message)
 	default:
 	}
+}
+
+func (a *BattleClient) OnGameOver(msg game.GameOverMessage) {
+	var printedMessage string
+	if msg.YouWon {
+		printedMessage = "You won!"
+	} else {
+		printedMessage = "You lost!"
+	}
+	a.Print(fmt.Sprintf("Game over! %s", printedMessage))
+	a.SwitchToWaitForEvents()
 }
