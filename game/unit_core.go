@@ -143,7 +143,7 @@ func (u *UnitInstance) updateMapAndModelPosition(old voxel.Int3) {
 	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
 	u.SetForward(newForward)
 	u.model.SetAnimationPose(animation.Str())
-	println(u.model.GetAnimationDebugString())
+	//println(u.model.GetAnimationDebugString())
 }
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())

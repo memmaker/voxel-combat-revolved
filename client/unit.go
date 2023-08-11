@@ -299,7 +299,7 @@ func (p *Unit) StartIdleAnimationLoop() {
 	println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
 	p.model.StartAnimationLoop(animation.Str(), 1.0)
 	p.SetForward(front)
-	println(p.model.GetAnimationDebugString())
+	//println(p.model.GetAnimationDebugString())
 }
 
 func (p *Unit) GetLastWaypoint() voxel.Int3 {

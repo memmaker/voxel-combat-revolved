@@ -28,10 +28,8 @@ func runStandalone() {
 	battleServer := NewBattleServer()
 	go battleServer.ListenTCP("127.0.0.1:9999")
 
-	dummyConnection := game.NewTCPConnection("127.0.0.1:9999")
-	dummyClient := game.NewDummyClient(dummyConnection)
+	dummyClient := game.NewDummyClient("127.0.0.1:9999")
 	dummyClient.CreateGameSequence()
-	go dummyClient.Run()
 
 	mainthread.Call(func() {
 		connection := game.NewTCPConnection("127.0.0.1:9999")
@@ -68,53 +66,53 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	unitSelectionSuccess := false
 	gameStarted := false
 	var gameInfo game.GameStartedMessage
-	con.SetEventHandler(func(msgType, data string) {
-		if msgType == "LoginResponse" {
+	con.SetEventHandler(func(msgReceived game.StringMessage) {
+		if msgReceived.MessageType == "LoginResponse" {
 			var msg game.ActionResponse
-			if util.FromJson(data, &msg) {
+			if util.FromJson(msgReceived.Message, &msg) {
 				if msg.Success {
 					loginSuccess = true
 				}
 				println(fmt.Sprintf("[Client] Login response: %s", msg.Message))
 			}
-		} else if msgType == "CreateGameResponse" {
+		} else if msgReceived.MessageType == "CreateGameResponse" {
 			var msg game.ActionResponse
-			if util.FromJson(data, &msg) {
+			if util.FromJson(msgReceived.Message, &msg) {
 				if msg.Success {
 					createSuccess = true
 				}
 				println(fmt.Sprintf("[Client] Create game response: %s", msg.Message))
 			}
-		} else if msgType == "JoinGameResponse" {
+		} else if msgReceived.MessageType == "JoinGameResponse" {
 			var msg game.ActionResponse
-			if util.FromJson(data, &msg) {
+			if util.FromJson(msgReceived.Message, &msg) {
 				if msg.Success {
 					joinSuccess = true
 				}
 				println(fmt.Sprintf("[Client] Join game response: %s", msg.Message))
 			}
-		} else if msgType == "SelectFactionResponse" {
+		} else if msgReceived.MessageType == "SelectFactionResponse" {
 			var msg game.ActionResponse
-			if util.FromJson(data, &msg) {
+			if util.FromJson(msgReceived.Message, &msg) {
 				if msg.Success {
 					factionSuccess = true
 				}
 				println(fmt.Sprintf("[Client] Select faction response: %s", msg.Message))
 			}
-		} else if msgType == "SelectUnitsResponse" {
+		} else if msgReceived.MessageType == "SelectUnitsResponse" {
 			var msg game.ActionResponse
-			if util.FromJson(data, &msg) {
+			if util.FromJson(msgReceived.Message, &msg) {
 				if msg.Success {
 					unitSelectionSuccess = true
 				}
 				println(fmt.Sprintf("[Client] Select units response: %s", msg.Message))
 			}
-		} else if msgType == "GameStarted" {
+		} else if msgReceived.MessageType == "GameStarted" {
 			println("Game started!")
 			gameStarted = true
-			util.FromJson(data, &gameInfo)
+			util.FromJson(msgReceived.Message, &gameInfo)
 		} else {
-			println(fmt.Sprintf("[Client] Unhandled message type: %s", msgType))
+			println(fmt.Sprintf("[Client] Unhandled message type: %s", msgReceived.MessageType))
 		}
 	})
 

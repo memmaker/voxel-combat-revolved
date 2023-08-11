@@ -30,12 +30,6 @@ func createTestBlocks(testChunk *voxel.Chunk) {
 	}
 }
 
-func (a *BattleClient) debugFunc() {
-	//chunk := a.voxelMap.GetChunk(0, 0, 0)
-	util.CheckForGLError()
-	a.Print("Hello World")
-}
-
 func (a *BattleClient) updateDebugInfo() {
 	if !a.showDebugInfo {
 		return

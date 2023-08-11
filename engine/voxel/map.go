@@ -435,7 +435,7 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 			}
 		}
 	}
-	// offsets for allignment at 0,0,0
+	// offsets for alignment at 0,0,0
 	xChunkOffset := int32(0)
 	yChunkOffset := int32(0)
 	zChunkOffset := int32(0)

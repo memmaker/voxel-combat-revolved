@@ -9,7 +9,6 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
-	"sync"
 )
 
 type BattleClient struct {
@@ -39,7 +38,6 @@ type BattleClient struct {
 	showDebugInfo       bool
 	timer               *util.Timer
 	stateStack          []GameState
-	updateQueue         []func(deltaTime float64)
 	conditionQueue      []ConditionalCall
 	isBlockSelection    bool
 	groundSelector      *GroundSelector
@@ -51,8 +49,8 @@ type BattleClient struct {
 	actionbar           *gui.ActionBar
 	server              *game.ServerConnection
 	unitMap             map[uint64]*Unit
-	mu                  sync.Mutex
-	mc                  sync.Mutex
+	serverChannel       chan game.StringMessage
+	isBusy              bool
 }
 
 func (a *BattleClient) GetVisibleUnits(unitID uint64) []game.UnitCore {
@@ -266,22 +264,19 @@ func (a *BattleClient) Print(text string) {
 func (a *BattleClient) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
 
-	a.mu.Lock()
-	for _, f := range a.updateQueue {
-		f(elapsed)
+	if !a.isBusy {
+		a.PollNetwork()
 	}
-	// what happens when we try writing to this slice exactly in between these two lines?
-	a.updateQueue = a.updateQueue[:0]
-	a.mu.Unlock()
-	a.mc.Lock()
-	for i := len(a.conditionQueue) - 1; i >= 0; i-- {
-		c := a.conditionQueue[i]
-		if c.condition() {
-			c.function()
-			a.conditionQueue = append(a.conditionQueue[:i], a.conditionQueue[i+1:]...)
+
+	if len(a.conditionQueue) > 0 {
+		for i := len(a.conditionQueue) - 1; i >= 0; i-- {
+			c := a.conditionQueue[i]
+			if c.condition() {
+				c.function(elapsed)
+				a.conditionQueue = append(a.conditionQueue[:i], a.conditionQueue[i+1:]...)
+			}
 		}
 	}
-	a.mc.Unlock()
 
 	camMoved, movementVector := a.pollInput(elapsed)
 	if camMoved {
@@ -439,20 +434,18 @@ func (a *BattleClient) SwitchToEditMap() {
 }
 
 func (a *BattleClient) scheduleUpdate(f func(deltaTime float64)) {
-	a.mu.Lock()
-	a.updateQueue = append(a.updateQueue, f)
-	a.mu.Unlock()
+	a.scheduleWaitForCondition(func() bool { return true }, f)
 }
 
 type ConditionalCall struct {
 	condition func() bool
-	function  func()
+	function  func(deltaTime float64)
 }
 
-func (a *BattleClient) scheduleWaitForCondition(condition func() bool, function func()) {
-	a.mc.Lock()
+func (a *BattleClient) scheduleWaitForCondition(condition func() bool, function func(deltaTime float64)) {
+	//a.mc.Lock()
 	a.conditionQueue = append(a.conditionQueue, ConditionalCall{condition: condition, function: function})
-	a.mc.Unlock()
+	//a.mc.Unlock()
 }
 
 func (a *BattleClient) PopState() {
@@ -521,13 +514,8 @@ func (a *BattleClient) SwitchToIsoCamera() {
 
 func (a *BattleClient) SetConnection(connection *game.ServerConnection) {
 	a.server = connection
-	scheduleOnMainthread := func(msgType, data string) {
-		//println(fmt.Sprintf("[BattleClient] Received message %s", msgType))
-		a.scheduleUpdate(func(deltaTime float64) {
-			a.OnServerMessage(msgType, data)
-		})
-	}
-	connection.SetEventHandler(scheduleOnMainthread)
+	a.serverChannel = make(chan game.StringMessage, 100)
+	connection.SetMainthreadChannel(a.serverChannel)
 }
 
 func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
@@ -633,6 +621,14 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 		return false
 	}
 
+	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
+	if !hasPath {
+		if msg.UpdatedUnit != nil {
+			movingUnit.SetBlockPosition(msg.UpdatedUnit.GetBlockPosition())
+		}
+		changeLOS()
+		return
+	}
 	firstPath := msg.PathParts[currentPathPart]
 	startPos := firstPath[0]
 	currentPos := movingUnit.GetBlockPosition()
@@ -642,8 +638,12 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	}
 	destination := firstPath[len(firstPath)-1]
 	if currentPos != destination {
+		a.isBusy = true
 		movingUnit.SetPath(firstPath)
-		a.scheduleWaitForCondition(observerPositionReached, changeLOS)
+		a.scheduleWaitForCondition(observerPositionReached, func(deltaTime float64) {
+			changeLOS()
+			a.isBusy = false
+		})
 	} else {
 		changeLOS()
 	}
@@ -660,7 +660,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	a.voxelMap.ClearHighlights()
 	a.unitSelector.Hide()
 
-	changeLOS := func() {
+	changeLOS := func(deltaTime float64) {
 		for _, lostLOSUnit := range msg.Lost {
 			a.SetLOSLost(msg.UnitID, lostLOSUnit)
 		}
@@ -735,5 +735,13 @@ func (a *BattleClient) resumeIdleAnimations() {
 		if unit.IsActive() {
 			unit.StartIdleAnimationLoop()
 		}
+	}
+}
+
+func (a *BattleClient) PollNetwork() {
+	select {
+	case msg := <-a.serverChannel:
+		a.OnServerMessage(msg.MessageType, msg.Message)
+	default:
 	}
 }

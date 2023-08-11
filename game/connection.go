@@ -12,8 +12,13 @@ import (
 
 type ServerConnection struct {
 	connection        net.Conn
-	eventHandler      func(msgType, data string)
-	mainthreadChannel chan string
+	eventHandler      func(msg StringMessage)
+	mainthreadChannel chan StringMessage
+}
+
+type StringMessage struct {
+	Message     string
+	MessageType string
 }
 
 func NewTCPConnection(endpoint string) *ServerConnection {
@@ -23,6 +28,18 @@ func NewTCPConnection(endpoint string) *ServerConnection {
 	}
 	println("Connected to server")
 	s := &ServerConnection{connection: con}
+	go s.readLoop(bufio.NewReader(con))
+	return s
+}
+
+func NewTCPConnectionWithHandler(endpoint string, handler func(msg StringMessage)) *ServerConnection {
+	con, err := net.Dial("tcp", endpoint)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	println("Connected to server")
+	s := &ServerConnection{connection: con}
+	s.SetEventHandler(handler)
 	go s.readLoop(bufio.NewReader(con))
 	return s
 }
@@ -74,17 +91,24 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
 		//println(fmt.Sprintf("[ServerConnection] Received message: %s", messageType))
+		msg := StringMessage{MessageType: messageType, Message: message}
 		if c.eventHandler != nil {
-			c.eventHandler(messageType, message)
+			c.eventHandler(msg)
+		} else if c.mainthreadChannel != nil {
+			c.mainthreadChannel <- msg
+		} else {
+			log.Println("No event handler or mainthread channel set")
 		}
 	}
 }
 
-func (c *ServerConnection) SetEventHandler(handler func(msgType, data string)) {
+func (c *ServerConnection) SetEventHandler(handler func(msg StringMessage)) {
 	c.eventHandler = handler
+	c.mainthreadChannel = nil
 }
 
-func (c *ServerConnection) SetMainthreadChannel(channel chan string) {
+func (c *ServerConnection) SetMainthreadChannel(channel chan StringMessage) {
+	c.eventHandler = nil
 	c.mainthreadChannel = channel
 }
 
