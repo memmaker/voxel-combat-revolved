@@ -24,7 +24,6 @@ type BattleClient struct {
 	chunkShader         *glhf.Shader
 	lineShader          *glhf.Shader
 	guiShader           *glhf.Shader
-	highlightShader     *glhf.Shader
 	textLabel           *etxt.TextMesh
 	textRenderer        *etxt.OpenGLTextRenderer
 	lastHitInfo         *game.RayCastHit
@@ -120,7 +119,6 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	}
 	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
-	myApp.highlightShader = myApp.loadHighlightShader()
 	myApp.lineShader = myApp.loadLineShader()
 	myApp.guiShader = myApp.loadGuiShader()
 	myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})

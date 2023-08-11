@@ -3,10 +3,16 @@ package game
 import (
 	"fmt"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
+	"math/rand"
+	"time"
 )
 
 type DummyClient struct {
-	connection *ServerConnection
+	connection           *ServerConnection
+	ownUnits             []*UnitInstance
+	voxelMap             *voxel.Map
+	movementAcknowledged bool
 }
 
 func NewDummyClient(con *ServerConnection) *DummyClient {
@@ -24,16 +30,42 @@ func (c *DummyClient) OnServerMessage(msgType string, data string) {
 			c.makeMove()
 		}
 	case "GameStarted":
-		// determine if it's our turn
+		var gameInfo GameStartedMessage
+		util.FromJson(data, &gameInfo)
+		c.ownUnits = gameInfo.OwnUnits
 		println("Game started!")
+		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
+		c.voxelMap = loadedMap
 		util.MustSend(c.connection.MapLoaded())
+	case "TargetedUnitActionResponse":
+		fallthrough
+	case "OwnUnitMoved":
+		c.movementAcknowledged = true
 	}
 }
 
 func (c *DummyClient) makeMove() {
+	moveAction := NewActionMove(c.voxelMap)
+	for _, unit := range c.ownUnits {
+		validMoves := moveAction.GetValidTargets(unit)
+		if len(validMoves) > 0 {
+			chosenDest := choseRandom(validMoves)
+			println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
+			util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), chosenDest))
+		}
+		for !c.movementAcknowledged {
+			time.Sleep(100 * time.Millisecond)
+			c.movementAcknowledged = false
+		}
+	}
 	// JUST END TURN FOR NOW
 	println(fmt.Sprintf("[DummyClient] Ending turn..."))
 	util.MustSend(c.connection.EndTurn())
+}
+
+func choseRandom(moves []voxel.Int3) voxel.Int3 {
+	randIndex := rand.Intn(len(moves))
+	return moves[randIndex]
 }
 
 func (c *DummyClient) Run() {

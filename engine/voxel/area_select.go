@@ -12,7 +12,7 @@ type HighlightMesh struct {
 
 func NewHighlightMesh(hlShader *glhf.Shader, chunkRelativeBlockPositions []Int3, textureIndex byte) *HighlightMesh {
 	h := &HighlightMesh{
-		ChunkMesh: NewMeshBuffer(hlShader),
+		ChunkMesh: NewMeshBuffer(),
 	}
 	for _, blockPos := range chunkRelativeBlockPositions {
 		topRight := blockPos                         // min x & z
@@ -21,7 +21,7 @@ func NewHighlightMesh(hlShader *glhf.Shader, chunkRelativeBlockPositions []Int3,
 		topLeft := blockPos.Add(Int3{X: 1})          // max x, min z
 		h.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, YP, textureIndex, [4]uint8{1, 1, 1, 1})
 	}
-	h.FlushMesh()
+	h.FlushMesh(hlShader)
 	return h
 }
 

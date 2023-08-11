@@ -1,8 +1,6 @@
 package voxel
 
-import (
-	"github.com/memmaker/battleground/engine/glhf"
-)
+import "github.com/memmaker/battleground/engine/glhf"
 
 type FaceType int32
 
@@ -26,10 +24,9 @@ type ChunkMesh interface {
 	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8)
 	Reset()
 	Draw()
-	FlushMesh()
+	FlushMesh(shader *glhf.Shader)
 	TriangleCount() int
 	MergeBuffer(buffer ChunkMesh)
-	GetShader() *glhf.Shader
 }
 
 type BlockFactory struct {

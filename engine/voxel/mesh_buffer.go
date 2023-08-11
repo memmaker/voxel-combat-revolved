@@ -17,16 +17,11 @@ type MeshBuffer struct {
 	drawableVertexData *glhf.VertexSlice[glhf.GlInt]
 	flatVertexData     []glhf.GlInt
 	sortedVertexData   map[FaceType][]glhf.GlInt
-	shader             *glhf.Shader
 	vertexCount        int
 	indexMap           map[int32]uint32
 	indexBuffer        []uint32
 	drawMode           DrawMode
 	faceMap            map[Int3]MultiDrawIndex
-}
-
-func (m *MeshBuffer) GetShader() *glhf.Shader {
-	return m.shader
 }
 
 type MultiDrawIndex struct {
@@ -124,11 +119,11 @@ func (m *MeshBuffer) Reset() {
 	m.vertexCount = 0
 }
 
-func (m *MeshBuffer) FlushMesh() {
+func (m *MeshBuffer) FlushMesh(shader *glhf.Shader) {
 	if m.drawMode == Indexed {
-		m.drawableVertexData = glhf.MakeIntVertexSlice(m.shader, m.vertexCount, m.vertexCount, m.indexBuffer)
+		m.drawableVertexData = glhf.MakeIntVertexSlice(shader, m.vertexCount, m.vertexCount, m.indexBuffer)
 	} else {
-		m.drawableVertexData = glhf.MakeIntVertexSlice(m.shader, m.vertexCount, m.vertexCount, nil)
+		m.drawableVertexData = glhf.MakeIntVertexSlice(shader, m.vertexCount, m.vertexCount, nil)
 	}
 	m.drawableVertexData.Begin()
 	if m.drawMode == Partial {
@@ -251,13 +246,12 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []
 	return mergedData
 }
 
-func NewMeshBuffer(shader *glhf.Shader) ChunkMesh {
+func NewMeshBuffer() ChunkMesh {
 	faceMap := make(map[FaceType][]glhf.GlInt)
 	for i := 0; i < 6; i++ {
 		faceMap[FaceType(i)] = make([]glhf.GlInt, 0, 0)
 	}
 	return &MeshBuffer{
-		shader:           shader,
 		indexMap:         make(map[int32]uint32),
 		sortedVertexData: faceMap,
 		drawMode:         Flat,

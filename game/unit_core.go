@@ -22,6 +22,7 @@ const (
 	AnimationClimb      MeshAnimation = "animation.climb"
 	AnimationDrop       MeshAnimation = "animation.drop"
 	AnimationDeath      MeshAnimation = "animation.death"
+	AnimationDebug      MeshAnimation = "animation.debug"
 )
 
 type UnitCore interface {
@@ -142,6 +143,7 @@ func (u *UnitInstance) updateMapAndModelPosition(old voxel.Int3) {
 	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
 	u.SetForward(newForward)
 	u.model.SetAnimationPose(animation.Str())
+	println(u.model.GetAnimationDebugString())
 }
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
@@ -199,6 +201,7 @@ func (u *UnitInstance) GetForward() voxel.Int3 {
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {
+	//return AnimationDebug, unitForward
 	solidNeighbors := voxelMap.GetNeighborsForGroundMovement(unitPosition, func(neighbor voxel.Int3) bool {
 		if neighbor != unitPosition && voxelMap.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
 			return true

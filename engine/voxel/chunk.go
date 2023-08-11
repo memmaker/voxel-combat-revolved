@@ -9,32 +9,32 @@ import (
 // translated from https://github.com/Vercidium/voxel-mesh-generation/blob/master/source/Chunk.cs
 
 type Chunk struct {
-	data            []*Block
-	m               *Map
-	chunkPosX       int32
-	chunkPosY       int32
-	chunkPosZ       int32
-	chunkHelper     *ChunkHelper
-	cXN             *Chunk
-	cXP             *Chunk
-	cYN             *Chunk
-	cYP             *Chunk
-	cZN             *Chunk
-	cZP             *Chunk
-	isDirty         bool
-	meshBuffer      ChunkMesh
-	highLightMesh   *HighlightMesh
-	highlightShader *glhf.Shader
+	data          []*Block
+	m             *Map
+	chunkPosX     int32
+	chunkPosY     int32
+	chunkPosZ     int32
+	chunkHelper   *ChunkHelper
+	cXN           *Chunk
+	cXP           *Chunk
+	cYN           *Chunk
+	cYP           *Chunk
+	cZN           *Chunk
+	cZP           *Chunk
+	isDirty       bool
+	meshBuffer    ChunkMesh
+	highLightMesh *HighlightMesh
+	chunkShader   *glhf.Shader
 }
 
-func NewChunk(chunkShader, highlightShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
+func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
 	c := &Chunk{
-		highlightShader: highlightShader,
-		data:            make([]*Block, CHUNK_SIZE_CUBED),
-		m:               voxelMap,
-		chunkPosX:       x,
-		chunkPosY:       y,
-		chunkPosZ:       z,
+		chunkShader: chunkShader,
+		data:        make([]*Block, CHUNK_SIZE_CUBED),
+		m:           voxelMap,
+		chunkPosX:   x,
+		chunkPosY:   y,
+		chunkPosZ:   z,
 		chunkHelper: &ChunkHelper{
 			visitXN: make([]bool, CHUNK_SIZE_CUBED),
 			visitXP: make([]bool, CHUNK_SIZE_CUBED),
@@ -43,7 +43,7 @@ func NewChunk(chunkShader, highlightShader *glhf.Shader, voxelMap *Map, x, y, z 
 			visitZN: make([]bool, CHUNK_SIZE_CUBED),
 			visitZP: make([]bool, CHUNK_SIZE_CUBED),
 		},
-		meshBuffer: NewMeshBuffer(chunkShader),
+		meshBuffer: NewMeshBuffer(),
 	}
 	for i := int32(0); i < CHUNK_SIZE_CUBED; i++ {
 		c.data[i] = NewAirBlock()
@@ -419,12 +419,8 @@ func (c *Chunk) AABBMax() mgl32.Vec3 {
 	return mgl32.Vec3{float32(c.chunkPosX*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE + CHUNK_SIZE)}
 }
 
-func (c *Chunk) GetShader() *glhf.Shader {
-	return c.meshBuffer.GetShader()
-}
-
 func (c *Chunk) SetHighlights(positions []Int3, textureIndex byte) {
-	c.highLightMesh = NewHighlightMesh(c.highlightShader, positions, textureIndex)
+	c.highLightMesh = NewHighlightMesh(c.chunkShader, positions, textureIndex)
 }
 
 func (c *Chunk) ClearHighlights() {

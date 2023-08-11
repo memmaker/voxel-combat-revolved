@@ -1,3 +1,33 @@
+# Design Guidelines
+ - Turn based
+ - Free aim
+ - No unit collisions
+ - Big units
+
+
+# We need
+ - Circle drawing (Targeting reticule)
+ - Line Drawing (Paths & Line Of Sight)
+ - Arc drawing (Grenade throwing)
+ - Particle effects (Explosions & blood)
+ - Lighting (Shadows?)
+ - Outlines for Bodyparts & Units (Targeting)
+ - Smooth camera movement (Zooming & Panning)
+
+# Sliders style setting / story
+
+You start with one custom character - Your avatar
+
+You fight tactical battles in parallel universes
+ -> Gives us the option to basically have a different game for each universe
+
+You always have a choice inside the universe
+ -> Will unlock new characters, items, etc. DEPENDING on your choices
+ -> Will also determine the outcome of the universe
+
+You can level up your characters
+ -> Will unlock new skills, items, etc.
+
 # Basics
  - Text rendering
  - Debug Primitive rendering
@@ -9,6 +39,10 @@
 
 # Bugs
  - When removing a block at the edge of a chunk, the neighboring chunk is not re-meshed and may miss a face.
+
+# Mechanics
+ - Add a small chance for unit to survive a lethal hit
+ - Add a "prod" action
 
 # Level Workflow
 

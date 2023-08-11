@@ -15,8 +15,7 @@ type ServerAction interface {
 func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool) *GameInstance {
 	mapDir := "./assets/maps"
 	mapFile = path.Join(mapDir, mapFile)
-	loadedMap := voxel.NewMap(0, 0, 0)
-	loadedMap.LoadFromDisk(mapFile)
+	loadedMap := voxel.NewMapFromFile(mapFile)
 	println(fmt.Sprintf("[GameInstance] %d created game %s", ownerID, gameID))
 	return &GameInstance{
 		owner:                 ownerID,

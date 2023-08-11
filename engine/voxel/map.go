@@ -19,7 +19,6 @@ type Map struct {
 	depth            int32
 	chunkShader      *glhf.Shader
 	terrainTexture   *glhf.Texture
-	highlightShader  *glhf.Shader
 	unitMovedHandler func(unit MapObject, oldPos, newPos Int3)
 }
 
@@ -31,6 +30,17 @@ func NewMap(width, height, depth int32) *Map {
 		depth:  depth,
 	}
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
+	return m
+}
+
+func NewMapFromFile(filename string) *Map {
+	m := &Map{
+		chunks: make([]*Chunk, 0),
+		width:  0,
+		height: 0,
+		depth:  0,
+	}
+	m.LoadFromDisk(filename)
 	return m
 }
 
@@ -104,7 +114,7 @@ func (m *Map) LoadFromDisk(filename string) {
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[1])
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[2])
 		println(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
-		chunk := NewChunk(m.chunkShader, m.highlightShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
+		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
 		m.chunks[i] = chunk
 		for j := int32(0); j < CHUNK_SIZE_CUBED; j++ {
 			blockID := byte(0)
@@ -170,7 +180,7 @@ func (m *Map) GenerateAllMeshes() {
 			meshBuffer := chunk.GreedyMeshing()
 			totalTriangles += meshBuffer.TriangleCount()
 			if meshBuffer.TriangleCount() > 0 {
-				meshBuffer.FlushMesh()
+				meshBuffer.FlushMesh(m.chunkShader)
 			}
 		}
 	}
@@ -251,9 +261,8 @@ func (m *Map) ContainsGrid(position Int3) bool {
 	return m.Contains(position.X, position.Y, position.Z)
 }
 
-func (m *Map) SetShader(chunkShader, highlightShader *glhf.Shader) {
+func (m *Map) SetShader(chunkShader *glhf.Shader) {
 	m.chunkShader = chunkShader
-	m.highlightShader = highlightShader
 }
 
 func (m *Map) SetTerrainTexture(texture *glhf.Texture) {
@@ -261,7 +270,7 @@ func (m *Map) SetTerrainTexture(texture *glhf.Texture) {
 }
 
 func (m *Map) NewChunk(cX int32, cY int32, cZ int32) *Chunk {
-	chunk := NewChunk(m.chunkShader, m.highlightShader, m, cX, cY, cZ)
+	chunk := NewChunk(m.chunkShader, m, cX, cY, cZ)
 	m.SetChunk(cX, cY, cZ, chunk)
 	return chunk
 }
@@ -386,7 +395,7 @@ func GetBlockEntitiesNeededByConstruction(construction *Construction) []string {
 	}
 	return blockEntityNames
 }
-func NewMapFromConstruction(bf *BlockFactory, chunkShader, highlightShader *glhf.Shader, construction *Construction) *Map {
+func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construction *Construction) *Map {
 	minX, minY, minZ := int32(math.MaxInt32), int32(math.MaxInt32), int32(math.MaxInt32)
 	maxX, maxY, maxZ := int32(math.MinInt32), int32(math.MinInt32), int32(math.MinInt32)
 	for _, section := range construction.Sections {
@@ -415,7 +424,7 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader, highlightShader *glhf
 	chunkCountZ := int32(math.Ceil(float64(maxZ-minZ) / float64(CHUNK_SIZE)))
 	println(fmt.Sprintf("[Map] Chunk count: %d %d %d", chunkCountX, chunkCountY, chunkCountZ))
 	voxelMap := NewMap(chunkCountX, chunkCountY, chunkCountZ)
-	voxelMap.SetShader(chunkShader, highlightShader)
+	voxelMap.SetShader(chunkShader)
 	chunkCounter := 0
 	for cX := int32(0); cX < chunkCountX; cX++ {
 		for cY := int32(0); cY < chunkCountY; cY++ {

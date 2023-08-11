@@ -48,7 +48,7 @@ func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, orig
 }
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
-	println(fmt.Sprintf("[ServerActionShot] Attacking %s: from %s. Dir.: %v", a.unit.GetName(), currentPos.ToString(), a.velocity))
+	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from %s. dir.: %v", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), a.velocity))
 	//a.engine.SpawnProjectile(sourceOffset, velocity)
 	rayHitInfo := a.engine.RayCastFreeAim(a.origin, a.origin.Add(a.velocity.Normalize().Mul(100)), a.unit)
 	unitHidID := int64(-1)
@@ -57,7 +57,11 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
 		// TODO: Apply damage on server.. eg. kill and remove unit from map
 	} else {
-		println("[ServerActionShot] Shot MISSed")
+		if rayHitInfo.Hit {
+			println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s", rayHitInfo.HitInfo3D.PreviousGridPosition.ToString()))
+		} else {
+			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision"))
+		}
 	}
 
 	mb.AddMessageForAll(game.VisualProjectileFired{

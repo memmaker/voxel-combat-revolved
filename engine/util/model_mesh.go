@@ -235,8 +235,20 @@ func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception str
 }
 
 func (m *CompoundMesh) SetAnimationPose(animation string) {
-	m.RootNode.ChangeAnimation(animation)
-	m.RootNode.holdAnimation = true
+	m.RootNode.SetAnimationPose(animation)
+}
+func (m *MeshNode) SetAnimationPose(name string) {
+	for _, child := range m.children {
+		child.SetAnimationPose(name)
+	}
+	if _, ok := m.animations[name]; ok {
+		m.currentAnimation = name
+		m.ResetAnimation()
+		m.InitAnimationPose()
+		m.holdAnimation = true
+	} else {
+		m.currentAnimation = ""
+	}
 }
 func (m *MeshNode) ChangeAnimation(name string) {
 	for _, child := range m.children {
@@ -463,7 +475,6 @@ func (m *MeshNode) StopAnimations() {
 }
 
 func (m *MeshNode) GetAnimationDebugString(hierarchyLevel int) string {
-	// add padding depending on the hierarchy level
 	padding := ""
 	for i := 0; i < hierarchyLevel; i++ {
 		padding += "  "

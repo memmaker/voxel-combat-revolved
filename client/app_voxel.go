@@ -91,7 +91,7 @@ func (a *BattleClient) LoadVoxelMap(filename string) *voxel.Map {
 	terrainTexture, textureIndices := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
 	bf := voxel.NewBlockFactory(textureIndices)
 
-	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, a.highlightShader, construction)
+	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, construction)
 	loadedMap.SetTerrainTexture(terrainTexture)
 
 	loadedMap.GenerateAllMeshes()
@@ -121,7 +121,7 @@ func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 	sizeHorizontal := 3
 	sizeVertical := 1
 	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
-	loadedMap.SetShader(a.chunkShader, a.highlightShader)
+	loadedMap.SetShader(a.chunkShader)
 	loadedMap.SetTerrainTexture(terrainTexture)
 	for x := 0; x < sizeHorizontal; x++ {
 		for z := 0; z < sizeHorizontal; z++ {
@@ -155,7 +155,7 @@ func (a *BattleClient) LoadMap(filename string) *voxel.Map {
 	sizeHorizontal := 3
 	sizeVertical := 1
 	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
-	loadedMap.SetShader(a.chunkShader, a.highlightShader)
+	loadedMap.SetShader(a.chunkShader)
 	loadedMap.SetTerrainTexture(terrainTexture)
 	loadedMap.LoadFromDisk(filename)
 	loadedMap.GenerateAllMeshes()
