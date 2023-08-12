@@ -21,48 +21,30 @@ type Crosshair struct {
 	size              float32
 	currentThickness  float32
 	originalThickness float32
+	camera            *util.FPSCamera
 }
 
-func NewCrosshair(shader *glhf.Shader, screenWidth, screenHeight int) *Crosshair {
-	vertices := glhf.MakeIndexedVertexSlice(shader, 4, 4, []uint32{
-		// first triangle
-		0, // top left
-		1, // top right
-		2, // bottom right
-		// second triangle
-		0, // top left
-		2, // bottom right
-		3, // bottom left
-	})
-	vertices.Begin()
-	vertices.SetVertexData([]glhf.GlFloat{
-		// positions          // texture coords
-		-0.5, 0.5, 0.0, 0.0, // top left
-		0.5, 0.5, 1.0, 0.0, // top right
-		0.5, -0.5, 1.0, 1.0, // bottom right
-		-0.5, -0.5, 0.0, 1.0, // bottom left
-	})
-	vertices.End()
+func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
+
 	scale := [3]float32{1, 1, 1}
 	// adjust currentScale to match screen aspect ratio
-	aspectRatio := float32(screenHeight) / float32(screenWidth) // eg, 600 / 800 = 0.75
+	aspectRatio := cam.GetAspectRatio() // eg, 600 / 800 = 0.75
 	scale[0] = aspectRatio
 	c := &Crosshair{
-		shader:       shader,
-		vertices:     vertices,
-		screenWidth:  screenWidth,
-		screenHeight: screenHeight,
-
-		translation:   [3]float32{0.5, 0.5, 0},
-		quatRotation:  mgl32.QuatIdent(),
-		currentScale:  scale,
-		originalScale: scale,
-
+		shader:            shader,
+		camera:            cam,
+		screenWidth:       cam.GetScreenWidth(),
+		screenHeight:      cam.GetScreenHeight(),
+		translation:       [3]float32{0, 0, -0.16},
+		quatRotation:      mgl32.QuatIdent(),
+		currentScale:      scale,
+		originalScale:     scale,
 		originalThickness: 0.02,
 		currentThickness:  0.02,
 		color:             mgl32.Vec3{float32(47) / float32(255), float32(214) / float32(255), float32(195) / float32(255)},
 		size:              1.0,
 	}
+	c.Init(shader)
 	//c.SetSize(0.75)
 	return c
 }
@@ -76,22 +58,27 @@ func (c *Crosshair) localMatrix() mgl32.Mat4 {
 	scale := mgl32.Scale3D(c.currentScale[0], c.currentScale[1], c.currentScale[2])
 	return translation.Mul4(quaternion).Mul4(scale)
 }
+
+func (c *Crosshair) getCamRotation() mgl32.Mat4 {
+	return c.camera.GetViewMatrix().Mat3().Mat4()
+}
 func (c *Crosshair) Draw() {
-	c.shader.SetUniformAttr(0, util.Get2DOrthographicProjectionMatrix())
-	c.shader.SetUniformAttr(1, c.localMatrix())
-	c.shader.SetUniformAttr(2, c.color)
-	c.shader.SetUniformAttr(3, c.currentThickness)
+	c.shader.SetUniformAttr(0, c.camera.GetProjectionMatrix())
+	c.shader.SetUniformAttr(1, mgl32.Ident4())
+	c.shader.SetUniformAttr(2, c.localMatrix())
+	c.shader.SetUniformAttr(3, c.color)
+	c.shader.SetUniformAttr(4, c.currentThickness)
 	c.vertices.Begin()
 	c.vertices.Draw()
 	c.vertices.End()
 }
 
 func (c *Crosshair) SetSize(size float64) {
-	c.size = float32(size)
-	c.currentScale = [3]float32{c.originalScale[0] * c.size, c.originalScale[1] * c.size, c.originalScale[2] * c.size}
+	c.size = mgl32.Clamp(float32(size), 0.05, 1.0)
+	// size should be 1.0 at fov of 45 degrees
+	c.currentScale = [3]float32{c.size, c.size, c.size}
 	c.currentThickness = c.originalThickness / c.size
 }
-
 func (c *Crosshair) SetColor(color mgl32.Vec3) {
 	c.color = color
 }
@@ -99,4 +86,50 @@ func (c *Crosshair) SetColor(color mgl32.Vec3) {
 func (c *Crosshair) SetThickness(thickness float64) {
 	c.originalThickness = float32(thickness)
 	c.currentThickness = c.originalThickness / c.size
+}
+
+func (c *Crosshair) GetNearPlaneQuad() []glhf.GlFloat {
+	cam := c.camera
+	proj := cam.GetProjectionMatrix()
+	view := mgl32.Ident4()
+	projViewInverted := proj.Mul4(view).Inv()
+	topLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
+	topRight := c.transformVertex(0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
+	bottomRight := c.transformVertex(0.5/cam.GetAspectRatio(), -0.5, cam, projViewInverted)
+	bottomLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), -0.5, cam, projViewInverted)
+
+	return []glhf.GlFloat{
+		// positions          // texture coords
+		glhf.GlFloat(topLeft.X()), glhf.GlFloat(topLeft.Y()), 0.0, 0.0, // top left
+		glhf.GlFloat(topRight.X()), glhf.GlFloat(topRight.Y()), 1.0, 0.0, // top right
+		glhf.GlFloat(bottomRight.X()), glhf.GlFloat(bottomRight.Y()), 1.0, 1.0, // bottom right
+		glhf.GlFloat(bottomLeft.X()), glhf.GlFloat(bottomLeft.Y()), 0.0, 1.0, // bottom left
+	}
+}
+
+func (c *Crosshair) Init(shader *glhf.Shader) {
+	vertices := glhf.MakeIndexedVertexSlice(shader, 4, 4, []uint32{
+		// first triangle
+		1, // top right
+		0, // top left
+		2, // bottom right
+		// second triangle
+		2, // bottom right
+		0, // top left
+		3, // bottom left
+
+	})
+	vertices.Begin()
+	vertices.SetVertexData(c.GetNearPlaneQuad())
+	vertices.End()
+	c.vertices = vertices
+}
+
+func (c *Crosshair) transformVertex(x, y float32, cam *util.FPSCamera, projViewInverted mgl32.Mat4) mgl32.Vec3 {
+	normalizedNearPos := mgl32.Vec4{x, y, cam.GetNearPlaneDist(), 1}
+	// project point from camera space to world space
+	nearWorldPos := projViewInverted.Mul4x1(normalizedNearPos)
+	// perspective divide
+	correctedNearWorldPos := nearWorldPos.Vec3().Mul(1 / nearWorldPos.W())
+	return correctedNearWorldPos
 }

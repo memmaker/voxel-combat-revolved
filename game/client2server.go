@@ -48,8 +48,6 @@ type FreeAimActionMessage struct {
 	CamRotY float32
 }
 type MapLoadedMessage struct {
-	ClientWindowWidth  int
-	ClientWindowHeight int
 }
 type CreateGameMessage struct {
 	Map            string

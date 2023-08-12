@@ -508,7 +508,7 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 		return
 	}
 	user.isReady = true
-	gameInstance.SetCamera(userID, util.NewFPSCamera(mgl32.Vec3{0, 0, 0}, msg.ClientWindowWidth, msg.ClientWindowHeight))
+	gameInstance.SetCamera(userID, util.NewFPSCamera(mgl32.Vec3{0, 0, 0}, 1, 1))
 
 	allReady := true
 	for _, playerID := range gameInstance.players {

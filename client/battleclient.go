@@ -18,7 +18,7 @@ type BattleClient struct {
 	voxelMap            *voxel.Map
 	wireFrame           bool
 	selector            PositionDrawable
-	crosshair           PositionDrawable
+	crosshair           *Crosshair
 	modelShader         *glhf.Shader
 	chunkShader         *glhf.Shader
 	lineShader          *glhf.Shader
@@ -147,7 +147,7 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	   crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
 	   myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
 	*/
-	crosshair := NewCrosshair(myApp.circleShader, glApp.WindowWidth, glApp.WindowHeight)
+	crosshair := NewCrosshair(myApp.circleShader, myApp.fpsCamera)
 	myApp.SetCrosshair(crosshair)
 
 	return myApp
@@ -258,7 +258,7 @@ func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, on
 	a.projectiles = append(a.projectiles, projectile)
 }
 
-func (a *BattleClient) SetCrosshair(crosshair PositionDrawable) {
+func (a *BattleClient) SetCrosshair(crosshair *Crosshair) {
 	a.crosshair = crosshair
 }
 

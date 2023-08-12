@@ -155,5 +155,5 @@ func Get2DPixelCoordOrthographicProjectionMatrix(width, height int) mgl32.Mat4 {
 }
 
 func Get2DOrthographicProjectionMatrix() mgl32.Mat4 {
-	return mgl32.Ortho2D(0, 1, 1, 0)
+	return mgl32.Ortho(0, 1, 1, 0, 0, 0.15)
 }

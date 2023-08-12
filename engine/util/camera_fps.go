@@ -20,6 +20,7 @@ type FPSCamera struct {
 	windowWidth      int
 	windowHeight     int
 	nearPlaneDist    float32
+	fov              float32
 }
 
 func (c *FPSCamera) GetNearPlaneDist() float32 {
@@ -42,6 +43,7 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 		invertedY:       true,
 		windowWidth:     windowWidth,
 		windowHeight:    windowHeight,
+		fov:             float32(45.0),
 	}
 }
 
@@ -55,8 +57,8 @@ func (c *FPSCamera) GetViewMatrix() mgl32.Mat4 {
 // GetProjectionMatrix returns the projection matrix for the camera.
 // A projection matrix will transform a point from camera space to screen space. (3D -> 2D)
 func (c *FPSCamera) GetProjectionMatrix() mgl32.Mat4 {
-	fov := float32(45.0)
-	return mgl32.Perspective(mgl32.DegToRad(fov), float32(c.windowWidth)/float32(c.windowHeight), c.nearPlaneDist, 512.0)
+	aspect := float32(c.windowWidth) / float32(c.windowHeight)
+	return mgl32.Perspective(mgl32.DegToRad(c.fov), aspect, c.nearPlaneDist, 100.0)
 }
 func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
 	accuracy = Clamp(accuracy, 0.0, 0.99)
@@ -80,7 +82,7 @@ func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, m
 	randY *= accFactor
 
 	println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
-	randX, randY = AdjustForAspectRatio(randX, randY, c.windowWidth, c.windowHeight)
+	//randX, randY = AdjustForAspectRatio(randX, randY, c.windowWidth, c.windowHeight) // from -1.0..1.0 to -n..n on the x axis
 	return GetRayFromCameraPlane(c, float32(randX), float32(randY))
 }
 
@@ -177,4 +179,24 @@ func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
 	c.rotatex = rotX
 	c.rotatey = rotY
 	c.updateAngles()
+}
+
+func (c *FPSCamera) SetFOV(fov float32) {
+	c.fov = fov
+}
+
+func (c *FPSCamera) GetFOV() float32 {
+	return c.fov
+}
+
+func (c *FPSCamera) GetAspectRatio() float32 {
+	return float32(c.windowWidth) / float32(c.windowHeight)
+}
+
+func (c *FPSCamera) GetScreenWidth() int {
+	return c.windowWidth
+}
+
+func (c *FPSCamera) GetScreenHeight() int {
+	return c.windowHeight
 }

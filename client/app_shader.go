@@ -71,6 +71,7 @@ func (a *BattleClient) loadCircleShader() *glhf.Shader {
 		}
 		uniformFormat = glhf.AttrFormat{
 			glhf.Attr{Name: "projection", Type: glhf.Mat4},
+			glhf.Attr{Name: "camera", Type: glhf.Mat4},
 			glhf.Attr{Name: "model", Type: glhf.Mat4},
 			glhf.Attr{Name: "circleColor", Type: glhf.Vec3},
 			glhf.Attr{Name: "thickness", Type: glhf.Float},

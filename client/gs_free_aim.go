@@ -29,6 +29,14 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyEscape {
 		g.engine.SwitchToIsoCamera()
 		g.engine.PopState()
+	} else if key == glfw.KeyM {
+		fov := g.engine.fpsCamera.GetFOV()
+		g.engine.fpsCamera.SetFOV(fov + 1)
+	} else if key == glfw.KeyN {
+		fov := g.engine.fpsCamera.GetFOV()
+		g.engine.fpsCamera.SetFOV(fov - 1)
+	} else if key == glfw.KeyJ {
+		g.engine.fpsCamera.SetFOV(45)
 	}
 }
 

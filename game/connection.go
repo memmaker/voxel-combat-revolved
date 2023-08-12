@@ -134,6 +134,6 @@ func (c *ServerConnection) EndTurn() error {
 	return c.send("EndTurn", NoData{})
 }
 
-func (c *ServerConnection) MapLoaded(windowWidth, windowHeight int) error {
-	return c.send("MapLoaded", MapLoadedMessage{ClientWindowWidth: windowWidth, ClientWindowHeight: windowHeight})
+func (c *ServerConnection) MapLoaded() error {
+	return c.send("MapLoaded", MapLoadedMessage{})
 }
