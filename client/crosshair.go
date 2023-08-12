@@ -35,7 +35,7 @@ func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
 		camera:            cam,
 		screenWidth:       cam.GetScreenWidth(),
 		screenHeight:      cam.GetScreenHeight(),
-		translation:       [3]float32{0, 0, -0.16},
+		translation:       [3]float32{0, 0, -(cam.GetNearPlaneDist() + 0.01)},
 		quatRotation:      mgl32.QuatIdent(),
 		currentScale:      scale,
 		originalScale:     scale,
@@ -67,7 +67,7 @@ func (c *Crosshair) Draw() {
 	c.shader.SetUniformAttr(1, mgl32.Ident4())
 	c.shader.SetUniformAttr(2, c.localMatrix())
 	c.shader.SetUniformAttr(3, c.color)
-	c.shader.SetUniformAttr(4, c.currentThickness)
+	c.shader.SetUniformAttr(4, c.thickness())
 	c.vertices.Begin()
 	c.vertices.Draw()
 	c.vertices.End()
@@ -91,8 +91,7 @@ func (c *Crosshair) SetThickness(thickness float64) {
 func (c *Crosshair) GetNearPlaneQuad() []glhf.GlFloat {
 	cam := c.camera
 	proj := cam.GetProjectionMatrix()
-	view := mgl32.Ident4()
-	projViewInverted := proj.Mul4(view).Inv()
+	projViewInverted := proj.Inv()
 	topLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
 	topRight := c.transformVertex(0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
 	bottomRight := c.transformVertex(0.5/cam.GetAspectRatio(), -0.5, cam, projViewInverted)
@@ -132,4 +131,9 @@ func (c *Crosshair) transformVertex(x, y float32, cam *util.FPSCamera, projViewI
 	// perspective divide
 	correctedNearWorldPos := nearWorldPos.Vec3().Mul(1 / nearWorldPos.W())
 	return correctedNearWorldPos
+}
+
+func (c *Crosshair) thickness() float32 {
+	fovFactor := c.camera.GetFOV() / 45.0
+	return c.currentThickness * fovFactor
 }
