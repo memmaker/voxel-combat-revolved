@@ -1,18 +1,11 @@
 package util
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"math"
+	"math/rand"
 )
-
-type Camera interface {
-	GetViewMatrix() mgl32.Mat4
-	GetProjectionMatrix() mgl32.Mat4
-	GetFront() mgl32.Vec3
-	GetFrustumPlanes(matrix mgl32.Mat4) []mgl32.Vec4
-	GetPosition() mgl32.Vec3
-	ChangePosition(dir [2]int, delta float32)
-}
 
 type FPSCamera struct {
 	cameraPos        mgl32.Vec3
@@ -26,6 +19,11 @@ type FPSCamera struct {
 	invertedY        bool
 	windowWidth      int
 	windowHeight     int
+	nearPlaneDist    float32
+}
+
+func (c *FPSCamera) GetNearPlaneDist() float32 {
+	return c.nearPlaneDist
 }
 
 func (c *FPSCamera) ChangePosition(dir [2]int, delta float32) {
@@ -40,6 +38,7 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 		lookSensitivity: 0.08,
 		rotatey:         0,
 		rotatex:         -90,
+		nearPlaneDist:   0.15,
 		invertedY:       true,
 		windowWidth:     windowWidth,
 		windowHeight:    windowHeight,
@@ -57,7 +56,32 @@ func (c *FPSCamera) GetViewMatrix() mgl32.Mat4 {
 // A projection matrix will transform a point from camera space to screen space. (3D -> 2D)
 func (c *FPSCamera) GetProjectionMatrix() mgl32.Mat4 {
 	fov := float32(45.0)
-	return mgl32.Perspective(mgl32.DegToRad(fov), float32(c.windowWidth)/float32(c.windowHeight), 0.15, 512.0)
+	return mgl32.Perspective(mgl32.DegToRad(fov), float32(c.windowWidth)/float32(c.windowHeight), c.nearPlaneDist, 512.0)
+}
+func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
+	accuracy = Clamp(accuracy, 0.0, 0.99)
+	accFactor := 1.0 - accuracy // 0.01..1.0
+
+	randX := rand.Float64()*2.0 - 1.0
+	randY := rand.Float64()*2.0 - 1.0
+
+	println(fmt.Sprintf("randNorm: %0.2f, %0.2f", randX, randY))
+
+	lengthOfVector := math.Sqrt(randX*randX + randY*randY)
+	if lengthOfVector > 1.0 {
+		// normalize
+		randX /= lengthOfVector
+		randY /= lengthOfVector
+	}
+	println(fmt.Sprintf("circled: %0.2f, %0.2f", randX, randY))
+
+	// in range -1.0..1.0
+	randX *= accFactor
+	randY *= accFactor
+
+	println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
+	randX, randY = AdjustForAspectRatio(randX, randY, c.windowWidth, c.windowHeight)
+	return GetRayFromCameraPlane(c, float32(randX), float32(randY))
 }
 
 // ChangeAngles changes the camera's angles by dx and dy.
@@ -73,12 +97,7 @@ func (c *FPSCamera) ChangeAngles(dx, dy float32) {
 	} else {
 		c.rotatey += yChange
 	}
-	if c.rotatey > 89 {
-		c.rotatey = 89
-	}
-	if c.rotatey < -89 {
-		c.rotatey = -89
-	}
+
 	c.updateAngles()
 }
 func (c *FPSCamera) ForwardBackward(delta float32) mgl32.Vec3 {
@@ -98,6 +117,12 @@ func (c *FPSCamera) UpDown(delta float32) mgl32.Vec3 {
 }
 
 func (c *FPSCamera) updateAngles() {
+	if c.rotatey > 89 {
+		c.rotatey = 89
+	}
+	if c.rotatey < -89 {
+		c.rotatey = -89
+	}
 	front := mgl32.Vec3{
 		Cos(ToRadian(c.rotatey)) * Cos(ToRadian(c.rotatex)),
 		Sin(ToRadian(c.rotatey)),
@@ -141,4 +166,15 @@ func (c *FPSCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
 		c4.Mul(0.15).Add(c3),  // front
 		c4.Mul(512.0).Sub(c3), // back
 	}
+}
+
+func (c *FPSCamera) GetRotation() (float32, float32) {
+	return c.rotatex, c.rotatey
+}
+
+func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
+	c.cameraPos = pos
+	c.rotatex = rotX
+	c.rotatey = rotY
+	c.updateAngles()
 }

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"log"
@@ -128,7 +130,10 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 			b.FreeAimAction(id, freeAimActionMsg)
 		}
 	case "MapLoaded":
-		b.MapLoaded(id)
+		var mapLoadedMsg game.MapLoadedMessage
+		if toJson(message, &mapLoadedMsg) {
+			b.MapLoaded(id, mapLoadedMsg)
+		}
 	case "EndTurn":
 		b.EndTurn(id)
 	}
@@ -483,7 +488,7 @@ func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
 	}
 }
 
-func (b *BattleServer) MapLoaded(userID uint64) {
+func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	// get the player and mark him as ready
 	user, exists := b.connectedClients[userID]
 	if !exists {
@@ -502,8 +507,8 @@ func (b *BattleServer) MapLoaded(userID uint64) {
 		b.respond(user, "MapLoadedResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
-
 	user.isReady = true
+	gameInstance.SetCamera(userID, util.NewFPSCamera(mgl32.Vec3{0, 0, 0}, msg.ClientWindowWidth, msg.ClientWindowHeight))
 
 	allReady := true
 	for _, playerID := range gameInstance.players {
@@ -522,7 +527,7 @@ func (b *BattleServer) MapLoaded(userID uint64) {
 func NewBattleServer() *BattleServer {
 	return &BattleServer{
 		availableMaps:     make(map[string]string),          // filename -> display name
-		availableFactions: make(map[string]*Faction, 0),     // faction name -> faction
+		availableFactions: make(map[string]*Faction),        // faction name -> faction
 		connectedClients:  make(map[uint64]*UserConnection), // client id -> client
 		runningGames:      make(map[string]*GameInstance),   // game id -> game
 	}

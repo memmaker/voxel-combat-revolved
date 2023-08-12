@@ -34,7 +34,7 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
-	g.engine.SwitchToFirstPerson(g.selectedUnit.GetEyePosition())
+	g.engine.SwitchToFirstPerson(g.selectedUnit.GetEyePosition(), g.selectedUnit.GetFreeAimAccuracy())
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {
@@ -52,13 +52,15 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 	println(fmt.Sprintf("[GameStateFreeAim] Block %s", groundBlock.ToString()))
 	if g.selectedUnit.CanAct() {
 		// check if target is valid
-		sourceOfProjectile := g.selectedUnit.GetEyePosition()
-		directionVector := g.engine.fpsCamera.GetFront().Normalize()
-		velocity := directionVector.Mul(10)
-		sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
 
+		camPos := g.engine.fpsCamera.GetPosition()
+		camRotX, camRotY := g.engine.fpsCamera.GetRotation()
+		//sourceOfProjectile := g.selectedUnit.GetEyePosition()
+
+		//destination := sourceOffset.Add(velocity)
 		//g.engine.SpawnProjectile(sourceOffset, velocity)
-		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.ID, g.selectedAction.GetName(), sourceOffset, velocity))
+
+		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.ID, g.selectedAction.GetName(), camPos, camRotX, camRotY))
 	}
 }
 

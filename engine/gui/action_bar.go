@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
+	"github.com/memmaker/battleground/engine/util"
 )
 
 /*
@@ -103,6 +104,7 @@ func (a *ActionBar) Draw() {
 	if a.actions == nil || len(a.actions) == 0 || a.isHidden {
 		return
 	}
+	a.shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.screenWidth, a.screenHeight))
 	a.shader.SetUniformAttr(1, mgl32.Translate3D(0, 0, 0))
 	a.texture.Begin()
 	a.vertex.Begin()

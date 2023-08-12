@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
@@ -35,12 +36,13 @@ func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, targ
 	s.checkForCheating()
 	return s
 }
-func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, origin mgl32.Vec3, velocity mgl32.Vec3) *ServerActionShot {
-
+func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, cam *util.FPSCamera) *ServerActionShot {
+	startRay, endRay := cam.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+	velocity := endRay.Sub(startRay).Normalize().Mul(10)
 	s := &ServerActionShot{
 		engine:   engine,
 		unit:     unit,
-		origin:   origin,
+		origin:   startRay,
 		velocity: velocity,
 	}
 	s.checkForCheating()

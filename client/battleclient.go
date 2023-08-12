@@ -23,6 +23,7 @@ type BattleClient struct {
 	chunkShader         *glhf.Shader
 	lineShader          *glhf.Shader
 	guiShader           *glhf.Shader
+	circleShader        *glhf.Shader
 	textLabel           *etxt.TextMesh
 	textRenderer        *etxt.OpenGLTextRenderer
 	lastHitInfo         *game.RayCastHit
@@ -119,6 +120,7 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	myApp.chunkShader = myApp.loadChunkShader()
 	myApp.lineShader = myApp.loadLineShader()
 	myApp.guiShader = myApp.loadGuiShader()
+	myApp.circleShader = myApp.loadCircleShader()
 	myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
 	myApp.textRenderer = etxt.NewOpenGLTextRenderer(myApp.guiShader)
 	myApp.DrawFunc = myApp.Draw
@@ -139,10 +141,13 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
 	myApp.SwitchToBlockSelector()
-	myApp.textRenderer.SetAlign(etxt.YCenter, etxt.XCenter)
-	crosshair := myApp.textRenderer.DrawText("+")
-	crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
-	myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
+	/* Old Crosshair
+	   myApp.textRenderer.SetAlign(etxt.YCenter, etxt.XCenter)
+	   crosshair := myApp.textRenderer.DrawText("+")
+	   crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
+	   myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
+	*/
+	crosshair := NewCrosshair(myApp.circleShader, glApp.WindowWidth, glApp.WindowHeight)
 	myApp.SetCrosshair(crosshair)
 
 	return myApp
@@ -407,10 +412,16 @@ func (a *BattleClient) drawGUI() {
 	if a.actionbar != nil {
 		a.actionbar.Draw()
 	}
-	if a.crosshair != nil {
-		a.crosshair.Draw()
-	}
+
 	a.guiShader.End()
+
+	if a.cameraIsFirstPerson {
+		a.circleShader.Begin()
+		if a.crosshair != nil {
+			a.crosshair.Draw()
+		}
+		a.circleShader.End()
+	}
 }
 
 func (a *BattleClient) SwitchToUnit(unit *Unit) {
@@ -499,9 +510,10 @@ func (a *BattleClient) GetNextUnit(unit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleClient) SwitchToFirstPerson(position mgl32.Vec3) {
+func (a *BattleClient) SwitchToFirstPerson(position mgl32.Vec3, accuracy float64) {
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
+	a.crosshair.SetSize(1.0 - accuracy)
 	a.cameraIsFirstPerson = true
 	a.freezeIdleAnimations()
 }

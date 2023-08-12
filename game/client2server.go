@@ -42,9 +42,14 @@ type TargetedUnitActionMessage struct {
 
 type FreeAimActionMessage struct {
 	UnitMessage
-	Action   string
-	Origin   mgl32.Vec3
-	Velocity mgl32.Vec3
+	Action  string
+	CamPos  mgl32.Vec3
+	CamRotX float32
+	CamRotY float32
+}
+type MapLoadedMessage struct {
+	ClientWindowWidth  int
+	ClientWindowHeight int
 }
 type CreateGameMessage struct {
 	Map            string

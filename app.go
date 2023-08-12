@@ -54,7 +54,7 @@ func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedM
 		gameClient.AddOwnedUnit(unit, gameInfo.OwnID)
 	}
 	gameClient.SwitchToWaitForEvents()
-	util.MustSend(con.MapLoaded())
+	util.MustSend(con.MapLoaded(width, height))
 
 	gameClient.Run()
 }

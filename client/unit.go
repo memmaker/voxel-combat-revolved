@@ -323,6 +323,10 @@ func (p *Unit) IsActive() bool {
 	return !p.IsDead() && !p.IsDying()
 }
 
+func (p *Unit) GetFreeAimAccuracy() float64 {
+	return p.unitType.Accuracy
+}
+
 func NewUnit(id uint64, name string, pos voxel.Int3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {
 	a := &Unit{
 		ID:                   id,

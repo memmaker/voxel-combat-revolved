@@ -34,12 +34,18 @@ func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
 type PositionDrawable interface {
 	SetPosition(pos mgl32.Vec3)
 	Draw()
+	SetSize(scaleFactor float64)
 }
 
 type GroundSelector struct {
 	mesh   *util.CompoundMesh
 	shader *glhf.Shader
 	hide   bool
+}
+
+func (g *GroundSelector) SetSize(scaleFactor float64) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {

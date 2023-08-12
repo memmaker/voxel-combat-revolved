@@ -149,7 +149,11 @@ func MustLoadTexture(filePath string) *glhf.Texture {
 	return texture
 }
 
-func Get2DOrthographicProjectionMatrix(width, height int) mgl32.Mat4 {
+func Get2DPixelCoordOrthographicProjectionMatrix(width, height int) mgl32.Mat4 {
 	// we want 0,0 to be at the top left
 	return mgl32.Ortho2D(0, float32(width), float32(height), 0)
+}
+
+func Get2DOrthographicProjectionMatrix() mgl32.Mat4 {
+	return mgl32.Ortho2D(0, 1, 1, 0)
 }

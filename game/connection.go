@@ -122,8 +122,8 @@ func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, 
 	return c.send("UnitAction", message)
 }
 
-func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, origin mgl32.Vec3, velocity mgl32.Vec3) error {
-	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Origin: origin, Velocity: velocity}
+func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, camRotX, camRotY float32) error {
+	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, CamRotX: camRotX, CamRotY: camRotY}
 	return c.send("FreeAimAction", message)
 }
 
@@ -134,6 +134,6 @@ func (c *ServerConnection) EndTurn() error {
 	return c.send("EndTurn", NoData{})
 }
 
-func (c *ServerConnection) MapLoaded() error {
-	return c.send("MapLoaded", NoData{})
+func (c *ServerConnection) MapLoaded(windowWidth, windowHeight int) error {
+	return c.send("MapLoaded", MapLoadedMessage{ClientWindowWidth: windowWidth, ClientWindowHeight: windowHeight})
 }

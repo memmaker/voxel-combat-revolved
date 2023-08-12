@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"path"
@@ -29,6 +30,7 @@ func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool)
 		playerUnits:           make(map[uint64][]*game.UnitInstance),
 		playersNeeded:         2,
 		voxelMap:              loadedMap,
+		cameras: 			 make(map[uint64]*util.FPSCamera),
 	}
 }
 
@@ -48,6 +50,7 @@ type GameInstance struct {
 	playerFactions        map[uint64]*Faction
 	playerUnits           map[uint64][]*game.UnitInstance
 	playersNeeded         int
+	cameras              map[uint64]*util.FPSCamera
 }
 
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
@@ -173,7 +176,9 @@ func (g *GameInstance) GetTargetedAction(targetAction game.TargetedUnitActionMes
 func (g *GameInstance) GetFreeAimAction(msg game.FreeAimActionMessage, unit *game.UnitInstance) ServerAction {
 	switch msg.Action {
 	case "Shot":
-		return NewServerActionFreeShot(g, unit, msg.Origin, msg.Velocity)
+		camera := g.cameras[unit.ControlledBy()]
+		camera.Reposition(msg.CamPos, msg.CamRotX, msg.CamRotY)
+		return NewServerActionFreeShot(g, unit, camera)
 	}
 	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", msg.Action))
 	return nil
@@ -210,4 +215,8 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 
 func (g *GameInstance) Kill(killer, victim *game.UnitInstance) {
 	victim.Kill()
+}
+
+func (g *GameInstance) SetCamera(userID uint64, camera *util.FPSCamera) {
+	g.cameras[userID] = camera
 }

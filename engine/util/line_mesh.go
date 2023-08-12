@@ -12,6 +12,10 @@ type LineMesh struct {
 	shader   *glhf.Shader
 }
 
+func (m *LineMesh) SetSize(scaleFactor float64) {
+	panic("implement me")
+}
+
 func (m *LineMesh) SetPosition(pos mgl32.Vec3) {
 	m.pos = pos
 }

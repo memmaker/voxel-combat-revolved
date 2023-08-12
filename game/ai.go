@@ -38,7 +38,7 @@ func (c *DummyClient) OnServerMessage(msg StringMessage) {
 		println("Game started!")
 		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
 		c.voxelMap = loadedMap
-		util.MustSend(c.connection.MapLoaded())
+		util.MustSend(c.connection.MapLoaded(800, 600))
 	case "TargetedUnitActionResponse":
 		var actionResponse ActionResponse
 		if util.FromJson(msg.Message, &actionResponse) {

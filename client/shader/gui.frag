@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec3 VertPos;
+in vec2 VertPos;
 in vec2 VertUV;
 
 uniform sampler2D tex;

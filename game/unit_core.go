@@ -44,8 +44,9 @@ type UnitClientDefinition struct {
 }
 
 type UnitCoreStats struct {
-	Health int
-	Speed  int
+	Health   int     // Health points, unit dies when this reaches 0
+	Speed    int     // Speed is the number of grid cells the unit can move per turn
+	Accuracy float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
 }
 
 type UnitDefinition struct {
@@ -205,6 +206,10 @@ func (u *UnitInstance) Kill() {
 	u.canAct = false
 	u.isDead = true
 	u.voxelMap.RemoveUnit(u, u.Position)
+}
+
+func (u *UnitInstance) GetFreeAimAccuracy() float64 {
+	return u.UnitDefinition.CoreStats.Accuracy
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {

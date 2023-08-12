@@ -55,6 +55,10 @@ func EucledianDistance3D(one, two mgl32.Vec3) float32 {
 	return float32(math.Sqrt(float64((one.X()-two.X())*(one.X()-two.X()) + (one.Y()-two.Y())*(one.Y()-two.Y()) + (one.Z()-two.Z())*(one.Z()-two.Z()))))
 }
 
+func Clamp(value, min, max float64) float64 {
+	return math.Min(math.Max(value, min), max)
+}
+
 func IntMax3(i int, i2 int, i3 int) int {
 	max := i
 	if i2 > max {

@@ -126,24 +126,11 @@ func (c *ISOCamera) GetNearPlaneDist() float32 {
 }
 
 func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
-	rayLength := float32(100)
-	proj := c.GetProjectionMatrix()
-	view := c.GetViewMatrix()
-	projViewInverted := proj.Mul4(view).Inv()
 	// normalize x and y to -1..1
 	normalizedX := (float32(x)/float32(c.windowWidth))*2 - 1
 	normalizedY := ((float32(y)/float32(c.windowHeight))*2 - 1) * -1
-	normalizedNearPos := mgl32.Vec4{normalizedX, normalizedY, c.GetNearPlaneDist(), 1}
-	normalizedFarPos := mgl32.Vec4{normalizedX, normalizedY, c.GetNearPlaneDist() + rayLength, 1}
-	// project point from camera space to world space
-	nearWorldPos := projViewInverted.Mul4x1(normalizedNearPos)
-	farWorldPos := projViewInverted.Mul4x1(normalizedFarPos)
-	// perspective divide
-	rayStart := nearWorldPos.Vec3().Mul(1 / nearWorldPos.W())
-	farPosCorrected := farWorldPos.Vec3().Mul(1 / farWorldPos.W())
-	dir := rayStart.Sub(farPosCorrected).Normalize()
-	rayEnd := rayStart.Add(dir.Mul(rayLength))
-	return rayStart, rayEnd
+
+	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
 }
 
 func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {

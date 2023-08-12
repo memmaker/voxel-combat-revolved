@@ -31,6 +31,12 @@ var (
 
 	//go:embed shader/gui.frag
 	guiFragmentShaderSource string
+
+	//go:embed shader/circle.vert
+	circleVertexShaderSource string
+
+	//go:embed shader/circle.frag
+	circleFragmentShaderSource string
 )
 
 func (a *BattleClient) loadGuiShader() *glhf.Shader {
@@ -53,7 +59,33 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 	}
 
 	shader.Begin()
-	shader.SetUniformAttr(0, util.Get2DOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
+	shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
+	shader.End()
+	return shader
+}
+func (a *BattleClient) loadCircleShader() *glhf.Shader {
+	var (
+		vertexFormat = glhf.AttrFormat{
+			{Name: "position", Type: glhf.Vec2},
+			{Name: "texCoord", Type: glhf.Vec2},
+		}
+		uniformFormat = glhf.AttrFormat{
+			glhf.Attr{Name: "projection", Type: glhf.Mat4},
+			glhf.Attr{Name: "model", Type: glhf.Mat4},
+			glhf.Attr{Name: "circleColor", Type: glhf.Vec3},
+			glhf.Attr{Name: "thickness", Type: glhf.Float},
+		}
+		shader *glhf.Shader
+	)
+	var err error
+	shader, err = glhf.NewShader(vertexFormat, uniformFormat, circleVertexShaderSource, circleFragmentShaderSource)
+
+	if err != nil {
+		panic(err)
+	}
+
+	shader.Begin()
+	shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
 	shader.End()
 	return shader
 }
