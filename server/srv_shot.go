@@ -24,7 +24,7 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionShot {
 	otherUnit := engine.voxelMap.GetMapObjectAt(target).(*game.UnitInstance)
 	sourceOfProjectile := unit.GetEyePosition()
-	directionVector := otherUnit.GetPosition().Sub(sourceOfProjectile).Normalize()
+	directionVector := otherUnit.GetCenterOfMassPosition().Sub(sourceOfProjectile).Normalize()
 	sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
 	velocity := directionVector.Mul(10)
 	s := &ServerActionShot{
@@ -66,7 +66,6 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision"))
 		}
 	}
-
 	mb.AddMessageForAll(game.VisualProjectileFired{
 		Origin:      a.origin,
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,

@@ -3,16 +3,27 @@
  - Free aim
  - No unit collisions
  - Big units
+ - Animations
+ - Data driven
 
 
 # We need
- - Circle drawing (Targeting reticule)
+ - OpenGL Rendering Pipeline - DONE
+ - 3D DDA Raycasting - DONE
+ - Greedy Meshing - DONE
+ - Dijkstra Pathfinding - DONE
+ - GLTF Model Loading & Animation - DONE
+ - Voxel Editing, Saving & Loading - DONE
+ - Networked Multiplayer & Standalone Multihreaded Singleplayer - DONE
+ - FPS & ISO Camera - DONE
+ - Circle drawing (Targeting reticule) - DONE
  - Line Drawing (Paths & Line Of Sight)
  - Arc drawing (Grenade throwing)
  - Particle effects (Explosions & blood)
  - Lighting (Shadows?)
  - Outlines for Bodyparts & Units (Targeting)
  - Smooth camera movement (Zooming & Panning)
+ - Data driven (Units, Items, Maps)
 
 # Sliders style setting / story
 

@@ -14,6 +14,5 @@ func (a *ActorIdleBehavior) Init(actor *Unit) {
 }
 
 func (a *ActorIdleBehavior) Execute(deltaTime float64) TransitionEvent {
-	a.actor.model.UpdateAnimations(deltaTime)
 	return a.actor.GetIdleEvents()
 }

@@ -18,7 +18,9 @@ type BattleServer struct {
 	availableMaps     map[string]string
 	availableFactions map[string]*Faction
 	availableUnits    []*game.UnitDefinition
-	connectedClients  map[uint64]*UserConnection
+	availableWeapons  map[string]*game.WeaponDefinition
+
+	connectedClients map[uint64]*UserConnection
 
 	// game instances
 	runningGames map[string]*GameInstance
@@ -287,6 +289,9 @@ var debugSpawnPositions = []voxel.Int3{
 	{X: 6, Y: 1, Z: 2},
 	{X: 4, Y: 1, Z: 13},
 	{X: 4, Y: 1, Z: 11},
+	{X: 2, Y: 1, Z: 6},
+	{X: 6, Y: 1, Z: 6},
+	{X: 2, Y: 1, Z: 10},
 }
 var debugSpawnCounter = 0
 
@@ -314,10 +319,15 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		spawnedUnitDef := b.availableUnits[unitChoice.UnitTypeID]
 		println(fmt.Sprintf("[BattleServer] %d selected unit %d", userID, spawnedUnitDef.ID))
 		unit := game.NewUnitInstance(unitChoice.Name, spawnedUnitDef)
-		unit.SetWeapon(unitChoice.Weapon)
+		chosenWeapon, weaponIsOK := b.availableWeapons[unitChoice.Weapon]
+		if weaponIsOK {
+			unit.SetWeapon(game.NewWeapon(chosenWeapon))
+		} else {
+			println(fmt.Sprintf("[BattleServer] %d tried to select weapon '%s', but it does not exist", userID, unitChoice.Weapon))
+		}
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.voxelMap)
-		unit.SetBlockPosition(debugSpawnPositions[debugSpawnCounter])
+		unit.SetBlockPositionAndUpdateMapAndModel(debugSpawnPositions[debugSpawnCounter])
 		unit.SetForward(voxel.Int3{X: 0, Y: 0, Z: 1})
 		debugSpawnCounter = (debugSpawnCounter + 1) % len(debugSpawnPositions)
 		gameInstance.AddUnit(userID, unit) // sets the instance userID
@@ -524,12 +534,17 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	}
 }
 
+func (b *BattleServer) AddWeapon(weaponDefinition game.WeaponDefinition) {
+	b.availableWeapons[weaponDefinition.UniqueName] = &weaponDefinition
+}
+
 func NewBattleServer() *BattleServer {
 	return &BattleServer{
 		availableMaps:     make(map[string]string),          // filename -> display name
 		availableFactions: make(map[string]*Faction),        // faction name -> faction
 		connectedClients:  make(map[uint64]*UserConnection), // client id -> client
 		runningGames:      make(map[string]*GameInstance),   // game id -> game
+		availableWeapons:  make(map[string]*game.WeaponDefinition),
 	}
 }
 

@@ -20,6 +20,7 @@ type CompoundMesh struct {
 	currentAnimation string
 	animationSpeed   float64
 	loopAnimation    bool
+	holdAnimation    bool
 }
 
 func (m *CompoundMesh) ConvertVertexData(shader *glhf.Shader) {
@@ -27,10 +28,13 @@ func (m *CompoundMesh) ConvertVertexData(shader *glhf.Shader) {
 }
 
 func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
+	if m.holdAnimation {
+		return false
+	}
 	scaledDeltaTime := deltaTime * m.animationSpeed
 	animationFinished := m.RootNode.UpdateAnimation(m.SamplerFrames[m.currentAnimation], scaledDeltaTime)
 	if animationFinished && !m.loopAnimation {
-		m.StopAnimations()
+		m.holdAnimation = true
 	}
 	return animationFinished
 }
@@ -46,6 +50,7 @@ func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
 }
 
 func (m *CompoundMesh) SetYRotationAngle(angle float32) {
+	//println(fmt.Sprintf("[CompoundMesh] Setting Y rotation angle to %f", angle))
 	m.RootNode.SetYRotationAngle(angle)
 }
 
@@ -103,7 +108,6 @@ type MeshNode struct {
 	animations       map[string]*SimpleAnimationData
 	currentAnimation string
 	animationTimer   float64
-	holdAnimation    bool
 
 	currentTranslationFrame int
 	currentRotationFrame    int
@@ -194,10 +198,6 @@ func (m *MeshNode) LocalMatrix() mgl32.Mat4 {
 	scale := mgl32.Scale3D(m.scale[0], m.scale[1], m.scale[2])
 	return translation.Mul4(quaternion).Mul4(scale)
 }
-func (m *CompoundMesh) SetAnimation(animationName string) {
-	m.currentAnimation = animationName
-	m.RootNode.ChangeAnimation(animationName)
-}
 
 func (m *CompoundMesh) GetFront() mgl32.Vec3 {
 	return m.RootNode.GetFront()
@@ -207,21 +207,36 @@ func (m *CompoundMesh) SetXRotationAngle(angle float32) {
 	m.RootNode.SetXRotationAngle(angle)
 }
 
+func (m *CompoundMesh) ResetAnimations() {
+	println("[CompoundMesh] Resetting animations")
+	m.RootNode.ResetAnimations()
+}
 func (m *CompoundMesh) StopAnimations() {
-	m.RootNode.StopAnimations()
+	println("[CompoundMesh] Stopping animations")
+	m.holdAnimation = true
 }
-func (m *CompoundMesh) StartAnimationLoop(animationName string, speedFactor float64) {
+func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float64) {
+	println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
-	m.SetAnimation(animationName)
+	m.currentAnimation = animationName
+	m.RootNode.SetAnimation(animationName)
 	m.loopAnimation = true
+	m.holdAnimation = false
 }
-
-func (m *CompoundMesh) PlayAnimation(animationName string, speedFactor float64) {
+func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
+	println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
-	m.SetAnimation(animationName)
+	m.currentAnimation = animationName
+	m.RootNode.SetAnimation(animationName)
 	m.loopAnimation = false
+	m.holdAnimation = false
 }
 
+func (m *CompoundMesh) SetAnimationPose(animation string) {
+	println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
+	m.RootNode.SetAnimationPose(animation)
+	m.holdAnimation = true
+}
 func (m *CompoundMesh) GetAnimationDebugString() string {
 	return m.RootNode.GetAnimationDebugString(0)
 }
@@ -230,13 +245,14 @@ func (m *CompoundMesh) HideBone(name string) {
 	m.RootNode.HideBone(name)
 }
 
+func (m *CompoundMesh) IsHoldingAnimation() bool {
+	return m.holdAnimation
+}
+
 func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception string) {
 	m.RootNode.HideChildrenOfBoneExcept(false, parentName, exception)
 }
 
-func (m *CompoundMesh) SetAnimationPose(animation string) {
-	m.RootNode.SetAnimationPose(animation)
-}
 func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
@@ -245,14 +261,13 @@ func (m *MeshNode) SetAnimationPose(name string) {
 		m.currentAnimation = name
 		m.ResetAnimation()
 		m.InitAnimationPose()
-		m.holdAnimation = true
 	} else {
 		m.currentAnimation = ""
 	}
 }
-func (m *MeshNode) ChangeAnimation(name string) {
+func (m *MeshNode) SetAnimation(name string) {
 	for _, child := range m.children {
-		child.ChangeAnimation(name)
+		child.SetAnimation(name)
 	}
 	if m.currentAnimation == name {
 		return
@@ -274,7 +289,6 @@ func (m *MeshNode) ResetAnimation() {
 	m.outOfTranslationFrames = false
 	m.outOfRotationFrames = false
 	m.outOfScaleFrames = false
-	m.holdAnimation = false
 }
 func (m *MeshNode) InitAnimationPose() {
 	if m.IsAnimated() {
@@ -294,9 +308,6 @@ func (m *MeshNode) InitAnimationPose() {
 	}
 }
 func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64) bool {
-	if m.holdAnimation {
-		return false
-	}
 	animationFinished := false
 	if m.IsAnimated() {
 		m.animationTimer += deltaTime
@@ -466,11 +477,11 @@ func (m *MeshNode) GetColliders() []Collider {
 func (m *MeshNode) GetFront() mgl32.Vec3 {
 	return m.quatRotation.Rotate(mgl32.Vec3{1, 0, 0})
 }
-func (m *MeshNode) StopAnimations() {
+func (m *MeshNode) ResetAnimations() {
 	m.currentAnimation = ""
 	m.ResetAnimation()
 	for _, child := range m.children {
-		child.StopAnimations()
+		child.ResetAnimations()
 	}
 }
 

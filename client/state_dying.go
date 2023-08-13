@@ -12,13 +12,14 @@ func (a *ActorDyingBehavior) GetName() ActorState {
 
 func (a *ActorDyingBehavior) Init(actor *Unit) {
 	a.actor = actor
+	a.actor.Kill()
 	direction := a.actor.hitInfo.ForceOfImpact.Normalize().Mul(-1)
 	a.actor.turnToDirectionForDeathAnimation(direction)
-	a.actor.model.PlayAnimation(game.AnimationDeath.Str(), 1.0)
+	a.actor.GetModel().SetAnimation(game.AnimationDeath.Str(), 1.0)
 }
 
 func (a *ActorDyingBehavior) Execute(deltaTime float64) TransitionEvent {
-	finished := a.actor.model.UpdateAnimations(deltaTime)
+	finished := a.actor.GetModel().IsHoldingAnimation()
 	if finished {
 		return EventAnimationFinished
 	}

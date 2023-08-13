@@ -68,7 +68,7 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 		//destination := sourceOffset.Add(velocity)
 		//g.engine.SpawnProjectile(sourceOffset, velocity)
 
-		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.ID, g.selectedAction.GetName(), camPos, camRotX, camRotY))
+		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
 	}
 }
 

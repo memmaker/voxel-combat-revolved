@@ -33,7 +33,7 @@ func (a *ActionMove) GetName() string {
 }
 
 func (a *ActionMove) GetValidTargets(unit UnitCore) []voxel.Int3 {
-	footPosInt := voxel.ToGridInt3(unit.GetFootPosition())
+	footPosInt := unit.GetBlockPosition()
 	var valid []voxel.Int3
 	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), unit.MovesLeft(), NewPather(a.gameMap, unit))
 	for node, distance := range dist {

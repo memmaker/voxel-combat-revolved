@@ -97,7 +97,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	}
 
 	a.unit.SetForward(unitForward)
-	a.unit.SetBlockPosition(destination)
+	a.unit.SetBlockPositionAndUpdateMapAndModel(destination)
 
 	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward().ToString()))
 

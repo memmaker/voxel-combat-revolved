@@ -1,8 +1,8 @@
 package voxel
 
 type Block struct {
-	ID           byte
-	occupant    MapObject
+	ID       byte
+	occupant MapObject
 }
 
 func (b *Block) IsAir() bool {
@@ -14,7 +14,7 @@ func (b *Block) GetTextureIndexForSide(side FaceType) byte {
 }
 
 func (b *Block) RemoveUnit(unit MapObject) {
-	if b.occupant == unit {
+	if b.occupant.UnitID() == unit.UnitID() {
 		b.occupant = nil
 	}
 }

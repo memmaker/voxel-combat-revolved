@@ -5,7 +5,6 @@ type ActorWaitingBehavior struct {
 }
 
 func (a *ActorWaitingBehavior) Execute(deltaTime float64) TransitionEvent {
-	a.actor.model.UpdateAnimations(deltaTime)
 	if a.actor.shouldContinue(deltaTime) {
 		return EventFinishedWaiting
 	}
@@ -18,6 +17,5 @@ func (a *ActorWaitingBehavior) GetName() ActorState {
 
 func (a *ActorWaitingBehavior) Init(actor *Unit) {
 	a.actor = actor
-	actor.model.StopAnimations()
 	actor.StartIdleAnimationLoop()
 }

@@ -13,6 +13,7 @@ type DummyClient struct {
 	voxelMap       *voxel.Map
 	movedUnits     map[uint64]bool
 	waitingForUnit uint64
+	turnCounter    int
 }
 
 func NewDummyClient(endpoint string) *DummyClient {
@@ -30,14 +31,19 @@ func (c *DummyClient) OnServerMessage(msg StringMessage) {
 		if turnInfo.YourTurn {
 			c.resetTurn()
 			c.makeMove()
+			c.turnCounter++
 		}
 	case "GameStarted":
 		var gameInfo GameStartedMessage
 		util.FromJson(msg.Message, &gameInfo)
 		c.ownUnits = gameInfo.OwnUnits
+
 		println("Game started!")
 		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
 		c.voxelMap = loadedMap
+		for _, unit := range c.ownUnits {
+			unit.SetVoxelMap(c.voxelMap)
+		}
 		util.MustSend(c.connection.MapLoaded())
 	case "TargetedUnitActionResponse":
 		var actionResponse ActionResponse
@@ -72,8 +78,15 @@ func (c *DummyClient) makeMove() {
 	validMoves := moveAction.GetValidTargets(unit)
 	if len(validMoves) > 0 {
 		chosenDest := choseRandom(validMoves)
+		moves := int32(4)
+		if c.turnCounter%2 == 1 {
+			moves *= -1
+		}
+		chosenDest = unit.GetBlockPosition().Add(voxel.Int3{0, 0, moves})
 		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
 		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), chosenDest))
+		// HACK: assume this works
+		unit.SetBlockPositionAndUpdateMapAndModel(chosenDest)
 		c.waitingForUnit = unit.UnitID()
 	} else {
 		println(fmt.Sprintf("[DummyClient] No valid moves for unit %s(%d)", unit.Name, unit.UnitID()))
@@ -139,14 +152,29 @@ func (c *DummyClient) CreateGameSequence() {
 	util.MustSend(con.SelectUnits([]UnitChoice{
 		{
 			UnitTypeID: 0,
-			Name:       "Steve",
-			Weapon:     "Sniper",
+			Name:       "Jimmy",
+			Weapon:     "Mossberg 500",
 		},
-		{
-			UnitTypeID: 1,
-			Name:       "Walker",
-			//Weapon:     "Sniper",
-		},
+		/*
+			{
+				UnitTypeID: 0,
+				Name:       "Bimmy",
+				Weapon:     "Steyr SSG 69",
+			},
+			{
+				UnitTypeID: 0,
+				Name:       "Timmy",
+				Weapon:     "M16 Rifle",
+			},
+		*/
+		/*
+			{
+				UnitTypeID: 1,
+				Name:       "Walker",
+				//Weapon:     "Sniper",
+			},
+
+		*/
 	}))
 	util.WaitForTrue(&unitSelectionSuccess)
 

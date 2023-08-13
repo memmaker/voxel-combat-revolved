@@ -107,5 +107,40 @@ func NewBattleServer() *server.BattleServer {
 			},
 		},
 	})
+	battleServer.AddWeapon(game.WeaponDefinition{
+		UniqueName:       "M16 Rifle",
+		Model:            "Rifle",
+		WeaponType:       game.WeaponAutomatic,
+		AccuracyModifier: 0.75,
+		BulletsPerShot:   3,
+		EffectiveRange:   10,
+		MaxRange:         20,
+		MagazineSize:     5,
+		BaseDamage:       3,
+	})
+
+	battleServer.AddWeapon(game.WeaponDefinition{
+		UniqueName:       "Mossberg 500",
+		Model:            "Mossberg",
+		WeaponType:       game.WeaponShotgun,
+		AccuracyModifier: 0.5,
+		BulletsPerShot:   5,
+		EffectiveRange:   7,
+		MaxRange:         14,
+		MagazineSize:     3,
+		BaseDamage:       2,
+	})
+
+	battleServer.AddWeapon(game.WeaponDefinition{
+		UniqueName:       "Steyr SSG 69",
+		Model:            "Sniper",
+		WeaponType:       game.WeaponSniper,
+		AccuracyModifier: 1.1,
+		BulletsPerShot:   1,
+		EffectiveRange:   15,
+		MaxRange:         30,
+		MagazineSize:     3,
+		BaseDamage:       4,
+	})
 	return battleServer
 }

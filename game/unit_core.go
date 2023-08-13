@@ -26,15 +26,11 @@ const (
 )
 
 type UnitCore interface {
-	GetFootPosition() mgl32.Vec3
 	GetName() string
-	SetPath(path []voxel.Int3)
 	MovesLeft() int
 	GetEyePosition() mgl32.Vec3
-	GetPosition() mgl32.Vec3
-	SetPosition(pos mgl32.Vec3)
-	SetFootPosition(pos mgl32.Vec3)
-	SetBlockPosition(pos voxel.Int3)
+	SetBlockPositionAndUpdateMapAndModel(pos voxel.Int3)
+	GetBlockPosition() voxel.Int3
 	UnitID() uint64
 	ControlledBy() uint64
 	GetOccupiedBlockOffsets() []voxel.Int3
@@ -49,6 +45,8 @@ type UnitCoreStats struct {
 	Accuracy float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
 }
 
+// UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
+// This is a basic unit archetype, from which the player chooses.
 type UnitDefinition struct {
 	ID uint64 // ID of the unit definition (= unit type)
 
@@ -59,22 +57,20 @@ type UnitDefinition struct {
 	OccupiedBlockOffsets []voxel.Int3
 }
 
+// UnitInstance is an instance of an unit on the battlefield. It contains the dynamic information about the unit.
 type UnitInstance struct {
-	GameUnitID     uint64 // ID of the unit in the current game instance
-	controlledBy   uint64 // ID of the player controlling this unit
-	Name           string
-	Position       voxel.Int3
-	UnitDefinition *UnitDefinition // ID of the unit definition (= unit type)
-	canAct         bool
-	voxelMap       *voxel.Map
-	model          *util.CompoundMesh
-	Weapon         string
-	ForwardVector  voxel.Int3
-	isDead         bool
-}
-
-func (u *UnitInstance) SetPath(path []voxel.Int3) {
-	u.SetBlockPosition(path[len(path)-1])
+	GameUnitID    uint64 // ID of the unit in the current game instance
+	controlledBy  uint64 // ID of the player controlling this unit
+	Name          string
+	Position      voxel.Int3
+	Definition    *UnitDefinition // ID of the unit definition (= unit type)
+	canAct        bool
+	movesLeft     int
+	voxelMap      *voxel.Map
+	model         *util.CompoundMesh
+	Weapon        *Weapon
+	ForwardVector voxel.Int3
+	isDead        bool
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -90,21 +86,21 @@ func (u *UnitInstance) GetName() string {
 }
 
 func (u *UnitInstance) MovesLeft() int {
-	return u.UnitDefinition.CoreStats.Speed
+	return u.Definition.CoreStats.Speed
 }
 
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
-	return u.UnitDefinition.OccupiedBlockOffsets
+	return u.Definition.OccupiedBlockOffsets
 }
 
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	compoundMesh := util.LoadGLTF(unitDef.ModelFile)
 	compoundMesh.RootNode.CreateColliders()
 	return &UnitInstance{
-		Name:           name,
-		UnitDefinition: unitDef,
-		canAct:         true,
-		model:          compoundMesh, // todo: cache models?
+		Name:       name,
+		Definition: unitDef,
+		canAct:     true,
+		model:      compoundMesh, // todo: cache models?
 	}
 }
 
@@ -123,29 +119,28 @@ func (u *UnitInstance) NextTurn() {
 	u.canAct = true
 }
 
-func (u *UnitInstance) GetPosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1, 0})
+// UpdateMapAndModelPosition updates the position of the unit in the voxel map and the model position and rotation.
+// It will also set the animation pose on the model.
+func (u *UnitInstance) UpdateMapAndModelPosition() {
+	u.voxelMap.SetUnit(u, u.Position)
+	if u.model != nil {
+		u.UpdateModelPositionAndRotation()
+	}
+	//println(u.model.GetAnimationDebugString())
 }
 
-func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
-	footPosition := pos.Sub(mgl32.Vec3{0, 1, 0})
-	u.SetBlockPosition(voxel.ToGridInt3(footPosition))
-}
-
-func (u *UnitInstance) SetFootPosition(pos mgl32.Vec3) {
-	u.SetBlockPosition(voxel.ToGridInt3(pos))
-}
-
-func (u *UnitInstance) updateMapAndModelPosition(old voxel.Int3) {
+func (u *UnitInstance) UpdateModelPositionAndRotation() {
 	worldPos := u.Position.ToBlockCenterVec3()
 	u.model.RootNode.Translate([3]float32{worldPos[0], worldPos[1], worldPos[2]})
-	u.voxelMap.MoveUnitTo(u, old, u.Position)
 	println(fmt.Sprintf("[UnitInstance] Moved %s(%d) to %v facing %v", u.GetName(), u.UnitID(), u.Position, u.ForwardVector))
 	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Position, u.ForwardVector)
 	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
 	u.SetForward(newForward)
-	u.model.SetAnimationPose(animation.Str())
-	//println(u.model.GetAnimationDebugString())
+	u.model.SetAnimationLoop(animation.Str(), 1.0)
+}
+
+func (u *UnitInstance) UpdateMapPosition(old voxel.Int3) {
+
 }
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
@@ -155,10 +150,17 @@ func (u *UnitInstance) GetFootPosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3()
 }
 
-func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
-	oldPos := u.Position
+// SetBlockPositionAndUpdateMapAndModel sets the position of the unit in the voxel map.
+// NOTE: THIS WILL CALL updateMapAndModelPosition.
+// CALLING THIS WILL FREEZE THE ANIMATION OF THE UNIT.
+func (u *UnitInstance) SetBlockPositionAndUpdateMapAndModel(pos voxel.Int3) {
 	u.Position = pos
-	u.updateMapAndModelPosition(oldPos)
+	u.UpdateMapAndModelPosition()
+}
+
+func (u *UnitInstance) SetBlockPositionAndUpdateMap(pos voxel.Int3) {
+	u.Position = pos
+	u.voxelMap.SetUnit(u, u.Position)
 }
 
 func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
@@ -185,15 +187,17 @@ func (u *UnitInstance) GetColliders() []util.Collider {
 	return u.model.RootNode.GetColliders()
 }
 
-func (u *UnitInstance) SetWeapon(weapon string) {
+func (u *UnitInstance) SetWeapon(weapon *Weapon) {
 	u.Weapon = weapon
 }
 
-func (u *UnitInstance) GetWeapon() string {
+func (u *UnitInstance) GetWeapon() *Weapon {
 	return u.Weapon
 }
 
+// SetForward sets the forward vector of the unit and rotates the model accordingly
 func (u *UnitInstance) SetForward(forward voxel.Int3) {
+	//println(fmt.Sprintf("[UnitInstance] SetForward for %s(%d): %v", u.GetName(), u.UnitID(), forward))
 	u.ForwardVector = forward
 	u.model.SetYRotationAngle(util.DirectionToAngle(forward))
 }
@@ -205,11 +209,27 @@ func (u *UnitInstance) GetForward() voxel.Int3 {
 func (u *UnitInstance) Kill() {
 	u.canAct = false
 	u.isDead = true
-	u.voxelMap.RemoveUnit(u, u.Position)
+	u.voxelMap.RemoveUnit(u)
 }
 
 func (u *UnitInstance) GetFreeAimAccuracy() float64 {
-	return u.UnitDefinition.CoreStats.Accuracy
+	return u.Definition.CoreStats.Accuracy * u.Weapon.Definition.AccuracyModifier
+}
+
+func (u *UnitInstance) SetModel(model *util.CompoundMesh) {
+	u.model = model
+}
+
+func (u *UnitInstance) GetModel() *util.CompoundMesh {
+	return u.model
+}
+
+func (u *UnitInstance) GetVoxelMap() *voxel.Map {
+	return u.voxelMap
+}
+
+func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
+	return u.Position.Add(voxel.Int3{Y: 1}).ToBlockCenterVec3()
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {

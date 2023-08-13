@@ -1,6 +1,5 @@
 package client
 
-
 // state transition table
 // currentState, event, nextState
 
@@ -22,7 +21,7 @@ func NewActorTransitionTable() *TransitionTable {
 	//t.AddTransition(ActorStateWaiting, EventFinishedWaiting, ActorStateIdle)
 
 	// dying & death
-	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventHit, ActorStateDying)
+	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventLethalHit, ActorStateDying)
 	t.AddTransition(ActorStateDying, EventAnimationFinished, ActorStateDead)
 
 	return t
@@ -36,7 +35,7 @@ const (
 	EventNone TransitionEvent = iota
 	EventNewPath
 	EventFinishedWaiting
-	EventHit
+	EventLethalHit
 	EventAnimationFinished
 	EventLastWaypointReached
 	EventWaypointReached
@@ -110,20 +109,20 @@ func contains(states []ActorState, state ActorState) bool {
 	return false
 }
 
-type Behavior interface {
+type AnimationState interface {
 	GetName() ActorState
 	Init(actor *Unit)
 	Execute(deltaTime float64) TransitionEvent
 }
 
-var BehaviorTable = map[ActorState]func() Behavior{
-	ActorStateIdle:    func() Behavior { return &ActorIdleBehavior{} },
-	UnitGotoWaypoint:  func() Behavior { return &UnitGotoWaypointBehavior{} },
-	ActorStateWaiting: func() Behavior { return &ActorWaitingBehavior{} },
-	ActorStateDying:   func() Behavior { return &ActorDyingBehavior{} },
-	ActorStateDead:    func() Behavior { return &ActorDeadBehavior{} },
+var BehaviorTable = map[ActorState]func() AnimationState{
+	ActorStateIdle:    func() AnimationState { return &ActorIdleBehavior{} },
+	UnitGotoWaypoint:  func() AnimationState { return &UnitGotoWaypointBehavior{} },
+	ActorStateWaiting: func() AnimationState { return &ActorWaitingBehavior{} },
+	ActorStateDying:   func() AnimationState { return &ActorDyingBehavior{} },
+	ActorStateDead:    func() AnimationState { return &ActorDeadBehavior{} },
 }
 
-func BehaviorFactory(state ActorState) Behavior {
+func BehaviorFactory(state ActorState) AnimationState {
 	return BehaviorTable[state]()
 }

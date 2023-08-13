@@ -38,7 +38,7 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 		for _, target := range g.validTargets {
 			if target == groundBlock {
 				println(fmt.Sprintf("[GameStateAction] Target %s is VALID, sending to server.", target.ToString()))
-				util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.ID, g.selectedAction.GetName(), target))
+				util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), target))
 				g.engine.PopState()
 			}
 		}

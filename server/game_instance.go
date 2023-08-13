@@ -30,7 +30,7 @@ func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool)
 		playerUnits:           make(map[uint64][]*game.UnitInstance),
 		playersNeeded:         2,
 		voxelMap:              loadedMap,
-		cameras: 			 make(map[uint64]*util.FPSCamera),
+		cameras:               make(map[uint64]*util.FPSCamera),
 	}
 }
 
@@ -50,7 +50,7 @@ type GameInstance struct {
 	playerFactions        map[uint64]*Faction
 	playerUnits           map[uint64][]*game.UnitInstance
 	playersNeeded         int
-	cameras              map[uint64]*util.FPSCamera
+	cameras               map[uint64]*util.FPSCamera
 }
 
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
@@ -132,18 +132,18 @@ func (g *GameInstance) AddUnit(userID uint64, unit *game.UnitInstance) uint64 {
 	}
 	unitInstanceID := uint64(len(g.units))
 	unit.SetGameUnitID(unitInstanceID)
-	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.UnitDefinition.ID, userID))
+	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unit)
 	g.units = append(g.units, unit)
 	g.factionMap[unit] = g.playerFactions[userID]
-	g.voxelMap.AddUnit(unit, unit.GetBlockPosition())
+	g.voxelMap.SetUnit(unit, unit.GetBlockPosition())
 	return unitInstanceID
 }
 
 func (g *GameInstance) GetUnitTypes(userID uint64) []uint64 {
 	var result []uint64
 	for _, unit := range g.playerUnits[userID] {
-		result = append(result, unit.UnitDefinition.ID)
+		result = append(result, unit.Definition.ID)
 	}
 	return result
 }

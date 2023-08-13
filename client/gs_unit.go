@@ -11,7 +11,8 @@ import (
 
 type GameStateUnit struct {
 	IsoMovementState
-	selectedUnit *Unit
+	selectedUnit     *Unit
+	noCameraMovement bool
 }
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
@@ -42,7 +43,9 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		footPos := util.ToGrid(g.selectedUnit.GetFootPosition())
 		g.engine.SwitchToGroundSelector()
 		g.engine.unitSelector.SetPosition(footPos)
-		g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+		if !g.noCameraMovement {
+			g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+		}
 		g.engine.actionbar.SetActions([]gui.ActionItem{
 			{
 				Name:         "Move",
@@ -80,7 +83,6 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 				},
 				Hotkey: glfw.KeyF,
 			},
-
 			{
 				Name:         "End Turn",
 				TextureIndex: 3,
@@ -98,9 +100,9 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 	hitInfo := g.engine.RayCastGround(rayStart, rayEnd)
 
 	if hitInfo.HitUnit() {
-		unitHit := hitInfo.UnitHit.(*Unit)
-		if unitHit != g.selectedUnit && unitHit.CanAct() && unitHit.IsUserControlled() {
-			g.selectedUnit = unitHit
+		unitHit := hitInfo.UnitHit.(*game.UnitInstance)
+		if unitHit != g.selectedUnit.UnitInstance && unitHit.CanAct() && g.engine.IsUnitOwnedByClient(unitHit.UnitID()) {
+			g.selectedUnit = g.engine.GetUnit(unitHit.UnitID())
 			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}

@@ -134,6 +134,7 @@ func (c *Crosshair) transformVertex(x, y float32, cam *util.FPSCamera, projViewI
 }
 
 func (c *Crosshair) thickness() float32 {
-	fovFactor := c.camera.GetFOV() / 45.0
+	fov := c.camera.GetFOV()
+	fovFactor := fov / 45.0
 	return c.currentThickness * fovFactor
 }

@@ -41,7 +41,7 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 			if block != nil && !block.IsAir() {
 				return true
 			} else if block.IsOccupied() {
-				unitHit = block.GetOccupant().(*Unit)
+				unitHit = block.GetOccupant()
 			}
 		}
 		return false

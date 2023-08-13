@@ -51,7 +51,7 @@ func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedM
 	gameClient.LoadMap(gameInfo.MapFile)
 
 	for _, unit := range gameInfo.OwnUnits {
-		gameClient.AddOwnedUnit(unit, gameInfo.OwnID)
+		gameClient.AddOwnedUnit(unit)
 	}
 	gameClient.SwitchToWaitForEvents()
 	util.MustSend(con.MapLoaded())
@@ -126,13 +126,18 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		util.MustSend(con.SelectUnits([]game.UnitChoice{
 			{
 				UnitTypeID: 0,
-				Name:       "Steve",
-				Weapon:     "Mossberg",
+				Name:       "Jimmy",
+				Weapon:     "Mossberg 500",
 			},
 			{
-				UnitTypeID: 1,
-				Name:       "Soldier X",
-				Weapon:     "Sniper",
+				UnitTypeID: 0,
+				Name:       "Bimmy",
+				Weapon:     "Steyr SSG 69",
+			},
+			{
+				UnitTypeID: 0,
+				Name:       "Timmy",
+				Weapon:     "M16 Rifle",
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)
@@ -147,13 +152,19 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		util.MustSend(con.SelectUnits([]game.UnitChoice{
 			{
 				UnitTypeID: 2,
-				Name:       "Support Guy",
-				Weapon:     "Rifle",
+				Name:       "Gnarg",
+				Weapon:     "M16 Rifle",
+			},
+
+			{
+				UnitTypeID: 2,
+				Name:       "Gorn",
+				Weapon:     "Steyr SSG 69",
 			},
 			{
-				UnitTypeID: 3,
-				Name:       "Deep One",
-				//Weapon:     "Rifle",
+				UnitTypeID: 2,
+				Name:       "Grimbel",
+				Weapon:     "Mossberg 500",
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)

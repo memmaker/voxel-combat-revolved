@@ -10,48 +10,19 @@ import (
 )
 
 type Unit struct {
-	ID                   uint64
-	unitType             game.UnitCoreStats
-	extents              mgl32.Vec3
-	model                *util.CompoundMesh
-	velocity             mgl32.Vec3
-	currentWaypoint      int
-	animationSpeed       float32
-	waypointTimer        float64
-	state                Behavior
-	transition           *TransitionTable
-	hitInfo              HitInfo
-	removeActor          bool
-	Height               uint8
-	eventQueue           []TransitionEvent
-	name                 string
-	currentPath          []voxel.Int3
-	voxelMap             *voxel.Map
-	canAct               bool
-	controlledByUser     bool
-	controlledBy         uint64
-	occupiedBlockOffsets []voxel.Int3
-	forwardVector        voxel.Int3
-}
-
-func (p *Unit) SetControlledBy(id uint64) {
-	p.controlledBy = id
-}
-
-func (p *Unit) ControlledBy() uint64 {
-	return p.controlledBy
-}
-
-func (p *Unit) UnitID() uint64 {
-	return p.ID
-}
-
-func (p *Unit) MovesLeft() int {
-	return p.unitType.Speed
-}
-
-func (p *Unit) GetOccupiedBlockOffsets() []voxel.Int3 {
-	return p.occupiedBlockOffsets
+	*game.UnitInstance
+	velocity         mgl32.Vec3
+	currentWaypoint  int
+	animationSpeed   float32
+	waypointTimer    float64
+	state            AnimationState
+	transition       *TransitionTable
+	hitInfo          HitInfo
+	removeActor      bool
+	eventQueue       []TransitionEvent
+	currentPath      []voxel.Int3
+	controlledByUser bool
+	forwardVector    voxel.Int3
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -60,34 +31,12 @@ func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
 	}
 	p.velocity = newVelocity
 }
-
-func (p *Unit) GetName() string {
-	return p.name
-}
-
 func (p *Unit) IsProjectile() bool {
 	return false
 }
 
-func (p *Unit) GetExtents() mgl32.Vec3 {
-	return p.extents
-}
-
-func (p *Unit) GetPosition() mgl32.Vec3 {
-	return p.model.GetPosition().Add(mgl32.Vec3{0, p.extents.Y() / 2, 0})
-}
-
-func (p *Unit) SetPosition(pos mgl32.Vec3) {
-	p.model.SetPosition(pos.Sub(mgl32.Vec3{0, p.extents.Y() / 2, 0}))
-}
-
 func (p *Unit) GetVelocity() mgl32.Vec3 {
 	return p.velocity
-}
-
-func (p *Unit) GetAABB() util.AABB {
-	center := p.model.GetPosition().Add(mgl32.Vec3{0, p.extents.Y() / 2, 0})
-	return util.NewAABB(center, p.extents)
 }
 
 func (p *Unit) GetIdleEvents() TransitionEvent {
@@ -105,6 +54,7 @@ func (p *Unit) Update(deltaTime float64) {
 	}
 
 	p.applyVelocity(deltaTime)
+	p.GetModel().UpdateAnimations(deltaTime)
 
 	currentState := p.state.GetName()
 	currentEvent := p.state.Execute(deltaTime)
@@ -122,7 +72,7 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	rawVelocity := p.GetVelocity()
 	appliedVelocity := rawVelocity.Add(gravity).Mul(float32(deltaTime))
 	if appliedVelocity.Len() > 1.0 {
-		appliedVelocity = appliedVelocity.Normalize().Mul(1.0)
+		appliedVelocity = appliedVelocity.Normalize()
 	}
 	newPos := previousPos.Add(appliedVelocity)
 
@@ -130,12 +80,9 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	newGrid := voxel.ToGridInt3(newPos)
 
 	if prevGrid != newGrid {
-		if p.voxelMap.IsSolidBlockAt(newGrid.X, newGrid.Y, newGrid.Z) {
+		if p.GetVoxelMap().IsSolidBlockAt(newGrid.X, newGrid.Y, newGrid.Z) {
 			newPos = previousPos.Add(mgl32.Vec3{appliedVelocity.X(), 0, appliedVelocity.Z()})
 			newGrid = voxel.ToGridInt3(newPos)
-		}
-		if prevGrid != newGrid {
-			p.voxelMap.MoveUnitTo(p, prevGrid, newGrid)
 		}
 	}
 	p.SetFootPosition(newPos)
@@ -152,7 +99,7 @@ type HitInfo struct {
 }
 
 func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartName) {
-	event := EventHit
+	event := EventLethalHit
 	// needs to be passed to the new state, we do indirectly via the unit
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
@@ -166,30 +113,18 @@ func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartNam
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
-	p.model.Draw(shader)
+	p.UnitInstance.GetModel().Draw(shader)
 }
 
-func (p *Unit) GetColliders() []util.Collider {
-	return p.model.RootNode.GetColliders()
-}
 func (p *Unit) SetFootPosition(position mgl32.Vec3) {
-	p.model.SetPosition(position)
-}
-
-// SetBlockPosition Is the one method that should be used to set the position of a unit
-func (p *Unit) SetBlockPosition(newBlockPosition voxel.Int3) {
-	previousBlockPosition := p.GetBlockPosition()
-	p.SetFootPosition(newBlockPosition.ToBlockCenterVec3())
-	p.voxelMap.MoveUnitTo(p, previousBlockPosition, newBlockPosition)
+	p.UnitInstance.GetModel().SetPosition(position)
 }
 func (p *Unit) GetFootPosition() mgl32.Vec3 {
-	return p.model.GetPosition()
+	return p.UnitInstance.GetModel().GetPosition()
 }
-func (p *Unit) GetEyePosition() mgl32.Vec3 {
-	return p.model.GetPosition().Add(mgl32.Vec3{0, p.extents.Y() * (7.0 / 8.0), 0})
-}
+
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
-	return p.model.RootNode.GlobalMatrix()
+	return p.UnitInstance.GetModel().RootNode.GlobalMatrix()
 }
 func (p *Unit) HasReachedWaypoint() bool {
 	return p.GetFootPosition().Sub(p.GetWaypoint().ToBlockCenterVec3()).Len() < 0.05
@@ -219,25 +154,21 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 }
 
 func (p *Unit) TurnTowardsWaypoint() {
-	direction := p.GetWaypoint().Sub(p.GetBlockPosition())
+	direction := p.GetWaypoint().Sub(voxel.ToGridInt3(p.GetFootPosition()))
 	p.turnToDirection(direction)
 }
 
 func (p *Unit) turnToDirection(direction voxel.Int3) {
+	//println(fmt.Sprintf("[Unit] %s(%d) turnToDirection %v", p.GetName(), p.UnitID(), direction))
 	p.forwardVector = direction
 	angle := util.DirectionToAngle(direction)
-	p.model.SetYRotationAngle(angle)
+	p.UnitInstance.GetModel().SetYRotationAngle(angle)
 }
 
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
 	angle := util.DirectionToAngleVec(direction)
-	p.model.SetYRotationAngle(angle)
+	p.UnitInstance.GetModel().SetYRotationAngle(angle)
 }
-
-func (p *Unit) GetFront() mgl32.Vec3 {
-	return p.model.GetFront()
-}
-
 func (p *Unit) IsDead() bool {
 	return p.state.GetName() == ActorStateDead
 }
@@ -265,22 +196,6 @@ func (p *Unit) IsCurrentWaypointADrop() bool {
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
 }
-func (p *Unit) CanAct() bool {
-	return p.canAct && !p.IsDead() && !p.IsDying()
-}
-
-func (p *Unit) GetBlockPosition() voxel.Int3 {
-	return voxel.ToGridInt3(p.GetFootPosition())
-}
-
-func (p *Unit) NextTurn() {
-	p.canAct = true
-}
-
-func (p *Unit) EndTurn() {
-	p.canAct = false
-}
-
 func (p *Unit) IsUserControlled() bool {
 	return p.controlledByUser
 }
@@ -295,9 +210,9 @@ func (p *Unit) Description() string {
 
 func (p *Unit) StartIdleAnimationLoop() {
 	ownPos := p.GetBlockPosition()
-	animation, front := game.GetIdleAnimationAndForwardVector(p.voxelMap, ownPos, p.forwardVector)
+	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.forwardVector)
 	println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
-	p.model.StartAnimationLoop(animation.Str(), 1.0)
+	p.UnitInstance.GetModel().SetAnimationLoop(animation.Str(), 1.0)
 	p.SetForward(front)
 	//println(p.model.GetAnimationDebugString())
 }
@@ -316,33 +231,29 @@ func (p *Unit) IsIdle() bool {
 
 func (p *Unit) FreezeIdleAnimation() {
 	p.StartIdleAnimationLoop()
-	p.model.StopAnimations()
+	p.UnitInstance.GetModel().ResetAnimations()
 }
 
-func (p *Unit) IsActive() bool {
-	return !p.IsDead() && !p.IsDying()
+func (p *Unit) SetInstance(unit *game.UnitInstance) {
+	oldModel := p.UnitInstance.GetModel()
+	oldVoxelMap := p.GetVoxelMap()
+
+	unit.SetModel(oldModel)
+	unit.SetVoxelMap(oldVoxelMap)
+
+	p.UnitInstance = unit
+	p.UpdateMapAndModelPosition()
 }
 
-func (p *Unit) GetFreeAimAccuracy() float64 {
-	return p.unitType.Accuracy
-}
-
-func NewUnit(id uint64, name string, pos voxel.Int3, model *util.CompoundMesh, unitDef *game.UnitDefinition, voxelMap *voxel.Map) *Unit {
+func NewClientUnit(instance *game.UnitInstance) *Unit {
+	// load model of unit
 	a := &Unit{
-		ID:                   id,
-		model:                model,
-		extents:              mgl32.Vec3{0.98, 1.98, 0.98},
-		animationSpeed:       4,
-		currentWaypoint:      -1,
-		transition:           ActorTransitionTable, // one for all
-		name:                 name,
-		canAct:               true,
-		unitType:             unitDef.CoreStats,
-		voxelMap:             voxelMap,
-		occupiedBlockOffsets: unitDef.OccupiedBlockOffsets,
+		UnitInstance:    instance,
+		animationSpeed:  4,
+		currentWaypoint: -1,
+		transition:      ActorTransitionTable, // one for all
 	}
-
+	a.UpdateMapAndModelPosition()
 	a.SetState(ActorStateIdle)
-	a.SetBlockPosition(pos)
 	return a
 }

@@ -13,21 +13,22 @@ import (
 )
 
 type Map struct {
-	chunks           []*Chunk
-	width            int32
-	height           int32
-	depth            int32
-	chunkShader      *glhf.Shader
-	terrainTexture   *glhf.Texture
-	unitMovedHandler func(unit MapObject, oldPos, newPos Int3)
+	chunks             []*Chunk
+	width              int32
+	height             int32
+	depth              int32
+	chunkShader        *glhf.Shader
+	terrainTexture     *glhf.Texture
+	knownUnitPositions map[uint64]Int3
 }
 
 func NewMap(width, height, depth int32) *Map {
 	m := &Map{
-		chunks: make([]*Chunk, width*height*depth),
-		width:  width,
-		height: height,
-		depth:  depth,
+		chunks:             make([]*Chunk, width*height*depth),
+		width:              width,
+		height:             height,
+		depth:              depth,
+		knownUnitPositions: make(map[uint64]Int3),
 	}
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
 	return m
@@ -35,10 +36,11 @@ func NewMap(width, height, depth int32) *Map {
 
 func NewMapFromFile(filename string) *Map {
 	m := &Map{
-		chunks: make([]*Chunk, 0),
-		width:  0,
-		height: 0,
-		depth:  0,
+		chunks:             make([]*Chunk, 0),
+		width:              0,
+		height:             0,
+		depth:              0,
+		knownUnitPositions: make(map[uint64]Int3),
 	}
 	m.LoadFromDisk(filename)
 	return m
@@ -306,18 +308,6 @@ type MapObject interface {
 	GetName() string
 }
 
-func (m *Map) MoveUnitTo(unit MapObject, oldPos, newPos Int3) bool {
-	ok, reason := m.IsUnitPlaceable(unit, newPos)
-	if ok {
-		println(fmt.Sprintf("[Map] Moving %s(%d): %s -> %s", unit.GetName(), unit.UnitID(), oldPos.ToString(), newPos.ToString()))
-		m.RemoveUnit(unit, oldPos)
-		m.AddUnit(unit, newPos)
-		m.onUnitMoved(unit, oldPos, newPos)
-		return true
-	}
-	println(fmt.Sprintf("[Map] ERR - Failed to move %s(%d): %s -> %s (%s)", unit.GetName(), unit.UnitID(), oldPos.ToString(), newPos.ToString(), reason))
-	return false
-}
 func ToGridInt3(pos mgl32.Vec3) Int3 {
 	return Int3{int32(math.Floor(float64(pos.X()))), int32(math.Floor(float64(pos.Y()))), int32(math.Floor(float64(pos.Z())))}
 }
@@ -342,24 +332,39 @@ func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) (bool, string) {
 	return true, ""
 }
 
-func (m *Map) RemoveUnit(unit MapObject, blockPos Int3) {
+func (m *Map) RemoveUnit(unit MapObject) {
+	currentPos, isOnMap := m.knownUnitPositions[unit.UnitID()]
+	if !isOnMap {
+		return
+	}
 	offsets := unit.GetOccupiedBlockOffsets()
 	for _, offset := range offsets {
-		occupiedBlockPos := blockPos.Add(offset)
+		occupiedBlockPos := currentPos.Add(offset)
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
-		if block != nil {
+		if block != nil && block.IsOccupied() {
 			block.RemoveUnit(unit)
 		}
 	}
 }
 
-func (m *Map) AddUnit(unit MapObject, blockPos Int3) {
-	offsets := unit.GetOccupiedBlockOffsets()
-	for _, offset := range offsets {
-		occupiedBlockPos := blockPos.Add(offset)
-		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
-		block.AddUnit(unit)
+func (m *Map) SetUnit(unit MapObject, blockPos Int3) bool {
+	_, isOnMap := m.knownUnitPositions[unit.UnitID()]
+	if isOnMap {
+		m.RemoveUnit(unit)
 	}
+	ok, reason := m.IsUnitPlaceable(unit, blockPos)
+	if ok {
+		offsets := unit.GetOccupiedBlockOffsets()
+		for _, offset := range offsets {
+			occupiedBlockPos := blockPos.Add(offset)
+			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+			block.AddUnit(unit)
+		}
+		m.knownUnitPositions[unit.UnitID()] = blockPos
+		return true
+	}
+	println(fmt.Sprintf("[Map] ERR - Failed to place %s(%d): %s (%s)", unit.GetName(), unit.UnitID(), blockPos.ToString(), reason))
+	return false
 }
 
 func GetBlocksNeededByConstruction(construction *Construction) []string {
@@ -602,17 +607,7 @@ func (m *Map) IsOccupied(blockPos Int3) bool {
 
 func (m *Map) IsOccupiedExcept(blockPos Int3, unit MapObject) bool {
 	block := m.GetBlockFromVec(blockPos)
-	return block != nil && block.IsOccupied() && block.GetOccupant() != unit
-}
-
-func (m *Map) onUnitMoved(unit MapObject, oldPos, newPos Int3) {
-	if m.unitMovedHandler != nil {
-		m.unitMovedHandler(unit, oldPos, newPos)
-	}
-}
-
-func (m *Map) SetUnitMovedHandler(handler func(unit MapObject, oldPos, newPos Int3)) {
-	m.unitMovedHandler = handler
+	return block != nil && block.IsOccupied() && block.GetOccupant().UnitID() != unit.UnitID()
 }
 
 func (m *Map) GetMapObjectAt(target Int3) MapObject {
