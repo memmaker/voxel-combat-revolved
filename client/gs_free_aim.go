@@ -67,8 +67,11 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 
 		//destination := sourceOffset.Add(velocity)
 		//g.engine.SpawnProjectile(sourceOffset, velocity)
-
+		println(fmt.Sprintf("[GameStateFreeAim] Sending action %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
 		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
+	} else {
+		println("[GameStateFreeAim] Unit cannot act")
+		g.engine.Print("Unit cannot act")
 	}
 }
 

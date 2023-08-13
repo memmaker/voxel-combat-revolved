@@ -345,6 +345,7 @@ func (m *Map) RemoveUnit(unit MapObject) {
 			block.RemoveUnit(unit)
 		}
 	}
+	delete(m.knownUnitPositions, unit.UnitID())
 }
 
 func (m *Map) SetUnit(unit MapObject, blockPos Int3) bool {

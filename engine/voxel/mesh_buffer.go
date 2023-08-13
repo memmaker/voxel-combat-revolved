@@ -246,7 +246,7 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []
 	return mergedData
 }
 
-func NewMeshBuffer() ChunkMesh {
+func NewMeshBuffer() *MeshBuffer {
 	faceMap := make(map[FaceType][]glhf.GlInt)
 	for i := 0; i < 6; i++ {
 		faceMap[FaceType(i)] = make([]glhf.GlInt, 0, 0)

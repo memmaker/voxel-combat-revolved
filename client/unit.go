@@ -22,7 +22,6 @@ type Unit struct {
 	eventQueue       []TransitionEvent
 	currentPath      []voxel.Int3
 	controlledByUser bool
-	forwardVector    voxel.Int3
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -98,17 +97,16 @@ type HitInfo struct {
 	BodyPart      util.PartName
 }
 
-func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartName) {
-	event := EventLethalHit
+func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartName, damage int, lethal bool) {
 	// needs to be passed to the new state, we do indirectly via the unit
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
+	p.ApplyDamage(damage, bodyPart)
 
-	if p.transition.Exists(p.state.GetName(), event) {
-		nextState := p.transition.GetNextState(p.state.GetName(), event)
-		p.SetState(nextState)
+	if lethal {
+		p.eventQueue = append(p.eventQueue, EventLethalHit)
 	}
 }
 
@@ -155,16 +153,8 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 
 func (p *Unit) TurnTowardsWaypoint() {
 	direction := p.GetWaypoint().Sub(voxel.ToGridInt3(p.GetFootPosition()))
-	p.turnToDirection(direction)
+	p.SetForward(direction)
 }
-
-func (p *Unit) turnToDirection(direction voxel.Int3) {
-	//println(fmt.Sprintf("[Unit] %s(%d) turnToDirection %v", p.GetName(), p.UnitID(), direction))
-	p.forwardVector = direction
-	angle := util.DirectionToAngle(direction)
-	p.UnitInstance.GetModel().SetYRotationAngle(angle)
-}
-
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
 	angle := util.DirectionToAngleVec(direction)
 	p.UnitInstance.GetModel().SetYRotationAngle(angle)
@@ -210,7 +200,7 @@ func (p *Unit) Description() string {
 
 func (p *Unit) StartIdleAnimationLoop() {
 	ownPos := p.GetBlockPosition()
-	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.forwardVector)
+	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.GetForward())
 	println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
 	p.UnitInstance.GetModel().SetAnimationLoop(animation.Str(), 1.0)
 	p.SetForward(front)
@@ -219,10 +209,6 @@ func (p *Unit) StartIdleAnimationLoop() {
 
 func (p *Unit) GetLastWaypoint() voxel.Int3 {
 	return p.currentPath[len(p.currentPath)-1]
-}
-
-func (p *Unit) SetForward(forward voxel.Int3) {
-	p.turnToDirection(forward)
 }
 
 func (p *Unit) IsIdle() bool {

@@ -162,6 +162,10 @@ func (b *BattleServer) respond(connection *UserConnection, messageType string, r
 	asJson, _ := json.Marshal(response)
 	b.writeToClient(connection, []byte(messageType), asJson)
 }
+func (b *BattleServer) respondWithMessage(connection *UserConnection, response game.Message) {
+	b.respond(connection, response.MessageType(), response)
+}
+
 func (b *BattleServer) writeFromBuffer(userID uint64, msgType, msg []byte) {
 	connection := b.connectedClients[userID]
 	if connection == nil {
@@ -344,28 +348,28 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
 	if gameID == "" {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
 		return
 	}
 	gameInstance, exists := b.runningGames[gameID]
 	if !exists {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
 
 	if msg.UnitID() >= uint64(len(gameInstance.units)) {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
 	unit := gameInstance.units[msg.UnitID()]
 
 	if unit.ControlledBy() != userID {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "You do not control this unit"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
 		return
 	}
 
 	if !unit.CanAct() {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
 		return
 	}
 
@@ -373,7 +377,7 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 
 	// get action for this unit, check if the target is valid
 	if isValid, reason := action.IsValid(); !isValid {
-		b.respond(user, "TargetedUnitActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
 	// this setup won't work: the client cannot know how to execute the action
@@ -385,8 +389,9 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
 	// - the unit can now see another unit
-
-	unit.EndTurn()
+	if action.IsTurnEnding() {
+		unit.EndTurn()
+	}
 
 	mb.SendAll()
 }
@@ -395,28 +400,28 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
 	if gameID == "" {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
 		return
 	}
 	gameInstance, exists := b.runningGames[gameID]
 	if !exists {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
 
 	if msg.GameUnitID >= uint64(len(gameInstance.units)) {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
 	unit := gameInstance.units[msg.GameUnitID]
 
 	if unit.ControlledBy() != userID {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "You do not control this unit"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
 		return
 	}
 
 	if !unit.CanAct() {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
 		return
 	}
 
@@ -424,7 +429,7 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 
 	// get action for this unit, check if the target is valid
 	if isValid, reason := action.IsValid(); !isValid {
-		b.respond(user, "FreeAimActionResponse", game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
 	// this setup won't work: the client cannot know how to execute the action
@@ -436,7 +441,9 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
 	// - the unit can now see another unit
-
+	if action.IsTurnEnding() {
+		unit.EndTurn()
+	}
 	//unit.EndTurn() // TODO: enable again
 
 	mb.SendAll()
@@ -446,17 +453,17 @@ func (b *BattleServer) EndTurn(userID uint64) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
 	if gameID == "" {
-		b.respond(user, "EndTurnResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
 		return
 	}
 	gameInstance, exists := b.runningGames[gameID]
 	if !exists {
-		b.respond(user, "EndTurnResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
 
 	if !gameInstance.IsPlayerTurn(userID) {
-		b.respond(user, "EndTurnResponse", game.ActionResponse{Success: false, Message: "It is not your turn"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "It is not your turn"})
 		return
 	}
 	isGameOver, winner := gameInstance.IsGameOver()
@@ -491,7 +498,7 @@ func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
 	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.players {
 		connectedUser := b.connectedClients[playerID]
-		b.respond(connectedUser, "NextPlayer", game.NextPlayerMessage{
+		b.respondWithMessage(connectedUser, game.NextPlayerMessage{
 			CurrentPlayer: nextPlayer,
 			YourTurn:      playerID == nextPlayer,
 		})

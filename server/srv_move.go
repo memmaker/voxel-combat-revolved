@@ -13,13 +13,23 @@ type ServerActionMove struct {
 	target     voxel.Int3
 }
 
+func (a ServerActionMove) IsTurnEnding() bool {
+	return false
+}
+
 func (a ServerActionMove) IsValid() (bool, string) {
-	isValidTarget := a.gameAction.IsValidTarget(a.unit, a.target)
-	reason := ""
-	if !isValidTarget {
-		reason = fmt.Sprintf("Target %s is not valid", a.target.ToString())
+	if !a.gameAction.IsValidTarget(a.unit, a.target) {
+		return false, fmt.Sprintf("Target %s is not valid", a.target.ToString())
 	}
-	return isValidTarget, reason
+
+	dist := a.gameAction.GetCost(a.target)
+	movesLeft := a.unit.MovesLeft()
+
+	if dist > movesLeft {
+		return false, fmt.Sprintf("Target %s is too far away (dist: %d, moves left: %d)", a.target.ToString(), dist, movesLeft)
+	}
+
+	return true, ""
 }
 
 func NewServerActionMove(engine *GameInstance, action *game.ActionMove, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
@@ -95,7 +105,8 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 			break
 		}
 	}
-
+	moveCost := a.gameAction.GetCost(destination)
+	a.unit.UseMovement(moveCost)
 	a.unit.SetForward(unitForward)
 	a.unit.SetBlockPositionAndUpdateMapAndModel(destination)
 
@@ -109,6 +120,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	mb.AddMessageFor(controller, game.VisualOwnUnitMoved{
 		UnitID:      a.unit.UnitID(),
 		Path:        foundPath,
+		Cost:        moveCost,
 		EndPosition: destination,
 		Spotted:     visibles,
 		Lost:        getIDs(invisibles),

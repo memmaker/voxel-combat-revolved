@@ -11,54 +11,86 @@ import (
 // for snap
 
 type ServerActionShot struct {
-	engine     *GameInstance
-	unit       *game.UnitInstance
-	origin     mgl32.Vec3
-	velocity   mgl32.Vec3
-	isCheating bool
+	engine    *GameInstance
+	unit      *game.UnitInstance
+	createRay func() (mgl32.Vec3, mgl32.Vec3)
+}
+
+func (a *ServerActionShot) IsTurnEnding() bool {
+	return true
 }
 
 func (a *ServerActionShot) IsValid() (bool, string) {
-	return !a.isCheating, "Cheating detected"
+	// check if weapon is ready
+	if !a.unit.Weapon.IsReady() {
+		return false, "Weapon is not ready"
+	}
+
+	return true, ""
 }
 func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionShot {
-	otherUnit := engine.voxelMap.GetMapObjectAt(target).(*game.UnitInstance)
-	sourceOfProjectile := unit.GetEyePosition()
-	directionVector := otherUnit.GetCenterOfMassPosition().Sub(sourceOfProjectile).Normalize()
-	sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
-	velocity := directionVector.Mul(10)
 	s := &ServerActionShot{
-		engine:   engine,
-		unit:     unit,
-		origin:   sourceOffset,
-		velocity: velocity,
+		engine: engine,
+		unit:   unit,
+		createRay: func() (mgl32.Vec3, mgl32.Vec3) {
+			otherUnit := engine.voxelMap.GetMapObjectAt(target).(*game.UnitInstance)
+			sourceOfProjectile := unit.GetEyePosition()
+			directionVector := otherUnit.GetCenterOfMassPosition().Sub(sourceOfProjectile).Normalize()
+			sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
+			return sourceOffset, directionVector
+		},
 	}
-	s.checkForCheating()
 	return s
 }
 func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, cam *util.FPSCamera) *ServerActionShot {
-	startRay, endRay := cam.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
-	velocity := endRay.Sub(startRay).Normalize().Mul(10)
 	s := &ServerActionShot{
-		engine:   engine,
-		unit:     unit,
-		origin:   startRay,
-		velocity: velocity,
+		engine: engine,
+		unit:   unit,
+		createRay: func() (mgl32.Vec3, mgl32.Vec3) {
+			startRay, endRay := cam.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+			direction := endRay.Sub(startRay).Normalize()
+			return startRay, direction
+		},
 	}
-	s.checkForCheating()
 	return s
 }
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
-	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from %s. dir.: %v", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), a.velocity))
-	//a.engine.SpawnProjectile(sourceOffset, velocity)
-	rayHitInfo := a.engine.RayCastFreeAim(a.origin, a.origin.Add(a.velocity.Normalize().Mul(100)), a.unit)
+	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from %s.", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString()))
+
+	var projectiles []game.VisualProjectile
+	numberOfProjectiles := a.unit.Weapon.Definition.BulletsPerShot
+
+	for i := 0; i < numberOfProjectiles; i++ {
+		projectiles = append(projectiles, a.simulateOneProjectile())
+	}
+
+	ammoCost := 1
+	a.unit.Weapon.ConsumeAmmo(ammoCost)
+
+	mb.AddMessageForAll(game.VisualRangedAttack{
+		Projectiles: projectiles,
+		WeaponType:  a.unit.Weapon.Definition.WeaponType,
+		AmmoCost:    ammoCost,
+	})
+}
+
+func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
+	projectileDamage := a.unit.Weapon.Definition.BaseDamagePerBullet
+	lethal := false
+	origin, direction := a.createRay()
+	endOfRay := origin.Add(direction.Mul(float32(a.unit.Weapon.Definition.MaxRange)))
+
+	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHidID := int64(-1)
 	if rayHitInfo.UnitHit != nil {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
-		// TODO: Apply damage on server.. eg. kill and remove unit from map
-		a.engine.Kill(a.unit, rayHitInfo.UnitHit.(*game.UnitInstance))
+		hitUnit := rayHitInfo.UnitHit.(*game.UnitInstance)
+		lethal = hitUnit.ApplyDamage(projectileDamage, rayHitInfo.BodyPart)
+		if lethal {
+			a.engine.Kill(a.unit, rayHitInfo.UnitHit.(*game.UnitInstance))
+		}
 	} else {
 		if rayHitInfo.Hit {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s", rayHitInfo.HitInfo3D.PreviousGridPosition.ToString()))
@@ -66,22 +98,15 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision"))
 		}
 	}
-	mb.AddMessageForAll(game.VisualProjectileFired{
-		Origin:      a.origin,
+
+	projectile := game.VisualProjectile{
+		Origin:      origin,
+		Velocity:    direction.Mul(10),
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
-		Velocity:    a.velocity,
 		UnitHit:     unitHidID,
 		BodyPart:    rayHitInfo.BodyPart,
-		Damage:      1,
-		IsLethal:    true,
-	})
-}
-
-func (a *ServerActionShot) checkForCheating() {
-	// check distance of origin and unit eye position
-	dist := a.origin.Sub(a.unit.GetEyePosition()).Len()
-	if dist > 1.0 {
-		a.isCheating = true
+		Damage:      projectileDamage,
+		IsLethal:    lethal,
 	}
-	// check if velocity is not too high
+	return projectile
 }

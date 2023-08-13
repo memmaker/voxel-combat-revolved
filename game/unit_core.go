@@ -71,6 +71,7 @@ type UnitInstance struct {
 	Weapon        *Weapon
 	ForwardVector voxel.Int3
 	isDead        bool
+	health        int
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -86,7 +87,11 @@ func (u *UnitInstance) GetName() string {
 }
 
 func (u *UnitInstance) MovesLeft() int {
-	return u.Definition.CoreStats.Speed
+	return u.movesLeft
+}
+
+func (u *UnitInstance) UseMovement(cost int) {
+	u.movesLeft -= cost
 }
 
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -100,6 +105,8 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 		Name:       name,
 		Definition: unitDef,
 		canAct:     true,
+		movesLeft:  unitDef.CoreStats.Speed,
+		health:     unitDef.CoreStats.Health,
 		model:      compoundMesh, // todo: cache models?
 	}
 }
@@ -117,6 +124,7 @@ func (u *UnitInstance) IsActive() bool {
 
 func (u *UnitInstance) NextTurn() {
 	u.canAct = true
+	u.movesLeft = u.Definition.CoreStats.Speed
 }
 
 // UpdateMapAndModelPosition updates the position of the unit in the voxel map and the model position and rotation.
@@ -137,10 +145,6 @@ func (u *UnitInstance) UpdateModelPositionAndRotation() {
 	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
 	u.SetForward(newForward)
 	u.model.SetAnimationLoop(animation.Str(), 1.0)
-}
-
-func (u *UnitInstance) UpdateMapPosition(old voxel.Int3) {
-
 }
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
 	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
@@ -230,6 +234,15 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
 
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
 	return u.Position.Add(voxel.Int3{Y: 1}).ToBlockCenterVec3()
+}
+
+func (u *UnitInstance) ApplyDamage(damage int, part util.PartName) bool {
+	u.health -= damage
+	println(fmt.Sprintf("[UnitInstance] %s(%d) took %d damage to %s, health is now %d", u.GetName(), u.UnitID(), damage, part, u.health))
+	if u.health <= 0 {
+		return true
+	}
+	return false
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {

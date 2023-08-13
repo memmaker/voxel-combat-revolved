@@ -5,6 +5,10 @@ type ActionResponse struct {
 	Message string
 }
 
+func (a ActionResponse) MessageType() string {
+	return "ActionResponse"
+}
+
 type LoginResponse struct {
 	UserID  uint64
 	Success bool
@@ -23,6 +27,10 @@ type GameStartedMessage struct {
 type NextPlayerMessage struct {
 	CurrentPlayer uint64
 	YourTurn      bool
+}
+
+func (n NextPlayerMessage) MessageType() string {
+	return "NextPlayer"
 }
 
 type GameOverMessage struct {

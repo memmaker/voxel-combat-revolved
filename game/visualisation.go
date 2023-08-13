@@ -13,6 +13,7 @@ type VisualOwnUnitMoved struct {
 	EndPosition voxel.Int3
 	Spotted     []*UnitInstance
 	Lost        []uint64
+	Cost        int
 }
 
 func (v VisualOwnUnitMoved) MessageType() string {
@@ -33,16 +34,21 @@ func (v VisualEnemyUnitMoved) MessageType() string {
 	return "EnemyUnitMoved"
 }
 
-type VisualProjectileFired struct {
+type VisualRangedAttack struct {
+	Projectiles []VisualProjectile
+	WeaponType  WeaponType
+	AmmoCost    int
+}
+type VisualProjectile struct {
 	Origin      mgl32.Vec3
-	Velocity    mgl32.Vec3
 	Destination mgl32.Vec3
+	Velocity    mgl32.Vec3
 	UnitHit     int64
 	BodyPart    util.PartName
 	Damage      int
 	IsLethal    bool
 }
 
-func (v VisualProjectileFired) MessageType() string {
-	return "ProjectileFired"
+func (v VisualRangedAttack) MessageType() string {
+	return "RangedAttack"
 }

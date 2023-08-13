@@ -11,6 +11,7 @@ import (
 type ServerAction interface {
 	IsValid() (bool, string)
 	Execute(mb *game.MessageBuffer)
+	IsTurnEnding() bool
 }
 
 func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool) *GameInstance {
@@ -214,6 +215,7 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 }
 
 func (g *GameInstance) Kill(killer, victim *game.UnitInstance) {
+	println(fmt.Sprintf("[GameInstance] %s(%d) killed %s(%d)", killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
 	victim.Kill()
 }
 

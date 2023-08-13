@@ -30,12 +30,12 @@ func (g *GameInstance) CanSeeFromTo(observer, another *game.UnitInstance, observ
 
 	//print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
 
-	rayOne := g.RayCastUnitsProjected(observerEyePosition, targetOne, observer, another, voxel.ToGridInt3(targetFootPosition))
+	rayOne := g.RayCastLineOfSight(observerEyePosition, targetOne, another, voxel.ToGridInt3(targetFootPosition))
 	if rayOne.UnitHit == another { // fast exit
 		//println("Line of sight is CLEAR")
 		return true
 	}
-	rayTwo := g.RayCastUnitsProjected(observerEyePosition, targetTwo, observer, another, voxel.ToGridInt3(targetFootPosition))
+	rayTwo := g.RayCastLineOfSight(observerEyePosition, targetTwo, another, voxel.ToGridInt3(targetFootPosition))
 
 	hasLos := rayTwo.UnitHit == another
 	if hasLos {
@@ -90,35 +90,7 @@ func (g *GameInstance) GetLOSChanges(unit *game.UnitInstance, pos voxel.Int3) ([
 	return newEnemies, lostEnemies
 }
 
-func (g *GameInstance) RayCastUnits(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject) *game.RayCastHit {
-	voxelMap := g.voxelMap
-	var visitedBlocks []voxel.Int3
-	var unitHit *game.UnitInstance
-	stopRay := func(x, y, z int32) bool {
-		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
-		if voxelMap.Contains(x, y, z) {
-			block := voxelMap.GetGlobalBlock(x, y, z)
-			if block != nil && !block.IsAir() {
-				//println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
-				return true
-			} else if block.IsOccupied() && (block.GetOccupant().ControlledBy() != sourceUnit.ControlledBy() || block.GetOccupant() == targetUnit) {
-				unitHit = block.GetOccupant().(*game.UnitInstance)
-				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
-				return true
-			}
-		} else {
-			//println(fmt.Sprintf("[GameInstance] Raycast hit out of bounds at %d, %d, %d", x, y, z))
-			return true
-		}
-		return false
-	}
-	hitInfo := util.DDARaycast(rayStart, rayEnd, stopRay)
-	insideMap := voxelMap.ContainsGrid(hitInfo.CollisionGridPosition) || voxelMap.ContainsGrid(hitInfo.PreviousGridPosition)
-
-	return &game.RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
-}
-
-func (g *GameInstance) RayCastUnitsProjected(rayStart, rayEnd mgl32.Vec3, sourceUnit, targetUnit voxel.MapObject, projectedTargetLocation voxel.Int3) *game.RayCastHit {
+func (g *GameInstance) RayCastLineOfSight(rayStart, rayEnd mgl32.Vec3, targetUnit voxel.MapObject, projectedTargetLocation voxel.Int3) *game.RayCastHit {
 	voxelMap := g.voxelMap
 	var visitedBlocks []voxel.Int3
 	var unitHit *game.UnitInstance

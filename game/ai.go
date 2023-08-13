@@ -45,7 +45,7 @@ func (c *DummyClient) OnServerMessage(msg StringMessage) {
 			unit.SetVoxelMap(c.voxelMap)
 		}
 		util.MustSend(c.connection.MapLoaded())
-	case "TargetedUnitActionResponse":
+	case "ActionResponse":
 		var actionResponse ActionResponse
 		if util.FromJson(msg.Message, &actionResponse) {
 			if !actionResponse.Success {
@@ -183,6 +183,9 @@ func (c *DummyClient) CreateGameSequence() {
 }
 
 func (c *DummyClient) resetTurn() {
+	for _, unit := range c.ownUnits {
+		unit.NextTurn()
+	}
 	c.movedUnits = make(map[uint64]bool)
 }
 

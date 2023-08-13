@@ -520,12 +520,12 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnEnemyUnitMoved(msg)
 		}
-	case "ProjectileFired":
-		var msg game.VisualProjectileFired
+	case "RangedAttack":
+		var msg game.VisualRangedAttack
 		if util.FromJson(messageAsJson, &msg) {
-			a.OnProjectileFired(msg)
+			a.OnRangedAttack(msg)
 		}
-	case "TargetedUnitActionResponse":
+	case "ActionResponse":
 		var msg game.ActionResponse
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnTargetedUnitActionResponse(msg)
@@ -551,17 +551,36 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 	}
 }
 
-func (a *BattleClient) OnProjectileFired(msg game.VisualProjectileFired) {
+func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	// TODO: animate unit firing
-	a.SpawnProjectile(msg.Origin, msg.Velocity, msg.Destination, func() {
-		// on arrival
-		if msg.UnitHit >= 0 {
-			if unit, ok := a.unitMap[uint64(msg.UnitHit)]; ok {
+	damageReport := ""
+	for index, p := range msg.Projectiles {
+		projectile := p
+		a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
+			// on arrival
+			if projectile.UnitHit >= 0 {
+				unit, ok := a.unitMap[uint64(projectile.UnitHit)]
+				if !ok {
+					println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
+					return
+				}
 				println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
-				unit.HitWithProjectile(msg.Velocity, msg.BodyPart)
+				unit.HitWithProjectile(projectile.Velocity, projectile.BodyPart, projectile.Damage, projectile.IsLethal)
 			}
+		})
+		projectileNumber := index + 1
+		if projectile.UnitHit >= 0 {
+			hitUnit, _ := a.unitMap[uint64(projectile.UnitHit)]
+			if projectile.IsLethal {
+				damageReport += fmt.Sprintf("%d. lethal hit on %s(%d)\n", projectileNumber, hitUnit.GetName(), projectile.UnitHit)
+			} else {
+				damageReport += fmt.Sprintf("%d. hit on %s(%d) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.UnitHit, projectile.Damage)
+			}
+		} else {
+			damageReport += fmt.Sprintf("%d. missed\n", projectileNumber)
 		}
-	})
+	}
+	a.Print(damageReport)
 }
 
 func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
@@ -576,7 +595,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 		a.AddOrUpdateUnit(msg.UpdatedUnit)
 		movingUnit = a.unitMap[msg.MovingUnit]
-		println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.forwardVector.ToString()))
+		println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward().ToString()))
 	}
 	println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
 	for i, path := range msg.PathParts {
@@ -680,8 +699,8 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	}
 	a.scheduleWaitForCondition(destinationReached, changeLOS)
 
+	unit.UseMovement(msg.Cost)
 	unit.SetPath(msg.Path)
-	unit.EndTurn()
 }
 
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
