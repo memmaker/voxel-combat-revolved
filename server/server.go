@@ -16,21 +16,21 @@ import (
 type BattleServer struct {
 	// global state for the whole server
 	availableMaps     map[string]string
-	availableFactions map[string]*Faction
+	availableFactions map[string]*game.Faction
 	availableUnits    []*game.UnitDefinition
 	availableWeapons  map[string]*game.WeaponDefinition
 
 	connectedClients map[uint64]*UserConnection
 
 	// game instances
-	runningGames map[string]*GameInstance
+	runningGames map[string]*game.GameInstance
 }
 
 func (b *BattleServer) AddMap(name string, filename string) {
 	b.availableMaps[name] = filename
 }
-func (b *BattleServer) AddFaction(def FactionDefinition) {
-	faction := &Faction{name: def.Name}
+func (b *BattleServer) AddFaction(def game.FactionDefinition) {
+	faction := &game.Faction{Name: def.Name}
 	b.availableFactions[def.Name] = faction
 	for _, u := range def.Units {
 		unit := u
@@ -228,7 +228,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 		return
 	}
 
-	battleGame := NewGameInstance(userId, gameID, msg.Map, msg.IsPublic)
+	battleGame := game.NewGameInstance(userId, gameID, msg.Map, msg.IsPublic)
 	battleGame.AddPlayer(userId)
 	user.isReady = false
 	user.activeGame = gameID
@@ -257,13 +257,13 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 	}
 }
 
-func (b *BattleServer) startGame(battleGame *GameInstance) {
-	println(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.id))
+func (b *BattleServer) startGame(battleGame *game.GameInstance) {
+	println(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.GetID()))
 	battleGame.Start()
 	playerNames := make(map[uint64]string)
 	playerFactions := battleGame.GetPlayerFactions()
 
-	for _, playerID := range battleGame.players {
+	for _, playerID := range battleGame.GetPlayerIDs() {
 		user, exists := b.connectedClients[playerID]
 		if !exists {
 			println(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", playerID))
@@ -272,31 +272,29 @@ func (b *BattleServer) startGame(battleGame *GameInstance) {
 		playerNames[playerID] = user.name
 	}
 
-	for _, playerID := range battleGame.players {
+	// also send the initial LOS state
+	battleGame.InitLOS()
+
+	for _, playerID := range battleGame.GetPlayerIDs() {
 		user := b.connectedClients[playerID]
 
 		// broadcast game started event to all players, tell everyone who's turn it is
 		units := battleGame.GetPlayerUnits(playerID)
+		whoCanSeeWho, visibleUnits := battleGame.GetLOSState(playerID)
+
 		b.respond(user, "GameStarted", game.GameStartedMessage{
-			GameID:           battleGame.id,
+			GameID:           battleGame.GetID(),
 			PlayerNameMap:    playerNames,
 			PlayerFactionMap: playerFactions,
 			OwnID:            playerID,
 			OwnUnits:         units,
-			MapFile:          battleGame.mapFile,
+			MapFile:          battleGame.GetMapFile(),
+			LOSMatrix:        whoCanSeeWho,
+			VisibleUnits:     visibleUnits,
 		})
 	}
 }
 
-var debugSpawnPositions = []voxel.Int3{
-	{X: 2, Y: 1, Z: 2},
-	{X: 6, Y: 1, Z: 2},
-	{X: 4, Y: 1, Z: 13},
-	{X: 4, Y: 1, Z: 11},
-	{X: 2, Y: 1, Z: 6},
-	{X: 6, Y: 1, Z: 6},
-	{X: 2, Y: 1, Z: 10},
-}
 var debugSpawnCounter = 0
 
 func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
@@ -317,11 +315,10 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 			return
 		}
 	}
-
+	// we are now adding the units to game world
 	for _, unitRequest := range msg.Units {
 		unitChoice := unitRequest
 		spawnedUnitDef := b.availableUnits[unitChoice.UnitTypeID]
-		println(fmt.Sprintf("[BattleServer] %d selected unit %d", userID, spawnedUnitDef.ID))
 		unit := game.NewUnitInstance(unitChoice.Name, spawnedUnitDef)
 		chosenWeapon, weaponIsOK := b.availableWeapons[unitChoice.Weapon]
 		if weaponIsOK {
@@ -330,11 +327,11 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 			println(fmt.Sprintf("[BattleServer] %d tried to select weapon '%s', but it does not exist", userID, unitChoice.Weapon))
 		}
 		unit.SetControlledBy(userID)
-		unit.SetVoxelMap(gameInstance.voxelMap)
-		unit.SetBlockPositionAndUpdateMapAndModel(debugSpawnPositions[debugSpawnCounter])
+		unit.SetVoxelMap(gameInstance.GetVoxelMap())
 		unit.SetForward(voxel.Int3{X: 0, Y: 0, Z: 1})
-		debugSpawnCounter = (debugSpawnCounter + 1) % len(debugSpawnPositions)
-		gameInstance.AddUnit(userID, unit) // sets the instance userID
+		unitID := gameInstance.AddUnit(userID, unit) // sets the instance userID
+		println(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
+
 	}
 
 	b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: true, Message: "Units selected"})
@@ -357,11 +354,11 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 		return
 	}
 
-	if msg.UnitID() >= uint64(len(gameInstance.units)) {
+	if msg.UnitID() >= uint64(len(gameInstance.GetAllUnits())) {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
-	unit := gameInstance.units[msg.UnitID()]
+	unit := gameInstance.GetUnit(msg.UnitID())
 
 	if unit.ControlledBy() != userID {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
@@ -373,7 +370,7 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 		return
 	}
 
-	action := gameInstance.GetServerActionForUnit(msg, unit)
+	action := GetServerActionForUnit(gameInstance, msg, unit)
 
 	// get action for this unit, check if the target is valid
 	if isValid, reason := action.IsValid(); !isValid {
@@ -384,7 +381,7 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	// example movement: only the server knows if an reaction shot is triggered
 	// so executing that same action on the client will not work
 	// we need to adapt the response to include the result of the action
-	mb := game.NewMessageBuffer(gameInstance.players, b.writeFromBuffer)
+	mb := game.NewMessageBuffer(gameInstance.GetPlayerIDs(), b.writeFromBuffer)
 	action.Execute(mb)
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
@@ -409,11 +406,11 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 		return
 	}
 
-	if msg.GameUnitID >= uint64(len(gameInstance.units)) {
+	if msg.GameUnitID >= uint64(len(gameInstance.GetAllUnits())) {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
-	unit := gameInstance.units[msg.GameUnitID]
+	unit := gameInstance.GetUnit(msg.GameUnitID)
 
 	if unit.ControlledBy() != userID {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
@@ -425,7 +422,7 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 		return
 	}
 
-	action := gameInstance.GetServerActionForUnit(msg, unit)
+	action := GetServerActionForUnit(gameInstance, msg, unit)
 
 	// get action for this unit, check if the target is valid
 	if isValid, reason := action.IsValid(); !isValid {
@@ -436,7 +433,7 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 	// example movement: only the server knows if an reaction shot is triggered
 	// so executing that same action on the client will not work
 	// we need to adapt the response to include the result of the action
-	mb := game.NewMessageBuffer(gameInstance.players, b.writeFromBuffer)
+	mb := game.NewMessageBuffer(gameInstance.GetPlayerIDs(), b.writeFromBuffer)
 	action.Execute(mb)
 	// so for the movement example we want to communicate
 	// - the unit moved to another position than the client expected
@@ -474,9 +471,9 @@ func (b *BattleServer) EndTurn(userID uint64) {
 	}
 }
 
-func (b *BattleServer) SendGameOver(instance *GameInstance, winner uint64) {
-	println(fmt.Sprintf("[BattleServer] Game '%s' is over, winner is %d", instance.id, winner))
-	for _, playerID := range instance.players {
+func (b *BattleServer) SendGameOver(instance *game.GameInstance, winner uint64) {
+	println(fmt.Sprintf("[BattleServer] Game '%s' is over, winner is %d", instance.GetID(), winner))
+	for _, playerID := range instance.GetPlayerIDs() {
 		connectedUser := b.connectedClients[playerID]
 		connectedUser.activeGame = ""
 		connectedUser.isReady = false
@@ -485,18 +482,18 @@ func (b *BattleServer) SendGameOver(instance *GameInstance, winner uint64) {
 			YouWon:   playerID == winner,
 		})
 	}
-	delete(b.runningGames, instance.id)
-	println(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.id))
+	delete(b.runningGames, instance.GetID())
+	println(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.GetID()))
 }
-func (b *BattleServer) SendNextPlayer(gameInstance *GameInstance) {
+func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	println("[BattleServer] Ending turn. New map state:")
-	gameInstance.voxelMap.PrintArea2D(16, 16)
-	for _, unit := range gameInstance.units {
+	gameInstance.GetVoxelMap().PrintArea2D(16, 16)
+	for _, unit := range gameInstance.GetAllUnits() {
 		println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
 
 	nextPlayer := gameInstance.NextPlayer()
-	for _, playerID := range gameInstance.players {
+	for _, playerID := range gameInstance.GetPlayerIDs() {
 		connectedUser := b.connectedClients[playerID]
 		b.respondWithMessage(connectedUser, game.NextPlayerMessage{
 			CurrentPlayer: nextPlayer,
@@ -528,7 +525,7 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	gameInstance.SetCamera(userID, util.NewFPSCamera(mgl32.Vec3{0, 0, 0}, 1, 1))
 
 	allReady := true
-	for _, playerID := range gameInstance.players {
+	for _, playerID := range gameInstance.GetPlayerIDs() {
 		connectedUser := b.connectedClients[playerID]
 		if !connectedUser.isReady {
 			allReady = false
@@ -547,10 +544,10 @@ func (b *BattleServer) AddWeapon(weaponDefinition game.WeaponDefinition) {
 
 func NewBattleServer() *BattleServer {
 	return &BattleServer{
-		availableMaps:     make(map[string]string),          // filename -> display name
-		availableFactions: make(map[string]*Faction),        // faction name -> faction
-		connectedClients:  make(map[uint64]*UserConnection), // client id -> client
-		runningGames:      make(map[string]*GameInstance),   // game id -> game
+		availableMaps:     make(map[string]string),             // filename -> display name
+		availableFactions: make(map[string]*game.Faction),      // faction name -> faction
+		connectedClients:  make(map[uint64]*UserConnection),    // client id -> client
+		runningGames:      make(map[string]*game.GameInstance), // game id -> game
 		availableWeapons:  make(map[string]*game.WeaponDefinition),
 	}
 }

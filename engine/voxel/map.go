@@ -20,6 +20,8 @@ type Map struct {
 	chunkShader        *glhf.Shader
 	terrainTexture     *glhf.Texture
 	knownUnitPositions map[uint64]Int3
+
+	spawnCounter int
 }
 
 func NewMap(width, height, depth int32) *Map {
@@ -638,4 +640,19 @@ func (m *Map) PrintArea2D(maxX, maxZ int32) {
 		}
 		println()
 	}
+}
+
+func (m *Map) GetNextDebugSpawn() Int3 {
+	var debugSpawnPositions = []Int3{
+		{X: 2, Y: 1, Z: 2},
+		{X: 6, Y: 1, Z: 2},
+		{X: 4, Y: 1, Z: 13},
+		{X: 4, Y: 1, Z: 11},
+		{X: 2, Y: 1, Z: 6},
+		{X: 6, Y: 1, Z: 6},
+		{X: 2, Y: 1, Z: 12},
+	}
+	spawnPos := debugSpawnPositions[m.spawnCounter]
+	m.spawnCounter++
+	return spawnPos
 }

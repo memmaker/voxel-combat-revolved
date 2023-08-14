@@ -103,6 +103,7 @@ func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartNam
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
+
 	p.ApplyDamage(damage, bodyPart)
 
 	if lethal {
@@ -159,6 +160,7 @@ func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
 	angle := util.DirectionToAngleVec(direction)
 	p.UnitInstance.GetModel().SetYRotationAngle(angle)
 }
+
 func (p *Unit) IsDead() bool {
 	return p.state.GetName() == ActorStateDead
 }
@@ -220,7 +222,7 @@ func (p *Unit) FreezeIdleAnimation() {
 	p.UnitInstance.GetModel().ResetAnimations()
 }
 
-func (p *Unit) SetInstance(unit *game.UnitInstance) {
+func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
 	oldModel := p.UnitInstance.GetModel()
 	oldVoxelMap := p.GetVoxelMap()
 

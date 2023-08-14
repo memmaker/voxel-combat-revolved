@@ -22,6 +22,8 @@ type GameStartedMessage struct {
 	PlayerFactionMap map[uint64]string
 	PlayerNameMap    map[uint64]string
 	MapFile          string
+	LOSMatrix        map[uint64]map[uint64]bool
+	VisibleUnits     []*UnitInstance
 }
 
 type NextPlayerMessage struct {

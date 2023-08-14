@@ -59,7 +59,7 @@ func NewBattleServer() *server.BattleServer {
 		{-1, 1, -1},
 		{-1, 2, -1},
 	}
-	battleServer.AddFaction(server.FactionDefinition{
+	battleServer.AddFaction(game.FactionDefinition{
 		Name:  "X-Com",
 		Color: mgl32.Vec3{0, 0, 1},
 		Units: []game.UnitDefinition{
@@ -83,7 +83,7 @@ func NewBattleServer() *server.BattleServer {
 			},
 		},
 	})
-	battleServer.AddFaction(server.FactionDefinition{
+	battleServer.AddFaction(game.FactionDefinition{
 		Name:  "Deep Ones",
 		Color: mgl32.Vec3{1, 0, 0},
 		Units: []game.UnitDefinition{

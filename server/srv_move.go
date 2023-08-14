@@ -7,7 +7,7 @@ import (
 )
 
 type ServerActionMove struct {
-	engine     *GameInstance
+	engine     *game.GameInstance
 	gameAction *game.ActionMove
 	unit       *game.UnitInstance
 	target     voxel.Int3
@@ -32,7 +32,7 @@ func (a ServerActionMove) IsValid() (bool, string) {
 	return true, ""
 }
 
-func NewServerActionMove(engine *GameInstance, action *game.ActionMove, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
+func NewServerActionMove(engine *game.GameInstance, action *game.ActionMove, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
 	return &ServerActionMove{
 		engine:     engine,
 		gameAction: action,
@@ -75,7 +75,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		for enemyUserID, allPaths := range pathPartsPerUser {
 			currentPathIndex := len(allPaths) - 1
 			atLeastOneUnitCanSee := false
-			for _, enemyUnit := range a.engine.playerUnits[enemyUserID] {
+			for _, enemyUnit := range a.engine.GetPlayerUnits(enemyUserID) {
 				if a.engine.CanSeeTo(enemyUnit, a.unit, pos.ToBlockCenterVec3()) {
 					pathPartsPerUser[enemyUserID][currentPathIndex] = append(pathPartsPerUser[enemyUserID][currentPathIndex], pos)
 					atLeastOneUnitCanSee = true
@@ -90,9 +90,9 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 				pathPartsPerUser[enemyUserID] = append(pathPartsPerUser[enemyUserID], make([]voxel.Int3, 0))
 			}
 		}
-
+		var newContact bool
 		// check if we can spot an enemy unit from here
-		if visibles, invisibles = a.engine.GetLOSChanges(a.unit, pos); len(visibles) > 0 {
+		if visibles, invisibles, newContact = a.engine.GetLOSChanges(a.unit, pos); newContact {
 			println(fmt.Sprintf(" --> can spot %d new enemies from here: ", len(visibles)))
 			destination = pos
 			foundPath = foundPath[:index+1]

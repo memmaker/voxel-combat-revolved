@@ -229,7 +229,7 @@ func (a *BattleClient) UpdateUnit(currentUnit *game.UnitInstance) {
 		println(fmt.Sprintf("[BattleClient] UpdateUnit: unit %d not found", unitID))
 		return
 	}
-	knownUnit.SetInstance(currentUnit)
+	knownUnit.SetServerInstance(currentUnit)
 }
 
 // TODO: add target position for projectiles
@@ -449,8 +449,12 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	hitInfo := a.RayCastGround(rayStart, rayEnd)
 
 	if hitInfo.HitUnit() {
-		unitHit := hitInfo.UnitHit.(*game.UnitInstance)
-		a.Print(unitHit.GetName())
+		unitHit := a.unitMap[hitInfo.UnitHit.UnitID()]
+		if unitHit.IsUserControlled() {
+			a.Print(unitHit.GetFriendlyDescription())
+		} else {
+			a.Print(unitHit.GetEnemyDescription())
+		}
 	}
 
 	if hitInfo.Hit {
@@ -803,4 +807,8 @@ func (a *BattleClient) UnitIsVisibleToPlayer(unitID uint64) bool {
 		}
 	}
 	return false
+}
+
+func (a *BattleClient) SetLOSMatrix(matrix map[uint64]map[uint64]bool) {
+	a.losMatrix = matrix
 }

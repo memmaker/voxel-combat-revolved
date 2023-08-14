@@ -11,7 +11,7 @@ import (
 // for snap
 
 type ServerActionShot struct {
-	engine    *GameInstance
+	engine    *game.GameInstance
 	unit      *game.UnitInstance
 	createRay func() (mgl32.Vec3, mgl32.Vec3)
 }
@@ -28,12 +28,12 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 
 	return true, ""
 }
-func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionShot {
+func NewServerActionSnapShot(engine *game.GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionShot {
 	s := &ServerActionShot{
 		engine: engine,
 		unit:   unit,
 		createRay: func() (mgl32.Vec3, mgl32.Vec3) {
-			otherUnit := engine.voxelMap.GetMapObjectAt(target).(*game.UnitInstance)
+			otherUnit := engine.GetVoxelMap().GetMapObjectAt(target).(*game.UnitInstance)
 			sourceOfProjectile := unit.GetEyePosition()
 			directionVector := otherUnit.GetCenterOfMassPosition().Sub(sourceOfProjectile).Normalize()
 			sourceOffset := sourceOfProjectile.Add(directionVector.Mul(0.5))
@@ -42,7 +42,7 @@ func NewServerActionSnapShot(engine *GameInstance, unit *game.UnitInstance, targ
 	}
 	return s
 }
-func NewServerActionFreeShot(engine *GameInstance, unit *game.UnitInstance, cam *util.FPSCamera) *ServerActionShot {
+func NewServerActionFreeShot(engine *game.GameInstance, unit *game.UnitInstance, cam *util.FPSCamera) *ServerActionShot {
 	s := &ServerActionShot{
 		engine: engine,
 		unit:   unit,
@@ -83,10 +83,11 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHidID := int64(-1)
+	var hitUnit *game.UnitInstance = nil
 	if rayHitInfo.UnitHit != nil {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
-		hitUnit := rayHitInfo.UnitHit.(*game.UnitInstance)
+		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
 		lethal = hitUnit.ApplyDamage(projectileDamage, rayHitInfo.BodyPart)
 		if lethal {
 			a.engine.Kill(a.unit, rayHitInfo.UnitHit.(*game.UnitInstance))
