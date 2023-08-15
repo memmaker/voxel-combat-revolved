@@ -17,8 +17,8 @@ func runGame() {
 	// 1. Start the server in a background thread
 	// 2. Start a headless client for the AI in a background thread
 	// 3. Start the graphical client in the main thread
-	if len(os.Args) > 1 {
-		runNetworkClient(os.Args[1])
+	if len(os.Args) > 2 {
+		runNetworkClient(os.Args[1], os.Args[2])
 	} else {
 		runStandalone()
 	}
@@ -37,10 +37,10 @@ func runStandalone() {
 	})
 }
 
-func runNetworkClient(argOne string) {
+func runNetworkClient(createOrJoin string, endpoint string) {
 	mainthread.Call(func() {
-		connection := game.NewTCPConnection("0.0.0.0:9999")
-		terminalClient(connection, argOne)
+		connection := game.NewTCPConnection(endpoint)
+		terminalClient(connection, createOrJoin)
 	})
 }
 func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage) {

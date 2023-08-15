@@ -44,8 +44,7 @@ type GroundSelector struct {
 }
 
 func (g *GroundSelector) SetSize(scaleFactor float64) {
-	//TODO implement me
-	panic("implement me")
+	println("Nonsense")
 }
 
 func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {

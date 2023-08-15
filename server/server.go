@@ -127,7 +127,7 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 	case "FreeAimAction":
 		var freeAimActionMsg game.FreeAimActionMessage
 		if toJson(message, &freeAimActionMsg) {
-			b.FreeAimAction(id, freeAimActionMsg)
+			b.UnitAction(id, freeAimActionMsg)
 		}
 	case "MapLoaded":
 		var mapLoadedMsg game.MapLoadedMessage
@@ -293,8 +293,6 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 	}
 }
 
-var debugSpawnCounter = 0
-
 func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
@@ -342,10 +340,12 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
+
 	if gameID == "" {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
 		return
 	}
+
 	gameInstance, exists := b.runningGames[gameID]
 	if !exists {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
@@ -380,80 +380,16 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
-	// this setup won't work: the client cannot know how to execute the action
-	// example movement: only the server knows if an reaction shot is triggered
-	// so executing that same action on the client will not work
-	// we need to adapt the response to include the result of the action
+
 	mb := game.NewMessageBuffer(gameInstance.GetPlayerIDs(), b.writeFromBuffer)
 	action.Execute(mb)
-	// so for the movement example we want to communicate
-	// - the unit moved to another position than the client expected
-	// - the unit can now see another unit
+
 	if action.IsTurnEnding() {
 		unit.EndTurn()
 	}
 
 	mb.SendAll()
 }
-
-func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessage) {
-	user := b.connectedClients[userID]
-	gameID := user.activeGame
-	if gameID == "" {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
-		return
-	}
-	gameInstance, exists := b.runningGames[gameID]
-	if !exists {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
-		return
-	}
-
-	if msg.GameUnitID >= uint64(len(gameInstance.GetAllUnits())) {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
-		return
-	}
-	unit, unitExists := gameInstance.GetUnit(msg.GameUnitID)
-
-	if !unitExists {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
-		return
-	}
-
-	if unit.ControlledBy() != userID {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
-		return
-	}
-
-	if !unit.CanAct() {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
-		return
-	}
-
-	action := GetServerActionForUnit(gameInstance, msg, unit)
-
-	// get action for this unit, check if the target is valid
-	if isValid, reason := action.IsValid(); !isValid {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
-		return
-	}
-	// this setup won't work: the client cannot know how to execute the action
-	// example movement: only the server knows if an reaction shot is triggered
-	// so executing that same action on the client will not work
-	// we need to adapt the response to include the result of the action
-	mb := game.NewMessageBuffer(gameInstance.GetPlayerIDs(), b.writeFromBuffer)
-	action.Execute(mb)
-	// so for the movement example we want to communicate
-	// - the unit moved to another position than the client expected
-	// - the unit can now see another unit
-	if action.IsTurnEnding() {
-		unit.EndTurn()
-	}
-	//unit.EndTurn() // TODO: enable again
-
-	mb.SendAll()
-}
-
 func (b *BattleServer) EndTurn(userID uint64) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame

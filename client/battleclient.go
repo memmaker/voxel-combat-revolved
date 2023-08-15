@@ -310,25 +310,36 @@ func (a *BattleClient) drawGUI() {
 	}
 }
 
+func (a *BattleClient) SwitchToNextUnit(currentUnit *Unit) {
+	nextUnit, hasNext := a.GetNextUnit(currentUnit)
+	if !hasNext {
+		return
+	}
+	a.SwitchToUnit(nextUnit)
+}
+
 func (a *BattleClient) SwitchToUnit(unit *Unit) {
-	a.stateStack = []GameState{&GameStateUnit{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit}}
+	a.stateStack = []GameState{NewGameStateUnit(a, unit)}
 	a.state().Init(false)
 }
 
 func (a *BattleClient) SwitchToUnitNoCameraMovement(unit *Unit) {
-	a.stateStack = []GameState{&GameStateUnit{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, noCameraMovement: true}}
+	a.stateStack = []GameState{NewGameStateUnitNoCamMove(a, unit)}
 	a.state().Init(false)
 }
 
 func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
-	a.stateStack = append(a.stateStack, &GameStateAction{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, selectedAction: action})
+	a.stateStack = []GameState{
+		NewGameStateUnit(a, unit),
+		&GameStateAction{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, selectedAction: action},
+	}
 	a.state().Init(false)
 }
 
 func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
 	a.stateStack = []GameState{
-		&GameStateUnit{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit},
-		&GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action},
+		NewGameStateUnit(a, unit),
+		&GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action, lockedTarget: -1},
 	}
 	a.state().Init(false)
 }
@@ -395,8 +406,7 @@ func (a *BattleClient) SwitchToBlockSelector() {
 func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
 	units := a.GetMyUnits()
 	for i, u := range units {
-		otherUnit, _ := a.GetClientUnit(u.UnitID())
-		if otherUnit == currentUnit {
+		if u.UnitID() == currentUnit.UnitID() {
 			for j := 1; j < len(units); j++ {
 				nextUnitIndex := (i + j) % len(units)
 				nextUnit := units[nextUnitIndex]
@@ -414,6 +424,11 @@ func (a *BattleClient) SwitchToFirstPerson(unit *Unit) {
 	position := unit.GetEyePosition()
 	accuracy := unit.GetFreeAimAccuracy()
 
+	a.GetVoxelMap().ClearHighlights()
+	a.groundSelector.Hide()
+	a.actionbar.Hide()
+	a.fpsCamera.ResetFOV()
+
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
 	a.crosshair.SetSize(1.0 - accuracy)
@@ -425,7 +440,7 @@ func (a *BattleClient) SwitchToFirstPerson(unit *Unit) {
 	if arms != nil {
 		previousAnimation := arms.GetAnimationName()
 		arms.SetTempParent(a.fpsCamera)
-		arms.SetAnimation(game.AnimationGunIdle.Str())
+		arms.SetAnimation(game.AnimationWeaponIdle.Str())
 		a.onSwitchToIsoCamera = func() { // detach arms when switching back to iso camera
 			arms.SetTempParent(nil)
 			arms.SetAnimation(previousAnimation)
@@ -499,6 +514,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
+		attackerUnit.SetForward(msg.AimDirection)
 	}
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
@@ -510,8 +526,13 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 				unit, ok := a.GetClientUnit(uint64(projectile.UnitHit))
 				isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
 				if isLethal {
-					unit.HitWithLethalProjectile(projectile.Velocity, projectile.BodyPart)
+					unit.PlayDeathAnimation(projectile.Velocity, projectile.BodyPart)
+				} else {
+					unit.PlayHitAnimation(projectile.Velocity, projectile.BodyPart)
 				}
+
+				a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
+
 				if !ok {
 					println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
 					return
@@ -538,7 +559,6 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 }
 
 func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
-	// TODO: Find BUG
 	// When an enemy unit is leaving the LOS of a player owned unit,
 	// the space where the unit was standing is cleared on the client side map.
 	movingUnit, _ := a.GetClientUnit(msg.MovingUnit)
@@ -588,7 +608,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 			// NOTE: We really instantly teleport to the next path part.
 			currentPathPart++
 			startPos := msg.PathParts[currentPathPart][0]
-			movingUnit.SetBlockPositionAndUpdateMapAndModel(startPos)
+			movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(startPos)
 			movingUnit.SetPath(msg.PathParts[currentPathPart])
 			return false
 		}
@@ -601,7 +621,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 
 	if !hasPath {
 		if msg.UpdatedUnit != nil {
-			movingUnit.SetBlockPositionAndUpdateMapAndModel(msg.UpdatedUnit.GetBlockPosition())
+			movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(msg.UpdatedUnit.GetBlockPosition())
 		}
 		changeLOS()
 		return
@@ -610,7 +630,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	startPos := firstPath[0]
 	currentPos := movingUnit.GetBlockPosition()
 	if voxel.ManhattanDistance2(currentPos, startPos) > 1 {
-		movingUnit.SetBlockPositionAndUpdateMapAndModel(startPos)
+		movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(startPos)
 		currentPos = startPos
 	}
 	destination := firstPath[len(firstPath)-1]
@@ -728,4 +748,9 @@ func (a *BattleClient) OnGameOver(msg game.GameOverMessage) {
 func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 	unit, _ := a.GetClientUnit(unitID)
 	return unit != nil && unit.IsUserControlled()
+}
+
+func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
+	// TODO: Spawn blood particles
+	// TODO: Add blood decals on unit skin
 }

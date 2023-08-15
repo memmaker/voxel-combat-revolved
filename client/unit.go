@@ -97,13 +97,19 @@ type HitInfo struct {
 	BodyPart      util.DamageZone
 }
 
-func (p *Unit) HitWithLethalProjectile(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
+func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
 	// needs to be passed to the new state, we do indirectly via the unit
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
 	p.eventQueue = append(p.eventQueue, EventLethalHit)
+}
+
+func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
+	// needs to be passed to the new state, we do indirectly via the unit
+	p.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
+	// TODO: add the actual hit animation
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
@@ -121,7 +127,12 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	return p.UnitInstance.GetModel().RootNode.GetTransformMatrix()
 }
 func (p *Unit) HasReachedWaypoint() bool {
-	return p.GetFootPosition().Sub(p.GetWaypoint().ToBlockCenterVec3()).Len() < 0.05
+	footPosition := p.GetFootPosition()
+	waypoint := p.GetWaypoint().ToBlockCenterVec3()
+	dist := footPosition.Sub(waypoint).Len()
+
+	reached := dist < 0.05
+	return reached
 }
 
 func (p *Unit) SetPath(path []voxel.Int3) {
@@ -149,6 +160,7 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 
 func (p *Unit) TurnTowardsWaypoint() {
 	direction := p.GetWaypoint().Sub(voxel.ToGridInt3(p.GetFootPosition()))
+	println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
 	p.SetForward(direction)
 }
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
@@ -173,15 +185,16 @@ func (p *Unit) IsLastWaypoint() bool {
 }
 
 func (p *Unit) IsCurrentWaypointAClimb() bool {
-	return p.currentPath[p.currentWaypoint].Y == voxel.ToGridInt3(p.GetFootPosition()).Y+1
+	return p.currentPath[p.currentWaypoint].Y == p.GetBlockPosition().Y+1
 }
 
 func (p *Unit) IsCurrentWaypointADrop() bool {
-	return p.currentPath[p.currentWaypoint].Y < voxel.ToGridInt3(p.GetFootPosition()).Y
+	return p.currentPath[p.currentWaypoint].Y < p.GetBlockPosition().Y
 }
 
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
+	println(fmt.Sprintf("[Unit] %s(%d) NextWaypoint, now: %s", p.GetName(), p.UnitID(), p.GetWaypoint().ToString()))
 }
 func (p *Unit) IsUserControlled() bool {
 	return p.controlledByUser
@@ -225,7 +238,12 @@ func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
 	unit.SetVoxelMap(oldVoxelMap)
 
 	p.UnitInstance = unit
-	p.UpdateMapAndModelPosition()
+	p.UpdateMapAndModelAndAnimation()
+}
+
+func (p *Unit) IsOnGround() bool {
+	posBelow := p.GetBlockPosition().Sub(voxel.Int3{Y: 1})
+	return p.GetVoxelMap().IsSolidBlockAt(posBelow.X, posBelow.Y, posBelow.Z)
 }
 
 func NewClientUnit(instance *game.UnitInstance) *Unit {
@@ -236,7 +254,7 @@ func NewClientUnit(instance *game.UnitInstance) *Unit {
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 	}
-	a.UpdateMapAndModelPosition()
+	a.UpdateMapAndModelAndAnimation()
 	a.SetState(ActorStateIdle)
 	return a
 }

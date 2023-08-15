@@ -5,6 +5,7 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
+	"sort"
 )
 
 func (g *GameInstance) SetLOSMatrix(matrix map[uint64]map[uint64]bool) {
@@ -39,6 +40,9 @@ func (g *GameInstance) GetVisibleEnemyUnits(unitID uint64) []*UnitInstance {
 			result = append(result, enemy)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return ownInstance.GetEyePosition().Sub(result[i].GetEyePosition()).Len() < ownInstance.GetEyePosition().Sub(result[j].GetEyePosition()).Len()
+	})
 	return result
 }
 func (g *GameInstance) UnitIsVisibleToPlayer(playerID, unitID uint64) bool {

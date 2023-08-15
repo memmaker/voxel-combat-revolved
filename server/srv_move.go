@@ -32,10 +32,10 @@ func (a ServerActionMove) IsValid() (bool, string) {
 	return true, ""
 }
 
-func NewServerActionMove(engine *game.GameInstance, action *game.ActionMove, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
+func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
 	return &ServerActionMove{
 		engine:     engine,
-		gameAction: action,
+		gameAction: game.NewActionMove(engine.GetVoxelMap()),
 		unit:       unit,
 		target:     target,
 	}
@@ -108,7 +108,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
 	a.unit.SetForward(unitForward)
-	a.unit.SetBlockPositionAndUpdateMapAndModel(destination)
+	a.unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(destination)
 
 	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward().ToString()))
 

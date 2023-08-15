@@ -6,6 +6,12 @@
  - Animations
  - Data driven
 
+# Design goals
+ - Tactical decision making
+ - Art of war
+ - Deception
+ - Yomi - Reading the mind of the opponent
+
 # Known issues
  - Model meshes are sometimes outside of the occupied blocks
    -> Visual glitches, clipping, etc.

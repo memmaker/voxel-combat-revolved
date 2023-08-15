@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
+	"math"
 )
 
 // translated from https://github.com/Vercidium/voxel-mesh-generation/blob/master/source/Chunk.cs
@@ -360,6 +361,38 @@ func (i Int3) ToBlockCenterVec3() mgl32.Vec3 {
 
 func (i Int3) ToString() string {
 	return fmt.Sprintf("(%d,%d,%d)", i.X, i.Y, i.Z)
+}
+
+func (i Int3) ToCardinalDirection() Int3 {
+	// allowed values are
+	// north: 0,0,-1
+	// east: 1,0,0
+	// south: 0,0,1
+	// west: -1,0,0
+	if i.ManhattanLength() == 1 && i.Y == 0 {
+		return i
+	}
+
+	absX := int32(math.Abs(float64(i.X)))
+	absZ := int32(math.Abs(float64(i.Z)))
+
+	if absX > absZ {
+		if i.X > 0 {
+			return Int3{1, 0, 0}
+		} else {
+			return Int3{-1, 0, 0}
+		}
+	} else {
+		if i.Z > 0 {
+			return Int3{0, 0, 1}
+		} else {
+			return Int3{0, 0, -1}
+		}
+	}
+}
+
+func (i Int3) ManhattanLength() int {
+	return int(math.Abs(float64(i.X)) + math.Abs(float64(i.Y)) + math.Abs(float64(i.Z)))
 }
 
 func (c *Chunk) Draw(shader *glhf.Shader, camDirection mgl32.Vec3) {

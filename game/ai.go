@@ -32,7 +32,7 @@ func (d *DummyClientUnit) SetServerInstance(instance *UnitInstance) {
 	instance.SetVoxelMap(oldVoxelMap)
 
 	d.UnitInstance = instance
-	d.UpdateMapAndModelPosition()
+	d.UpdateMapAndModelAndAnimation()
 }
 
 type DummyClient struct {
@@ -160,7 +160,7 @@ func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
 		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), chosenDest))
 		// HACK: assume this works
-		unit.SetBlockPositionAndUpdateMapAndModel(chosenDest)
+		unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(chosenDest)
 		c.waitingForUnit = unit.UnitID()
 		return true
 	} else {

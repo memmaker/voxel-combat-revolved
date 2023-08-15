@@ -3,5 +3,8 @@
 build/
 assets/rawpng/
 bg
+bgclient
+bgserve
+battleground
 debug_atlas.png
 *.prof

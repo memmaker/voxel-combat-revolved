@@ -117,7 +117,7 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 	// TODO: change spawn position
-	unit.SetBlockPositionAndUpdateMapAndModel(g.voxelMap.GetNextDebugSpawn())
+	unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(g.voxelMap.GetNextDebugSpawn())
 	return unitInstanceID
 }
 func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {

@@ -107,3 +107,16 @@ func DirectionToAngleVec(direction mgl32.Vec3) float32 {
 	angle := float32(math.Atan2(float64(direction.X()), float64(direction.Z()))) + math.Pi
 	return angle
 }
+
+func DirectionToCardinalAim(direction mgl32.Vec3) voxel.Int3 {
+	angle := DirectionToAngleVec(direction)
+	if angle < ToRadian(45) || angle > ToRadian(315) {
+		return voxel.Int3{Z: -1}
+	} else if angle < ToRadian(135) {
+		return voxel.Int3{X: -1}
+	} else if angle < ToRadian(225) {
+		return voxel.Int3{Z: 1}
+	} else {
+		return voxel.Int3{X: 1}
+	}
+}

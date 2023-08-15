@@ -15,6 +15,7 @@ type GameStateFreeAim struct {
 	lastMouseX     float64
 	lastMouseY     float64
 	selectedAction game.TargetAction
+	lockedTarget   int
 }
 
 func (g *GameStateFreeAim) OnScroll(deltaTime float64, xoff float64, yoff float64) {
@@ -35,13 +36,26 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 		g.engine.fpsCamera.ChangeFOV(-1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	} else if key == glfw.KeyJ {
 		g.engine.fpsCamera.ResetFOV()
+	} else if key == glfw.KeyTab {
+		g.aimAtNextTarget()
 	}
 }
-
+func (g *GameStateFreeAim) aimAtNextTarget() {
+	visibleEnemies := g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
+	if len(visibleEnemies) == 0 {
+		g.engine.fpsCamera.FPSLookAt(g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward().ToVec3()))
+		return
+	}
+	g.lockedTarget = (g.lockedTarget + 1) % len(visibleEnemies)
+	g.engine.fpsCamera.FPSLookAt(visibleEnemies[g.lockedTarget].GetEyePosition())
+	g.engine.Print(visibleEnemies[g.lockedTarget].GetEnemyDescription())
+}
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
+
 	g.engine.SwitchToFirstPerson(g.selectedUnit)
-	g.engine.fpsCamera.ResetFOV()
+
+	g.aimAtNextTarget()
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {
@@ -53,19 +67,9 @@ func (g *GameStateFreeAim) OnUpperLeftAction() {
 }
 
 func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
-	println(fmt.Sprintf("[GameStateFreeAim] Clicked at %0.2f, %0.2f", x, y))
-	// project point from screen space to isoCamera space
-	groundBlock := g.engine.groundSelector.GetBlockPosition()
-	println(fmt.Sprintf("[GameStateFreeAim] Block %s", groundBlock.ToString()))
 	if g.selectedUnit.CanAct() {
-		// check if target is valid
-
 		camPos := g.engine.fpsCamera.GetPosition()
 		camRotX, camRotY := g.engine.fpsCamera.GetRotation()
-		//sourceOfProjectile := g.selectedUnit.GetEyePosition()
-
-		//destination := sourceOffset.Add(velocity)
-		//g.engine.SpawnProjectile(sourceOffset, velocity)
 		println(fmt.Sprintf("[GameStateFreeAim] Sending action %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
 		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
 	} else {

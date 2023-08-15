@@ -9,9 +9,9 @@ import (
 
 func NewBattleServer() *server.BattleServer {
 	defaultCoreStats := game.UnitCoreStats{
-		Health:   10,
-		Speed:    15,
-		Accuracy: 0.75,
+		Health:        10,
+		MovementPerAP: 3.5,
+		Accuracy:      0.75,
 	}
 
 	battleServer := server.NewBattleServer()

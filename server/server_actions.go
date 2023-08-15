@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/game"
 )
 
@@ -47,17 +46,9 @@ func GetServerActionForUnit(g *game.GameInstance, actionMessage game.UnitActionM
 func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
 	switch targetAction.Action {
 	case "Move":
-		return NewServerActionMove(g, game.NewActionMove(g.GetVoxelMap()), unit, targetAction.Target)
+		return NewServerActionMove(g, unit, targetAction.Target)
 	case "Shot":
-		camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
-		if !g.GetVoxelMap().IsOccupied(targetAction.Target) {
-			return NewInvalidServerAction(fmt.Sprintf("SnapShot target %s is not occupied", targetAction.Target.ToString()))
-		}
-		targetUnit := g.GetVoxelMap().GetMapObjectAt(targetAction.Target).(*game.UnitInstance)
-		if targetUnit != nil {
-			camera.FPSLookAt(targetUnit.GetCenterOfMassPosition())
-		}
-		return NewServerActionFreeShot(g, unit, camera)
+		return NewServerActionSnapShot(g, unit, targetAction.Target)
 	}
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", targetAction.Action))
 }
@@ -65,10 +56,8 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 func GetFreeAimAction(g *game.GameInstance, msg game.FreeAimActionMessage, unit *game.UnitInstance) ServerAction {
 	switch msg.Action {
 	case "Shot":
-		camera := util.NewFPSCamera(msg.CamPos, 100, 100)
-		camera.Reposition(msg.CamPos, msg.CamRotX, msg.CamRotY)
-		return NewServerActionFreeShot(g, unit, camera)
+		return NewServerActionFreeShot(g, unit, msg.CamPos, msg.CamRotX, msg.CamRotY)
 	}
 	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", msg.Action))
-	return nil
+	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", msg.Action))
 }
