@@ -35,6 +35,7 @@ type UnitCore interface {
 	ControlledBy() uint64
 	GetOccupiedBlockOffsets() []voxel.Int3
 }
+
 type UnitClientDefinition struct {
 	TextureFile string
 }
@@ -239,7 +240,9 @@ func (u *UnitInstance) GetWeapon() *Weapon {
 func (u *UnitInstance) SetForward(forward voxel.Int3) {
 	//println(fmt.Sprintf("[UnitInstance] SetForward for %s(%d): %v", u.GetName(), u.UnitID(), forward))
 	u.ForwardVector = forward
-	u.model.SetYRotationAngle(util.DirectionToAngle(forward))
+	if u.model != nil {
+		u.model.SetYRotationAngle(util.DirectionToAngle(forward))
+	}
 }
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
@@ -269,7 +272,7 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
 }
 
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
-	return u.Position.Add(voxel.Int3{Y: 1}).ToBlockCenterVec3()
+	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1.3, 0})
 }
 
 func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {

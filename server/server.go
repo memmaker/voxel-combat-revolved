@@ -356,7 +356,12 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
-	unit := gameInstance.GetUnit(msg.UnitID())
+	unit, unitExists := gameInstance.GetUnit(msg.UnitID())
+
+	if !unitExists {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return
+	}
 
 	if unit.ControlledBy() != userID {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
@@ -408,7 +413,12 @@ func (b *BattleServer) FreeAimAction(userID uint64, msg game.FreeAimActionMessag
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
-	unit := gameInstance.GetUnit(msg.GameUnitID)
+	unit, unitExists := gameInstance.GetUnit(msg.GameUnitID)
+
+	if !unitExists {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return
+	}
 
 	if unit.ControlledBy() != userID {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})

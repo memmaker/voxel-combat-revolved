@@ -6,6 +6,28 @@ import (
 	"github.com/memmaker/battleground/game"
 )
 
+type InvalidServerAction struct {
+	Reason string
+}
+
+func (i InvalidServerAction) IsValid() (bool, string) {
+	return false, i.Reason
+}
+
+func (i InvalidServerAction) Execute(mb *game.MessageBuffer) {
+	println(fmt.Sprintf("[InvalidServerAction] ERR - Execute - %s", i.Reason))
+}
+
+func (i InvalidServerAction) IsTurnEnding() bool {
+	return false
+}
+
+func NewInvalidServerAction(reason string) *InvalidServerAction {
+	return &InvalidServerAction{
+		Reason: reason,
+	}
+}
+
 type ServerAction interface {
 	IsValid() (bool, string)
 	Execute(mb *game.MessageBuffer)
@@ -19,7 +41,7 @@ func GetServerActionForUnit(g *game.GameInstance, actionMessage game.UnitActionM
 	case game.FreeAimActionMessage:
 		return GetFreeAimAction(g, typedMsg, unit)
 	}
-	return nil
+	return NewInvalidServerAction(fmt.Sprintf("Unknown action type %T", actionMessage))
 }
 
 func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
@@ -28,14 +50,16 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 		return NewServerActionMove(g, game.NewActionMove(g.GetVoxelMap()), unit, targetAction.Target)
 	case "Shot":
 		camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
+		if !g.GetVoxelMap().IsOccupied(targetAction.Target) {
+			return NewInvalidServerAction(fmt.Sprintf("SnapShot target %s is not occupied", targetAction.Target.ToString()))
+		}
 		targetUnit := g.GetVoxelMap().GetMapObjectAt(targetAction.Target).(*game.UnitInstance)
 		if targetUnit != nil {
 			camera.FPSLookAt(targetUnit.GetCenterOfMassPosition())
 		}
 		return NewServerActionFreeShot(g, unit, camera)
 	}
-	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", targetAction.Action))
-	return nil
+	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", targetAction.Action))
 }
 
 func GetFreeAimAction(g *game.GameInstance, msg game.FreeAimActionMessage, unit *game.UnitInstance) ServerAction {

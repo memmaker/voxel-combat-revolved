@@ -21,11 +21,22 @@ func (g *GameInstance) InitLOS() {
 		}
 	}
 }
-func (g *GameInstance) GetVisibleUnits(unitID uint64) []UnitCore {
-	result := make([]UnitCore, 0)
+func (g *GameInstance) GetVisibleUnits(unitID uint64) []*UnitInstance {
+	result := make([]*UnitInstance, 0)
 	for enemyID, isVisble := range g.losMatrix[unitID] {
 		if isVisble {
 			result = append(result, g.units[enemyID])
+		}
+	}
+	return result
+}
+func (g *GameInstance) GetVisibleEnemyUnits(unitID uint64) []*UnitInstance {
+	result := make([]*UnitInstance, 0)
+	ownInstance := g.units[unitID]
+	for enemyID, isVisble := range g.losMatrix[unitID] {
+		enemy := g.units[enemyID]
+		if isVisble && enemy.ControlledBy() != ownInstance.ControlledBy() {
+			result = append(result, enemy)
 		}
 	}
 	return result

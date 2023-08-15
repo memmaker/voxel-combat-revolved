@@ -142,7 +142,6 @@ func (g *GameInstance) GetPlayerUnits(userID uint64) []*UnitInstance {
 	}
 	return result
 }
-
 func (g *GameInstance) IsPlayerTurn(id uint64) bool {
 	return g.currentPlayerID() == id
 }
@@ -230,8 +229,9 @@ func (g *GameInstance) GetMapFile() string {
 	return g.mapFile
 }
 
-func (g *GameInstance) GetUnit(unitID uint64) *UnitInstance {
-	return g.units[unitID]
+func (g *GameInstance) GetUnit(unitID uint64) (*UnitInstance, bool) {
+	unit, ok := g.units[unitID]
+	return unit, ok
 }
 
 func (g *GameInstance) GetAllUnits() map[uint64]*UnitInstance {

@@ -5,10 +5,10 @@ import (
 )
 
 type ActionShot struct {
-	engine Engine
+	engine *GameInstance
 }
 
-func NewActionShot(engine Engine) *ActionShot {
+func NewActionShot(engine *GameInstance) *ActionShot {
 	return &ActionShot{
 		engine: engine,
 	}
