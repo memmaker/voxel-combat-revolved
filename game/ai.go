@@ -266,7 +266,14 @@ func (c *DummyClient) resetTurn() {
 func (c *DummyClient) getNextUnit() (*DummyClientUnit, bool) {
 	for _, unit := range c.GetMyUnits() {
 		if _, ok := c.movedUnits[unit.UnitID()]; !ok {
-			return c.GetClientUnit(unit.UnitID())
+			clientUnit, available := c.GetClientUnit(unit.UnitID())
+			if !available {
+				continue
+			}
+			if !clientUnit.IsActive() {
+				continue
+			}
+			return clientUnit, available
 		}
 	}
 	return nil, false

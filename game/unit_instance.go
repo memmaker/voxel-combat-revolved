@@ -230,6 +230,9 @@ func (u *UnitInstance) GetColliders() []util.Collider {
 
 func (u *UnitInstance) SetWeapon(weapon *Weapon) {
 	u.Weapon = weapon
+	if u.model != nil {
+		u.model.HideChildrenOfBoneExcept("Weapon", u.GetWeapon().Definition.Model)
+	}
 }
 
 func (u *UnitInstance) GetWeapon() *Weapon {

@@ -16,14 +16,10 @@ type GameStateUnit struct {
 }
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
-	if key == glfw.KeySpace && g.selectedUnit.CanAct() {
-		g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.GetVoxelMap()))
-	} else if key == glfw.KeyF {
-		g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))
-	} else if key == glfw.KeyEnter {
-		g.engine.SwitchToFreeAim(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))
-	} else if key == glfw.KeyTab {
-		g.nextUnit()
+	if !g.engine.actionbar.HandleKeyEvent(key) {
+		if key == glfw.KeyTab {
+			g.nextUnit()
+		}
 	}
 }
 

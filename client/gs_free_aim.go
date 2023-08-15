@@ -19,9 +19,9 @@ type GameStateFreeAim struct {
 
 func (g *GameStateFreeAim) OnScroll(deltaTime float64, xoff float64, yoff float64) {
 	if yoff > 0 {
-		g.engine.isoCamera.ZoomOut(deltaTime, yoff)
+		g.engine.fpsCamera.ChangeFOV(1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	} else {
-		g.engine.isoCamera.ZoomIn(deltaTime, -yoff)
+		g.engine.fpsCamera.ChangeFOV(-1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	}
 }
 
@@ -30,19 +30,18 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 		g.engine.SwitchToIsoCamera()
 		g.engine.PopState()
 	} else if key == glfw.KeyM {
-		fov := g.engine.fpsCamera.GetFOV()
-		g.engine.fpsCamera.SetFOV(fov + 1)
+		g.engine.fpsCamera.ChangeFOV(1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	} else if key == glfw.KeyN {
-		fov := g.engine.fpsCamera.GetFOV()
-		g.engine.fpsCamera.SetFOV(fov - 1)
+		g.engine.fpsCamera.ChangeFOV(-1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	} else if key == glfw.KeyJ {
-		g.engine.fpsCamera.SetFOV(45)
+		g.engine.fpsCamera.ResetFOV()
 	}
 }
 
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
 	g.engine.SwitchToFirstPerson(g.selectedUnit)
+	g.engine.fpsCamera.ResetFOV()
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {

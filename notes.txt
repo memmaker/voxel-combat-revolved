@@ -6,6 +6,11 @@
  - Animations
  - Data driven
 
+# Known issues
+ - Model meshes are sometimes outside of the occupied blocks
+   -> Visual glitches, clipping, etc.
+   -> Raycasting will fail on these parts of the model
+
 # Client - Server
  - Server & Clients share the same board and the same pieces, but with different states
  - Both share core game logic through the GameInstance and UnitInstance

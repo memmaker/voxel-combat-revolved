@@ -37,7 +37,7 @@ func (v VisualEnemyUnitMoved) MessageType() string {
 type VisualRangedAttack struct {
 	Projectiles []VisualProjectile
 	WeaponType  WeaponType
-	AmmoCost    int
+	AmmoCost    uint
 	Attacker    uint64
 }
 type VisualProjectile struct {

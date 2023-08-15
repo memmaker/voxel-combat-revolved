@@ -14,15 +14,16 @@ type WeaponDefinition struct {
 	Model               string
 	WeaponType          WeaponType
 	AccuracyModifier    float64
-	BulletsPerShot      int
-	EffectiveRange      int
-	MaxRange            int
-	MagazineSize        int
+	BulletsPerShot      uint
+	EffectiveRange      uint
+	MaxRange            uint
+	MagazineSize        uint
 	BaseDamagePerBullet int
+	MinFOVForZoom       uint
 }
 type Weapon struct {
 	Definition      *WeaponDefinition
-	AmmoCount       int
+	AmmoCount       uint
 	AccuracyPenalty float64
 }
 
@@ -30,7 +31,7 @@ func (w *Weapon) IsReady() bool {
 	return w.AmmoCount > 0
 }
 
-func (w *Weapon) ConsumeAmmo(amount int) {
+func (w *Weapon) ConsumeAmmo(amount uint) {
 	w.AmmoCount -= amount
 }
 
@@ -44,6 +45,10 @@ func (w *Weapon) SetAccuracyPenalty(penalty float64) {
 
 func (w *Weapon) GetAccuracyModifier() float64 {
 	return w.Definition.AccuracyModifier - w.AccuracyPenalty
+}
+
+func (w *Weapon) GetMinFOVForZoom() uint {
+	return w.Definition.MinFOVForZoom
 }
 
 func NewWeapon(definition *WeaponDefinition) *Weapon {

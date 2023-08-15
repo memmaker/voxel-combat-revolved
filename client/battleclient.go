@@ -326,7 +326,10 @@ func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
 }
 
 func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
-	a.stateStack = append(a.stateStack, &GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action})
+	a.stateStack = []GameState{
+		&GameStateUnit{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit},
+		&GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action},
+	}
 	a.state().Init(false)
 }
 

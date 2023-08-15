@@ -21,6 +21,7 @@ type FPSCamera struct {
 	windowHeight     int
 	nearPlaneDist    float32
 	fov              float32
+	defaultFOV       float32
 }
 
 func (c *FPSCamera) GetName() string {
@@ -48,6 +49,7 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 		windowWidth:     windowWidth,
 		windowHeight:    windowHeight,
 		fov:             float32(45.0),
+		defaultFOV:      float32(45.0),
 	}
 }
 
@@ -203,4 +205,21 @@ func (c *FPSCamera) GetScreenWidth() int {
 
 func (c *FPSCamera) GetScreenHeight() int {
 	return c.windowHeight
+}
+
+func (c *FPSCamera) ChangeFOV(change int, minimum uint) {
+	minFOV := float32(minimum)
+	maxFOV := c.defaultFOV
+	newFOV := c.fov + float32(change)
+	if newFOV < minFOV {
+		newFOV = minFOV
+	}
+	if newFOV > maxFOV {
+		newFOV = maxFOV
+	}
+	c.fov = newFOV
+}
+
+func (c *FPSCamera) ResetFOV() {
+	c.fov = c.defaultFOV
 }

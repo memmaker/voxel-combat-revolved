@@ -76,6 +76,9 @@ func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEye
 	if observer == another || observer.ControlledBy() == another.ControlledBy() {
 		return true
 	}
+	if !observer.IsActive() {
+		return false
+	}
 
 	targetTwo := targetFootPosition
 	targetOne := targetFootPosition.Add(another.GetEyeOffset())

@@ -61,11 +61,11 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	var projectiles []game.VisualProjectile
 	numberOfProjectiles := a.unit.Weapon.Definition.BulletsPerShot
 
-	for i := 0; i < numberOfProjectiles; i++ {
+	for i := uint(0); i < numberOfProjectiles; i++ {
 		projectiles = append(projectiles, a.simulateOneProjectile())
 	}
 
-	ammoCost := 1
+	ammoCost := uint(1)
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
 	mb.AddMessageForAll(game.VisualRangedAttack{

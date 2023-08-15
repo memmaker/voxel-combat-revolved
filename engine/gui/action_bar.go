@@ -152,3 +152,16 @@ func (a *ActionBar) OnMouseClicked(x float64, y float64) {
 func (a *ActionBar) Hide() {
 	a.isHidden = true
 }
+
+func (a *ActionBar) HandleKeyEvent(key glfw.Key) bool {
+	if a.isHidden {
+		return false
+	}
+	for _, action := range a.actions {
+		if action.Hotkey == key {
+			action.Execute()
+			return true
+		}
+	}
+	return false
+}
