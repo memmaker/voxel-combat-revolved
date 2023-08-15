@@ -6,6 +6,21 @@
  - Animations
  - Data driven
 
+# Client - Server
+ - Server & Clients share the same board and the same pieces, but with different states
+ - Both share core game logic through the GameInstance and UnitInstance
+ - Additionally, any "Dungeon Master" type simulation logic is only run on the server
+   - eg. Raycasting for projectiles and line of sight
+ - Clients are responsible for input & output and receive state changes from the server while sending player actions to the server
+
+ - Server is authoritative
+ - Server has GameInstance and UnitInstance information
+ - Server will publish an initial state to the clients
+ - Clients will send actions to the server
+ - Server will validate and apply changes to the GameInstance
+ - Server sends commands for the clients to apply the same changes to their GameInstance
+ - Clients will add animations and apply the changes to their GameInstance
+
 
 # We need
  - OpenGL Rendering Pipeline - DONE

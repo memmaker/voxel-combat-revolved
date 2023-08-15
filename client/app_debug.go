@@ -4,31 +4,7 @@ import (
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
-	"github.com/memmaker/battleground/engine/voxel"
 )
-
-func (a *BattleClient) createTestMap(sizeX, sizeY, sizeZ int32) {
-	testMap := a.voxelMap
-	for x := int32(0); x < sizeX; x++ {
-		for y := int32(0); y < sizeY; y++ {
-			for z := int32(0); z < sizeZ; z++ {
-				chunk := testMap.NewChunk(x, y, z)
-				createTestBlocks(chunk)
-			}
-		}
-	}
-	testMap.GenerateAllMeshes()
-}
-
-func createTestBlocks(testChunk *voxel.Chunk) {
-	testBlock := voxel.NewTestBlock(1)
-	// fill the lowest layer with blocks (y=0)
-	for x := int32(0); x < voxel.CHUNK_SIZE; x++ {
-		for z := int32(0); z < voxel.CHUNK_SIZE; z++ {
-			testChunk.SetBlock(x, 0, z, testBlock)
-		}
-	}
-}
 
 func (a *BattleClient) updateDebugInfo() {
 	if !a.showDebugInfo {

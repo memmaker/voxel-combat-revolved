@@ -94,21 +94,16 @@ func (p *Unit) SetState(nextState ActorState) {
 
 type HitInfo struct {
 	ForceOfImpact mgl32.Vec3
-	BodyPart      util.PartName
+	BodyPart      util.DamageZone
 }
 
-func (p *Unit) HitWithProjectile(forceOfImpact mgl32.Vec3, bodyPart util.PartName, damage int, lethal bool) {
+func (p *Unit) HitWithLethalProjectile(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
 	// needs to be passed to the new state, we do indirectly via the unit
 	p.hitInfo = HitInfo{
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
-
-	p.ApplyDamage(damage, bodyPart)
-
-	if lethal {
-		p.eventQueue = append(p.eventQueue, EventLethalHit)
-	}
+	p.eventQueue = append(p.eventQueue, EventLethalHit)
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
@@ -123,7 +118,7 @@ func (p *Unit) GetFootPosition() mgl32.Vec3 {
 }
 
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
-	return p.UnitInstance.GetModel().RootNode.GlobalMatrix()
+	return p.UnitInstance.GetModel().RootNode.GetTransformMatrix()
 }
 func (p *Unit) HasReachedWaypoint() bool {
 	return p.GetFootPosition().Sub(p.GetWaypoint().ToBlockCenterVec3()).Len() < 0.05

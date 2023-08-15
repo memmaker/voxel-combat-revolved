@@ -21,25 +21,34 @@ type WeaponDefinition struct {
 	BaseDamagePerBullet int
 }
 type Weapon struct {
-	Definition *WeaponDefinition
-	ammoCount  int
+	Definition      *WeaponDefinition
+	AmmoCount       int
+	AccuracyPenalty float64
 }
 
 func (w *Weapon) IsReady() bool {
-	return w.ammoCount > 0
+	return w.AmmoCount > 0
 }
 
 func (w *Weapon) ConsumeAmmo(amount int) {
-	w.ammoCount -= amount
+	w.AmmoCount -= amount
 }
 
 func (w *Weapon) Reload() {
-	w.ammoCount = w.Definition.MagazineSize
+	w.AmmoCount = w.Definition.MagazineSize
+}
+
+func (w *Weapon) SetAccuracyPenalty(penalty float64) {
+	w.AccuracyPenalty = penalty
+}
+
+func (w *Weapon) GetAccuracyModifier() float64 {
+	return w.Definition.AccuracyModifier - w.AccuracyPenalty
 }
 
 func NewWeapon(definition *WeaponDefinition) *Weapon {
 	return &Weapon{
 		Definition: definition,
-		ammoCount:  definition.MagazineSize,
+		AmmoCount:  definition.MagazineSize,
 	}
 }

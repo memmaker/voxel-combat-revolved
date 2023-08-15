@@ -60,7 +60,7 @@ func (c *Crosshair) localMatrix() mgl32.Mat4 {
 }
 
 func (c *Crosshair) getCamRotation() mgl32.Mat4 {
-	return c.camera.GetViewMatrix().Mat3().Mat4()
+	return c.camera.GetTransformMatrix().Mat3().Mat4()
 }
 func (c *Crosshair) Draw() {
 	c.shader.SetUniformAttr(0, c.camera.GetProjectionMatrix())

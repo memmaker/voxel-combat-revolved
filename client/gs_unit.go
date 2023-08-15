@@ -17,7 +17,7 @@ type GameStateUnit struct {
 
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeySpace && g.selectedUnit.CanAct() {
-		g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.voxelMap))
+		g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.GetVoxelMap()))
 	} else if key == glfw.KeyF {
 		g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine))
 	} else if key == glfw.KeyEnter {
@@ -55,7 +55,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 						println("[GameStateUnit] Unit cannot act anymore.")
 						return
 					}
-					g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.voxelMap))
+					g.engine.SwitchToAction(g.selectedUnit, game.NewActionMove(g.engine.GetVoxelMap()))
 				},
 				Hotkey: glfw.KeySpace,
 			},
@@ -102,7 +102,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 	if hitInfo.HitUnit() {
 		unitHit := hitInfo.UnitHit.(*game.UnitInstance)
 		if unitHit != g.selectedUnit.UnitInstance && unitHit.CanAct() && g.engine.IsUnitOwnedByClient(unitHit.UnitID()) {
-			g.selectedUnit = g.engine.GetUnit(unitHit.UnitID())
+			g.selectedUnit = g.engine.GetClientUnit(unitHit.UnitID())
 			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}

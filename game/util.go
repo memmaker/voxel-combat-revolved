@@ -18,5 +18,5 @@ func (h RayCastHit) HitUnit() bool {
 
 type FreeAimHit struct {
 	RayCastHit
-	BodyPart util.PartName
+	BodyPart util.DamageZone
 }

@@ -38,13 +38,14 @@ type VisualRangedAttack struct {
 	Projectiles []VisualProjectile
 	WeaponType  WeaponType
 	AmmoCost    int
+	Attacker    uint64
 }
 type VisualProjectile struct {
 	Origin      mgl32.Vec3
 	Destination mgl32.Vec3
 	Velocity    mgl32.Vec3
 	UnitHit     int64
-	BodyPart    util.PartName
+	BodyPart    util.DamageZone
 	Damage      int
 	IsLethal    bool
 }

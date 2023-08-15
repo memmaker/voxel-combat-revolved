@@ -72,6 +72,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 		Projectiles: projectiles,
 		WeaponType:  a.unit.Weapon.Definition.WeaponType,
 		AmmoCost:    ammoCost,
+		Attacker:    a.unit.UnitID(),
 	})
 }
 
@@ -84,14 +85,11 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHidID := int64(-1)
 	var hitUnit *game.UnitInstance = nil
-	if rayHitInfo.UnitHit != nil {
+	if rayHitInfo.UnitHit != nil && rayHitInfo.UnitHit != hitUnit {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
 		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
-		lethal = hitUnit.ApplyDamage(projectileDamage, rayHitInfo.BodyPart)
-		if lethal {
-			a.engine.Kill(a.unit, rayHitInfo.UnitHit.(*game.UnitInstance))
-		}
+		a.engine.ApplyDamage(a.unit, hitUnit, projectileDamage, rayHitInfo.BodyPart)
 	} else {
 		if rayHitInfo.Hit {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s", rayHitInfo.HitInfo3D.PreviousGridPosition.ToString()))

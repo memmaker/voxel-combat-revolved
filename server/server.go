@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"log"
@@ -228,7 +226,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 		return
 	}
 
-	battleGame := game.NewGameInstance(userId, gameID, msg.Map, msg.IsPublic)
+	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map)
 	battleGame.AddPlayer(userId)
 	user.isReady = false
 	user.activeGame = gameID
@@ -329,7 +327,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
 		unit.SetForward(voxel.Int3{X: 0, Y: 0, Z: 1})
-		unitID := gameInstance.AddUnit(userID, unit) // sets the instance userID
+		unitID := gameInstance.ServerSpawnUnit(userID, unit) // sets the instance userID
 		println(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
 
 	}
@@ -522,7 +520,6 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 		return
 	}
 	user.isReady = true
-	gameInstance.SetCamera(userID, util.NewFPSCamera(mgl32.Vec3{0, 0, 0}, 1, 1))
 
 	allReady := true
 	for _, playerID := range gameInstance.GetPlayerIDs() {

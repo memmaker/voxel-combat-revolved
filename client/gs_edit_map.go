@@ -19,12 +19,12 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	}
 
 	if key == glfw.KeyO {
-		g.engine.voxelMap.SaveToDisk()
+		g.engine.GetVoxelMap().SaveToDisk()
 	}
 
 	if key == glfw.KeyP {
-		g.engine.voxelMap.LoadFromDisk("assets/maps/map.bin")
-		g.engine.voxelMap.GenerateAllMeshes()
+		g.engine.GetVoxelMap().LoadFromDisk("assets/maps/map.bin")
+		g.engine.GetVoxelMap().GenerateAllMeshes()
 	}
 }
 

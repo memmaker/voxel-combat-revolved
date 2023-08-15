@@ -7,24 +7,33 @@ import (
 	"path"
 )
 
-func NewGameInstance(ownerID uint64, gameID string, mapFile string, public bool) *GameInstance {
+func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 	mapDir := "./assets/maps"
 	mapFile = path.Join(mapDir, mapFile)
 	loadedMap := voxel.NewMapFromFile(mapFile)
-	println(fmt.Sprintf("[GameInstance] %d created game %s", ownerID, gameID))
+	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
 	return &GameInstance{
-		owner:          ownerID,
 		id:             gameID,
 		mapFile:        mapFile,
-		public:         public,
 		players:        make([]uint64, 0),
-		factionMap:     make(map[*UnitInstance]*Faction),
 		playerFactions: make(map[uint64]*Faction),
 		losMatrix:      make(map[uint64]map[uint64]bool),
-		playerUnits:    make(map[uint64][]*UnitInstance),
+		playerUnits:    make(map[uint64][]uint64),
+		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
 		voxelMap:       loadedMap,
-		cameras:        make(map[uint64]*util.FPSCamera),
+	}
+}
+func NewGameInstance(gameID string) *GameInstance {
+	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
+	return &GameInstance{
+		id:             gameID,
+		players:        make([]uint64, 0),
+		playerFactions: make(map[uint64]*Faction),
+		losMatrix:      make(map[uint64]map[uint64]bool),
+		playerUnits:    make(map[uint64][]uint64),
+		units:          make(map[uint64]*UnitInstance),
+		playersNeeded:  2,
 	}
 }
 
@@ -36,15 +45,13 @@ type GameInstance struct {
 
 	// game instance state
 	currentPlayerIndex int
-	units              []*UnitInstance
-	factionMap         map[*UnitInstance]*Faction
+	units              map[uint64]*UnitInstance
 	losMatrix          map[uint64]map[uint64]bool
 	voxelMap           *voxel.Map
 	players            []uint64
 	playerFactions     map[uint64]*Faction
-	playerUnits        map[uint64][]*UnitInstance
+	playerUnits        map[uint64][]uint64
 	playersNeeded      int
-	cameras            map[uint64]*util.FPSCamera
 }
 
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
@@ -70,7 +77,7 @@ func (g *GameInstance) NextPlayer() uint64 {
 }
 
 func (g *GameInstance) currentPlayerUnits() []*UnitInstance {
-	return g.playerUnits[g.currentPlayerID()]
+	return g.GetPlayerUnits(g.currentPlayerID())
 }
 
 func (g *GameInstance) currentPlayerFaction() *Faction {
@@ -100,31 +107,40 @@ func (g *GameInstance) SetFaction(userID uint64, faction *Faction) {
 	println(fmt.Sprintf("[GameInstance] Player %d is now in faction %s", userID, faction.Name))
 }
 
-func (g *GameInstance) AddUnit(userID uint64, unit *UnitInstance) uint64 {
+func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64 {
 	if _, unitsExist := g.playerUnits[userID]; !unitsExist {
-		g.playerUnits[userID] = make([]*UnitInstance, 0)
+		g.playerUnits[userID] = make([]uint64, 0)
 	}
 	unitInstanceID := uint64(len(g.units))
 	unit.SetUnitID(unitInstanceID)
 	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
-	g.playerUnits[userID] = append(g.playerUnits[userID], unit)
-	g.units = append(g.units, unit)
-	g.factionMap[unit] = g.playerFactions[userID]
+	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
+	g.units[unitInstanceID] = unit
 	// TODO: change spawn position
 	unit.SetBlockPositionAndUpdateMapAndModel(g.voxelMap.GetNextDebugSpawn())
 	return unitInstanceID
 }
-
-func (g *GameInstance) GetUnitTypes(userID uint64) []uint64 {
-	var result []uint64
-	for _, unit := range g.playerUnits[userID] {
-		result = append(result, unit.Definition.ID)
+func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
+	if _, unitsExist := g.playerUnits[userID]; !unitsExist {
+		g.playerUnits[userID] = make([]uint64, 0)
 	}
-	return result
+	unitInstanceID := unit.UnitID()
+	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
+	g.units[unitInstanceID] = unit
+	return unitInstanceID
+}
+
+func (g *GameInstance) ClientUpdateUnit(unit *UnitInstance) {
+	g.units[unit.UnitID()] = unit
 }
 
 func (g *GameInstance) GetPlayerUnits(userID uint64) []*UnitInstance {
-	return g.playerUnits[userID]
+	result := make([]*UnitInstance, 0)
+	for _, unitID := range g.playerUnits[userID] {
+		result = append(result, g.units[unitID])
+	}
+	return result
 }
 
 func (g *GameInstance) IsPlayerTurn(id uint64) bool {
@@ -141,7 +157,8 @@ func (g *GameInstance) SetLOS(observer uint64, target uint64, canSee bool) {
 func (g *GameInstance) IsGameOver() (bool, uint64) {
 	playersWithActiveUnits := make(map[uint64]bool)
 	for playerID, units := range g.playerUnits {
-		for _, unit := range units {
+		for _, unitID := range units {
+			unit := g.units[unitID]
 			if unit.IsActive() {
 				playersWithActiveUnits[playerID] = true
 				break
@@ -157,17 +174,18 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 }
 
 func (g *GameInstance) Kill(killer, victim *UnitInstance) {
-	println(fmt.Sprintf("[GameInstance] %s(%d) killed %s(%d)", killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
+	if killer != nil {
+		println(fmt.Sprintf("[GameInstance] %s(%d) killed %s(%d)", killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
+	} else {
+		println(fmt.Sprintf("[GameInstance] %s(%d) died", victim.Name, victim.UnitID()))
+	}
 	victim.Kill()
-}
-
-func (g *GameInstance) SetCamera(userID uint64, camera *util.FPSCamera) {
-	g.cameras[userID] = camera
 }
 
 func (g *GameInstance) GetLOSState(playerID uint64) (map[uint64]map[uint64]bool, []*UnitInstance) {
 	whoCanSeeWho := make(map[uint64]map[uint64]bool)
-	for _, unit := range g.playerUnits[playerID] {
+	for _, unitID := range g.playerUnits[playerID] {
+		unit := g.units[unitID]
 		if !unit.IsActive() {
 			continue
 		}
@@ -216,7 +234,7 @@ func (g *GameInstance) GetUnit(unitID uint64) *UnitInstance {
 	return g.units[unitID]
 }
 
-func (g *GameInstance) GetAllUnits() []*UnitInstance {
+func (g *GameInstance) GetAllUnits() map[uint64]*UnitInstance {
 	return g.units
 }
 
@@ -226,4 +244,16 @@ func toList(result map[*UnitInstance]bool) []*UnitInstance {
 		list = append(list, unit)
 	}
 	return list
+}
+func (g *GameInstance) SetVoxelMap(loadedMap *voxel.Map) {
+	g.voxelMap = loadedMap
+}
+
+func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, bodyPart util.DamageZone) bool {
+	lethal := hitUnit.ApplyDamage(damage, bodyPart)
+	if lethal {
+		g.Kill(attacker, hitUnit)
+		return true
+	}
+	return false
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func (a *BattleClient) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
-	voxelMap := a.voxelMap
+	voxelMap := a.GetVoxelMap()
 	var visitedBlocks []voxel.Int3
 	var unitHit voxel.MapObject
 	stopRay := func(x, y, z int32) bool {
@@ -31,7 +31,7 @@ func (a *BattleClient) RayCast(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
 }
 
 func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastHit {
-	voxelMap := a.voxelMap
+	voxelMap := a.GetVoxelMap()
 	var visitedBlocks []voxel.Int3
 	var unitHit voxel.MapObject
 	stopRay := func(x, y, z int32) bool {
@@ -62,7 +62,7 @@ func (a *BattleClient) PlaceBlockAtCurrentSelection() {
 }
 
 func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
-	voxelMap := a.voxelMap
+	voxelMap := a.GetVoxelMap()
 	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
 		voxelMap.SetBlock(int32(pos.X), int32(pos.Y), int32(pos.Z), block)
 		voxelMap.GenerateAllMeshes()
@@ -70,7 +70,7 @@ func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
 }
 
 func (a *BattleClient) RemoveBlock() {
-	voxelMap := a.voxelMap
+	voxelMap := a.GetVoxelMap()
 	if a.lastHitInfo == nil {
 		return
 	}
@@ -161,9 +161,4 @@ func (a *BattleClient) LoadMap(filename string) *voxel.Map {
 	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
-}
-
-func (a *BattleClient) SetVoxelMap(testMap *voxel.Map) {
-	a.voxelMap = testMap
-	//a.voxelMap.SetUnitMovedHandler(a.OnOwnUnitMoved)
 }

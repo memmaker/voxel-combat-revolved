@@ -24,7 +24,7 @@ func (g *GameStateAction) Init(bool) {
 	g.validTargets = g.selectedAction.GetValidTargets(g.selectedUnit)
 	println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(g.validTargets)))
 	if len(g.validTargets) > 0 {
-		g.engine.voxelMap.SetHighlights(g.validTargets, 12)
+		g.engine.GetVoxelMap().SetHighlights(g.validTargets, 12)
 	}
 }
 

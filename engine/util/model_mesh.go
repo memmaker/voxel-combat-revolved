@@ -32,17 +32,24 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 		return false
 	}
 	scaledDeltaTime := deltaTime * m.animationSpeed
-	animationFinished := m.RootNode.UpdateAnimation(m.SamplerFrames[m.currentAnimation], scaledDeltaTime)
+	animationFinished := m.RootNode.UpdateAnimation(scaledDeltaTime)
 	if animationFinished && !m.loopAnimation {
 		m.holdAnimation = true
 	}
 	return animationFinished
+}
+func (m *CompoundMesh) getSamplerFrames(animationName string) [][]float32 {
+	return m.SamplerFrames[animationName]
 }
 func (m *CompoundMesh) SetAnimationSpeed(newSpeed float64) {
 	m.animationSpeed = newSpeed
 }
 func (m *CompoundMesh) Draw(shader *glhf.Shader) {
 	m.RootNode.Draw(shader, m.textures)
+}
+
+func (m *CompoundMesh) DrawWithoutTransform(shader *glhf.Shader) {
+	m.RootNode.DrawWithoutTransform(shader, m.textures)
 }
 
 func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
@@ -90,10 +97,11 @@ type SimpleAnimationData struct {
 	ScaleFrames       [][3]float32
 }
 type MeshNode struct {
-	Name string
+	name string
 	// Hierarchy
-	children []*MeshNode
-	parent   *MeshNode
+	children        []*MeshNode
+	parent          Transform
+	temporaryParent Transform
 
 	// rendering
 	mesh      *SimpleMesh
@@ -119,6 +127,12 @@ type MeshNode struct {
 	outOfRotationFrames    bool
 	outOfScaleFrames       bool
 	hidden                 bool
+
+	samplerSource func(animationName string) [][]float32
+}
+
+func (m *MeshNode) GetName() string {
+	return m.name
 }
 
 func (m *MeshNode) HasMesh() bool {
@@ -134,7 +148,7 @@ func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
 		//pairs := make(map[uint32]*glhf.VertexSlice)
 		for _, subMesh := range m.mesh.SubMeshes {
 			m.drawPairs = append(m.drawPairs, &DrawPair{TextureIndex: subMesh.TextureIndex, VertexData: subMesh.ToVertexSlice(shader)})
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GlobalMatrix})
+			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
@@ -146,7 +160,7 @@ func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
 func (m *MeshNode) CreateColliders() {
 	if m.mesh != nil {
 		for _, subMesh := range m.mesh.SubMeshes {
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GlobalMatrix})
+			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
@@ -159,8 +173,7 @@ func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
 	if m.hidden {
 		return
 	}
-	shader.SetUniformAttr(2, m.GlobalMatrix())
-
+	shader.SetUniformAttr(2, m.GetTransformMatrix())
 	for _, pair := range m.drawPairs {
 		textureIndex := pair.TextureIndex
 		meshGroup := pair.VertexData
@@ -175,8 +188,31 @@ func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
 	}
 }
 
+func (m *MeshNode) DrawWithoutTransform(shader *glhf.Shader, textures []*glhf.Texture) {
+	if m.hidden {
+		return
+	}
+	for _, pair := range m.drawPairs {
+		textureIndex := pair.TextureIndex
+		meshGroup := pair.VertexData
+		textures[textureIndex].Begin()
+		meshGroup.Begin()
+		meshGroup.Draw()
+		meshGroup.End()
+		textures[textureIndex].End()
+	}
+	for _, child := range m.children {
+		child.DrawWithoutTransform(shader, textures)
+	}
+}
 func (m *MeshNode) SetYRotationAngle(angle float32) {
 	m.quatRotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0})
+}
+
+func (m *MeshNode) SetForward(direction mgl32.Vec3) {
+	eyePos := mgl32.Vec3{m.translation[0], m.translation[1], m.translation[2]}
+	target := eyePos.Add(direction)
+	m.quatRotation = mgl32.QuatBetweenVectors(eyePos, target)
 }
 
 func (m *MeshNode) SetXRotationAngle(angle float32) {
@@ -186,13 +222,22 @@ func (m *MeshNode) SetXRotationAngle(angle float32) {
 func (m *MeshNode) SetZRotationAngle(angle float32) {
 	m.quatRotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 0, 1})
 }
-func (m *MeshNode) GlobalMatrix() mgl32.Mat4 {
-	if m.parent == nil {
-		return m.LocalMatrix()
+func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
+	if m.temporaryParent != nil {
+		externalParent := m.temporaryParent.GetTransformMatrix()
+		// for the weapon, we needed this..this obviously won't work for parenting anything else..
+		// also, we did attach part of the model to the cam
+		camInversed := externalParent.Inv()
+		offset := mgl32.Translate3D(0.2, -0.7, 0) // TODO: make this a parameter?
+		camInversed = camInversed.Mul4(offset)
+		return camInversed.Mul4(m.GetLocalMatrix())
 	}
-	return m.parent.GlobalMatrix().Mul4(m.LocalMatrix())
+	if m.parent == nil {
+		return m.GetLocalMatrix()
+	}
+	return m.parent.GetTransformMatrix().Mul4(m.GetLocalMatrix())
 }
-func (m *MeshNode) LocalMatrix() mgl32.Mat4 {
+func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	translation := mgl32.Translate3D(m.translation[0], m.translation[1], m.translation[2])
 	quaternion := m.quatRotation.Mat4()
 	scale := mgl32.Scale3D(m.scale[0], m.scale[1], m.scale[2])
@@ -253,6 +298,10 @@ func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception str
 	m.RootNode.HideChildrenOfBoneExcept(false, parentName, exception)
 }
 
+func (m *CompoundMesh) SetForward(direction mgl32.Vec3) {
+	m.RootNode.SetForward(direction)
+}
+
 func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
@@ -307,7 +356,7 @@ func (m *MeshNode) InitAnimationPose() {
 		child.InitAnimationPose()
 	}
 }
-func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64) bool {
+func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 	animationFinished := false
 	if m.IsAnimated() {
 		m.animationTimer += deltaTime
@@ -315,7 +364,7 @@ func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64)
 
 		// translate the mesh
 		if len(animation.TranslationFrames) > 0 {
-			translationFrameTimes := samplerFrames[animation.TranslationSamplerIndex]
+			translationFrameTimes := m.samplerSource(m.currentAnimation)[animation.TranslationSamplerIndex]
 			nextTranslationFrameIndex := (m.currentTranslationFrame + 1) % len(translationFrameTimes)
 			nextKeyFrameTime := translationFrameTimes[nextTranslationFrameIndex]
 			if m.animationTimer >= float64(nextKeyFrameTime) {
@@ -349,7 +398,7 @@ func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64)
 
 		// rotate the mesh
 		if len(animation.RotationFrames) > 0 {
-			rotationFrameTimes := samplerFrames[animation.RotationSamplerIndex]
+			rotationFrameTimes := m.samplerSource(m.currentAnimation)[animation.RotationSamplerIndex]
 			nextRotationFrameIndex := (m.currentRotationFrame + 1) % len(rotationFrameTimes)
 			nextKeyFrameTime := rotationFrameTimes[nextRotationFrameIndex]
 			if m.animationTimer >= float64(nextKeyFrameTime) { // hit a keyframe
@@ -379,7 +428,7 @@ func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64)
 		}
 		// scale the mesh
 		if len(animation.ScaleFrames) > 0 {
-			scaleFrameTimes := samplerFrames[animation.ScaleSamplerIndex]
+			scaleFrameTimes := m.samplerSource(m.currentAnimation)[animation.ScaleSamplerIndex]
 			nextScaleFrameIndex := (m.currentScaleFrame + 1) % len(scaleFrameTimes)
 			nextKeyFrameTime := scaleFrameTimes[nextScaleFrameIndex]
 			if m.animationTimer >= float64(nextKeyFrameTime) {
@@ -416,7 +465,7 @@ func (m *MeshNode) UpdateAnimation(samplerFrames [][]float32, deltaTime float64)
 		}
 	}
 	for _, child := range m.children {
-		childAnimationFinished := child.UpdateAnimation(samplerFrames, deltaTime)
+		childAnimationFinished := child.UpdateAnimation(deltaTime)
 		if childAnimationFinished {
 			animationFinished = true
 		}
@@ -444,7 +493,7 @@ func (m *MeshNode) Translate(keyFrame [3]float32) {
 }
 
 func (m *MeshNode) GetNodeByName(name string) *MeshNode {
-	if m.Name == name {
+	if m.name == name {
 		return m
 	}
 	for _, child := range m.children {
@@ -460,17 +509,18 @@ func (m *MeshNode) GetColliders() []Collider {
 	var result []Collider
 
 	if len(m.colliders) > 0 && !m.hidden {
-		colliderName := m.parent.Name
+		colliderName := m.parent.GetName()
 		for _, collider := range m.colliders {
 			collider.SetName(colliderName)
 			result = append(result, collider)
 		}
 	}
 
-	for _, child := range m.children {
-		result = append(result, child.GetColliders()...)
+	if !m.hidden {
+		for _, child := range m.children {
+			result = append(result, child.GetColliders()...)
+		}
 	}
-
 	return result
 }
 
@@ -491,7 +541,7 @@ func (m *MeshNode) GetAnimationDebugString(hierarchyLevel int) string {
 		padding += "  "
 	}
 	result := ""
-	result += padding + fmt.Sprintf("Node: %s\n", m.Name)
+	result += padding + fmt.Sprintf("Node: %s\n", m.name)
 	if m.IsAnimated() {
 		result += padding + fmt.Sprintf("Translation: %v\n", m.translation)
 		result += padding + fmt.Sprintf("Rotation: %v\n", m.quatRotation)
@@ -507,7 +557,7 @@ func (m *MeshNode) GetAnimationDebugString(hierarchyLevel int) string {
 }
 
 func (m *MeshNode) HideBone(name string) {
-	if m.Name == name {
+	if m.name == name {
 		m.hidden = true
 	}
 	for _, child := range m.children {
@@ -516,13 +566,35 @@ func (m *MeshNode) HideBone(name string) {
 }
 
 func (m *MeshNode) HideChildrenOfBoneExcept(isChild bool, name string, exception string) {
-	if isChild && m.Name != exception {
+	if isChild && m.name != exception {
 		m.hidden = true
+		println(fmt.Sprintf("[MeshNode] Hiding node %s", m.name))
 		return
 	}
 	for _, child := range m.children {
-		child.HideChildrenOfBoneExcept(m.Name == name, name, exception)
+		child.HideChildrenOfBoneExcept(m.name == name, name, exception)
 	}
+}
+
+type Transform interface {
+	GetTransformMatrix() mgl32.Mat4
+	GetName() string
+}
+
+func (m *MeshNode) SetTempParent(transform Transform) {
+	m.temporaryParent = transform
+}
+
+func (m *MeshNode) SetParent(transform Transform) {
+	m.parent = transform
+}
+
+func (m *MeshNode) GetAnimationName() string {
+	return m.currentAnimation
+}
+
+func (m *MeshNode) SetSamplerSource(source func(animationName string) [][]float32) {
+	m.samplerSource = source
 }
 
 type SubMesh struct {

@@ -23,6 +23,10 @@ type FPSCamera struct {
 	fov              float32
 }
 
+func (c *FPSCamera) GetName() string {
+	return "FPS Camera"
+}
+
 func (c *FPSCamera) GetNearPlaneDist() float32 {
 	return c.nearPlaneDist
 }
@@ -49,7 +53,7 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 
 // GetViewMatrix returns the view matrix for the camera.
 // A view matrix will transform a point from world space to camera space.
-func (c *FPSCamera) GetViewMatrix() mgl32.Mat4 {
+func (c *FPSCamera) GetTransformMatrix() mgl32.Mat4 {
 	camera := mgl32.LookAtV(c.cameraPos, c.cameraPos.Add(c.cameraFront), c.cameraUp)
 	return camera
 }
@@ -158,7 +162,7 @@ func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
 }
 
 func (c *FPSCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
-	mat := projection.Mul4(c.GetViewMatrix())
+	mat := projection.Mul4(c.GetTransformMatrix())
 	c1, c2, c3, c4 := mat.Rows()
 	return []mgl32.Vec4{
 		c4.Add(c1),            // left

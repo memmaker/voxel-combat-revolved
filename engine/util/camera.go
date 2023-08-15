@@ -5,7 +5,7 @@ import (
 )
 
 type Camera interface {
-	GetViewMatrix() mgl32.Mat4
+	GetTransformMatrix() mgl32.Mat4
 	GetProjectionMatrix() mgl32.Mat4
 	GetFront() mgl32.Vec3
 	GetFrustumPlanes(matrix mgl32.Mat4) []mgl32.Vec4
@@ -32,7 +32,7 @@ func GetRayFromCameraPlane(cam Camera, normalizedX float32, normalizedY float32)
 	normalizedFarPos := mgl32.Vec4{normalizedX, normalizedY, cam.GetNearPlaneDist() + rayLength, 1}
 
 	proj := cam.GetProjectionMatrix()
-	view := cam.GetViewMatrix()
+	view := cam.GetTransformMatrix()
 	projViewInverted := proj.Mul4(view).Inv()
 
 	// project point from camera space to world space

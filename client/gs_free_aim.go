@@ -42,7 +42,7 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
-	g.engine.SwitchToFirstPerson(g.selectedUnit.GetEyePosition(), g.selectedUnit.GetFreeAimAccuracy())
+	g.engine.SwitchToFirstPerson(g.selectedUnit)
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {

@@ -158,19 +158,19 @@ func (c *DummyClient) CreateGameSequence() {
 		/*
 			{
 				UnitTypeID: 0,
-				Name:       "Bimmy",
+				name:       "Bimmy",
 				Weapon:     "Steyr SSG 69",
 			},
 			{
 				UnitTypeID: 0,
-				Name:       "Timmy",
+				name:       "Timmy",
 				Weapon:     "M16 Rifle",
 			},
 		*/
 		/*
 			{
 				UnitTypeID: 1,
-				Name:       "Walker",
+				name:       "Walker",
 				//Weapon:     "Sniper",
 			},
 

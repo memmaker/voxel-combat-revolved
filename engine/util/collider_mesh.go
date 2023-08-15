@@ -20,8 +20,8 @@ func (m *MeshCollider) SetName(name string) {
 	m.name = name
 }
 
-func (m *MeshCollider) GetName() PartName {
-	return PartName(m.name)
+func (m *MeshCollider) GetName() string {
+	return m.name
 }
 func (m *MeshCollider) IterateTrianglesTransformed(callback func(triangle [3]mgl32.Vec3)) {
 	transformMatrix := m.TransformFunc()

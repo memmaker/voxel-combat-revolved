@@ -41,7 +41,7 @@ func NewISOCamera(windowWidth, windowHeight int) *ISOCamera {
 
 // GetViewMatrix returns the view matrix for the camera.
 // A view matrix will transform a point from world space to camera space.
-func (c *ISOCamera) GetViewMatrix() mgl32.Mat4 {
+func (c *ISOCamera) GetTransformMatrix() mgl32.Mat4 {
 	camera := mgl32.LookAtV(c.cameraPos, c.cameraPos.Add(c.relativeLookTarget), c.cameraUp)
 	return camera
 }
@@ -99,7 +99,7 @@ func (c *ISOCamera) GetPosition() mgl32.Vec3 {
 }
 
 func (c *ISOCamera) GetFront() mgl32.Vec3 {
-	view := c.GetViewMatrix()
+	view := c.GetTransformMatrix()
 	_, _, z, _ := view.Rows()
 	return z.Vec3()
 }
@@ -109,7 +109,7 @@ func (c *ISOCamera) SetPosition(pos mgl32.Vec3) {
 }
 
 func (c *ISOCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
-	mat := projection.Mul4(c.GetViewMatrix())
+	mat := projection.Mul4(c.GetTransformMatrix())
 	c1, c2, c3, c4 := mat.Rows()
 	return []mgl32.Vec4{
 		c4.Add(c1),            // left

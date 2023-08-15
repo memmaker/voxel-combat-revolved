@@ -13,9 +13,9 @@ import (
 
 type BattleClient struct {
 	*util.GlApplication
+	*game.GameInstance
 	lastMousePosX       float64
 	lastMousePosY       float64
-	voxelMap            *voxel.Map
 	wireFrame           bool
 	selector            PositionDrawable
 	crosshair           *Crosshair
@@ -27,8 +27,6 @@ type BattleClient struct {
 	textLabel           *etxt.TextMesh
 	textRenderer        *etxt.OpenGLTextRenderer
 	lastHitInfo         *game.RayCastHit
-	allUnits            []*Unit
-	userUnits           []*Unit
 	projectiles         []*Projectile
 	debugObjects        []PositionDrawable
 	blockTypeToPlace    byte
@@ -44,44 +42,15 @@ type BattleClient struct {
 	groundSelector      *GroundSelector
 	unitSelector        *GroundSelector
 	blockSelector       *util.LineMesh
-	currentFactionIndex int
-	losMatrix           map[uint64]map[uint64]bool
 	projectileTexture   *glhf.Texture
 	actionbar           *gui.ActionBar
 	server              *game.ServerConnection
-	unitMap             map[uint64]*Unit
 	serverChannel       chan game.StringMessage
 	isBusy              bool
-}
-
-func (a *BattleClient) GetVisibleUnits(unitID uint64) []game.UnitCore {
-	result := make([]game.UnitCore, 0)
-	for enemyID, isVisble := range a.losMatrix[unitID] {
-		if isVisble {
-			result = append(result, a.unitMap[enemyID])
-		}
-	}
-	return result
-}
-
-func (a *BattleClient) CurrentVisibleEnemiesList() map[*Unit]bool {
-	result := make(map[*Unit]bool)
-	for observerID, unitsVisible := range a.losMatrix {
-		observer := a.unitMap[observerID]
-		if !observer.IsUserControlled() {
-			continue
-		}
-		for unitID, isVisible := range unitsVisible {
-			if isVisible {
-				result[a.unitMap[unitID]] = true
-			}
-		}
-	}
-	return result
-}
-func (a *BattleClient) GetVoxelMap() *voxel.Map {
-	//TODO implement me
-	panic("implement me")
+	controllingUserID   uint64
+	clientUnitMap       map[uint64]*Unit
+	onSwitchToIsoCamera func()
+	bulletModel         *util.CompoundMesh
 }
 
 func (a *BattleClient) state() GameState {
@@ -89,17 +58,27 @@ func (a *BattleClient) state() GameState {
 }
 
 func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
-	if a.voxelMap.IsSolidBlockAt(int32(x), int32(y), int32(z)) {
-		return !a.voxelMap.GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
+	if a.GetVoxelMap().IsSolidBlockAt(int32(x), int32(y), int32(z)) {
+		return !a.GetVoxelMap().GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
 	}
 	return false
 }
 
-func NewBattleGame(title string, width int, height int) *BattleClient {
-	window, terminateFunc := util.InitOpenGL(title, width, height)
+type ClientInitializer struct {
+	Title             string
+	Width             int
+	Height            int
+	OwnerID           uint64
+	GameID            string
+	MapFile           string
+	ControllingUserID uint64
+}
+
+func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer) *BattleClient {
+	window, terminateFunc := util.InitOpenGL(initInfos.Title, initInfos.Width, initInfos.Height)
 	glApp := &util.GlApplication{
-		WindowWidth:   width,
-		WindowHeight:  height,
+		WindowWidth:   initInfos.Width,
+		WindowHeight:  initInfos.Height,
 		Window:        window,
 		TerminateFunc: terminateFunc,
 	}
@@ -109,12 +88,13 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	window.SetScrollCallback(glApp.ScrollCallback)
 
 	myApp := &BattleClient{
-		GlApplication: glApp,
-		isoCamera:     util.NewISOCamera(width, height),
-		fpsCamera:     util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, width, height),
-		timer:         util.NewTimer(),
-		unitMap:       make(map[uint64]*Unit),
-		losMatrix:     make(map[uint64]map[uint64]bool),
+		GlApplication:     glApp,
+		GameInstance:      game.NewGameInstance(initInfos.GameID),
+		isoCamera:         util.NewISOCamera(initInfos.Width, initInfos.Height),
+		fpsCamera:         util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, initInfos.Width, initInfos.Height),
+		timer:             util.NewTimer(),
+		clientUnitMap:     make(map[uint64]*Unit),
+		controllingUserID: initInfos.ControllingUserID,
 	}
 	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
@@ -136,7 +116,8 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
 	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.modelShader)
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
-
+	myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
+	myApp.bulletModel.ConvertVertexData(myApp.modelShader)
 	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn"})
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
@@ -149,6 +130,7 @@ func NewBattleGame(title string, width int, height int) *BattleClient {
 	*/
 	crosshair := NewCrosshair(myApp.circleShader, myApp.fpsCamera)
 	myApp.SetCrosshair(crosshair)
+	myApp.SetConnection(con)
 
 	return myApp
 }
@@ -159,33 +141,25 @@ func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
 	return compoundMesh
 }
 func (a *BattleClient) SetLOSLost(observer, unitID uint64) {
-	if _, hasVisionMap := a.losMatrix[observer]; !hasVisionMap {
-		a.losMatrix[observer] = make(map[uint64]bool)
-	}
-	a.losMatrix[observer][unitID] = false
-
+	a.SetLOS(observer, unitID, false)
 	// WHAT'S THIS DOING HERE?
 	// ah, because of client side pathfinding..
-
-	if !a.UnitIsVisibleToPlayer(unitID) {
-		unit := a.unitMap[unitID]
-		a.voxelMap.RemoveUnit(unit.UnitInstance)
+	if !a.UnitIsVisibleToPlayer(a.controllingUserID, unitID) {
+		unit := a.GetUnit(unitID)
+		a.GetVoxelMap().RemoveUnit(unit)
 	}
 }
 
 func (a *BattleClient) SetLOSAcquired(observer, unitID uint64) {
-	if _, hasVisionMap := a.losMatrix[observer]; !hasVisionMap {
-		a.losMatrix[observer] = make(map[uint64]bool)
-	}
-	a.losMatrix[observer][unitID] = true
+	a.SetLOS(observer, unitID, true)
 
-	unit := a.unitMap[unitID]
-	a.voxelMap.SetUnit(unit.UnitInstance, unit.GetBlockPosition())
+	unit := a.GetUnit(unitID)
+	a.GetVoxelMap().SetUnit(unit, unit.GetBlockPosition())
 }
 
 func (a *BattleClient) AddOrUpdateUnit(currentUnit *game.UnitInstance) {
 	unitID := currentUnit.GameUnitID
-	if _, ok := a.unitMap[unitID]; ok {
+	if _, ok := a.clientUnitMap[unitID]; ok {
 		a.UpdateUnit(currentUnit)
 	} else {
 		a.AddUnit(currentUnit)
@@ -193,10 +167,13 @@ func (a *BattleClient) AddOrUpdateUnit(currentUnit *game.UnitInstance) {
 }
 func (a *BattleClient) AddUnit(currentUnit *game.UnitInstance) *Unit {
 	unitID := currentUnit.GameUnitID
-	if _, ok := a.unitMap[unitID]; ok {
+	if _, ok := a.clientUnitMap[unitID]; ok {
 		println(fmt.Sprintf("[BattleClient] Unit %d already known", unitID))
 		return nil
 	}
+	// add to game instance
+	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
+
 	// load model
 	model := a.LoadModel(currentUnit.Definition.ModelFile)
 	// load / select weapon model
@@ -206,11 +183,10 @@ func (a *BattleClient) AddUnit(currentUnit *game.UnitInstance) *Unit {
 		model.SetTexture(0, util.MustLoadTexture(currentUnit.Definition.ClientRepresentation.TextureFile))
 	}
 	currentUnit.SetModel(model)
-	currentUnit.SetVoxelMap(a.voxelMap)
+	currentUnit.SetVoxelMap(a.GetVoxelMap())
 	unit := NewClientUnit(currentUnit)
 
-	a.allUnits = append(a.allUnits, unit)
-	a.unitMap[unitID] = unit
+	a.clientUnitMap[unitID] = unit
 
 	return unit
 }
@@ -218,25 +194,25 @@ func (a *BattleClient) AddUnit(currentUnit *game.UnitInstance) *Unit {
 func (a *BattleClient) AddOwnedUnit(unitInstance *game.UnitInstance) *Unit {
 	unit := a.AddUnit(unitInstance)
 	unit.SetUserControlled()
-	a.userUnits = append(a.userUnits, unit)
 	return unit
 }
 func (a *BattleClient) UpdateUnit(currentUnit *game.UnitInstance) {
 	unitID := currentUnit.GameUnitID
-	knownUnit, ok := a.unitMap[unitID]
+	knownUnit, ok := a.clientUnitMap[unitID]
 
 	if !ok {
-		println(fmt.Sprintf("[BattleClient] UpdateUnit: unit %d not found", unitID))
+		println(fmt.Sprintf("[BattleClient] ClientUpdateUnit: unit %d not found", unitID))
 		return
 	}
 	knownUnit.SetServerInstance(currentUnit)
+	a.GameInstance.ClientUpdateUnit(currentUnit)
 }
 
 // TODO: add target position for projectiles
 func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, onArrival func()) {
-	projectile := NewProjectile(a.modelShader, a.projectileTexture, pos)
+
+	projectile := NewProjectile(a.modelShader, a.bulletModel, pos, velocity)
 	//projectile.SetCollisionHandler(a.GetCollisionHandler())
-	projectile.SetVelocity(velocity)
 	projectile.SetDestination(destination)
 	projectile.SetOnArrival(onArrival)
 	a.projectiles = append(a.projectiles, projectile)
@@ -291,12 +267,9 @@ func (a *BattleClient) updateProjectiles(elapsed float64) {
 }
 
 func (a *BattleClient) updateUnits(deltaTime float64) {
-	for i := len(a.allUnits) - 1; i >= 0; i-- {
-		actor := a.allUnits[i]
-		actor.Update(deltaTime)
-		if actor.ShouldBeRemoved() {
-			a.allUnits = append(a.allUnits[:i], a.allUnits[i+1:]...)
-		}
+	allUnits := a.clientUnitMap
+	for _, unit := range allUnits {
+		unit.Update(deltaTime)
 	}
 }
 
@@ -323,9 +296,9 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 
 	a.chunkShader.SetUniformAttr(0, cam.GetProjectionMatrix())
 
-	a.chunkShader.SetUniformAttr(1, cam.GetViewMatrix())
+	a.chunkShader.SetUniformAttr(1, cam.GetTransformMatrix())
 
-	a.voxelMap.Draw(cam.GetFront(), cam.GetFrustumPlanes(cam.GetProjectionMatrix()))
+	a.GetVoxelMap().Draw(cam.GetFront(), cam.GetFrustumPlanes(cam.GetProjectionMatrix()))
 
 	a.chunkShader.End()
 }
@@ -333,21 +306,21 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 func (a *BattleClient) drawModels(cam util.Camera) {
 	a.modelShader.Begin()
 
-	a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
+	a.modelShader.SetUniformAttr(0, cam.GetProjectionMatrix())
+	a.modelShader.SetUniformAttr(1, cam.GetTransformMatrix())
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
-		a.modelShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-		a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
 		a.selector.Draw()
 	}
+
 	if a.unitSelector != nil {
 		a.unitSelector.Draw()
 	}
-	for _, unit := range a.userUnits {
-		unit.Draw(a.modelShader)
-	}
-	for unit, _ := range a.CurrentVisibleEnemiesList() {
-		unit.Draw(a.modelShader)
+
+	for _, unit := range a.clientUnitMap {
+		if a.UnitIsVisibleToPlayer(a.controllingUserID, unit.UnitID()) {
+			unit.Draw(a.modelShader)
+		}
 	}
 
 	a.drawProjectiles()
@@ -366,7 +339,7 @@ func (a *BattleClient) drawLines(cam util.Camera) {
 	a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
 	if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
 		a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-		a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
+		a.lineShader.SetUniformAttr(1, cam.GetTransformMatrix())
 		a.selector.Draw()
 	}
 	for _, drawable := range a.debugObjects {
@@ -449,7 +422,7 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	hitInfo := a.RayCastGround(rayStart, rayEnd)
 
 	if hitInfo.HitUnit() {
-		unitHit := a.unitMap[hitInfo.UnitHit.UnitID()]
+		unitHit := a.clientUnitMap[hitInfo.UnitHit.UnitID()]
 		if unitHit.IsUserControlled() {
 			a.Print(unitHit.GetFriendlyDescription())
 		} else {
@@ -461,7 +434,7 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 		if a.isBlockSelection {
 			a.selector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
 		} else {
-			a.selector.SetPosition(a.voxelMap.GetGroundPosition(hitInfo.PreviousGridPosition).ToVec3())
+			a.selector.SetPosition(a.GetVoxelMap().GetGroundPosition(hitInfo.PreviousGridPosition).ToVec3())
 		}
 	}
 }
@@ -476,15 +449,16 @@ func (a *BattleClient) SwitchToBlockSelector() {
 	a.isBlockSelection = true
 }
 
-func (a *BattleClient) GetNextUnit(unit *Unit) (*Unit, bool) {
-	units := a.userUnits
+func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
+	units := a.GetPlayerUnits(a.controllingUserID)
 	for i, u := range units {
-		if u == unit {
+		otherUnit := a.clientUnitMap[u.UnitID()]
+		if otherUnit == currentUnit {
 			for j := 1; j < len(units); j++ {
 				nextUnitIndex := (i + j) % len(units)
 				nextUnit := units[nextUnitIndex]
 				if nextUnit.CanAct() {
-					return nextUnit, true
+					return a.clientUnitMap[nextUnit.UnitID()], true
 				}
 			}
 			return nil, false
@@ -492,18 +466,35 @@ func (a *BattleClient) GetNextUnit(unit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleClient) SwitchToFirstPerson(position mgl32.Vec3, accuracy float64) {
+func (a *BattleClient) SwitchToFirstPerson(unit *Unit) {
+	position := unit.GetEyePosition()
+	accuracy := unit.GetFreeAimAccuracy()
+
 	a.captureMouse()
 	a.fpsCamera.SetPosition(position)
 	a.crosshair.SetSize(1.0 - accuracy)
 	a.cameraIsFirstPerson = true
 	a.freezeIdleAnimations()
+
+	// attach arms of selected unit to camera
+	arms := unit.GetModel().GetNodeByName("Arms")
+	previousAnimation := arms.GetAnimationName()
+	arms.SetTempParent(a.fpsCamera)
+	arms.SetAnimation(game.AnimationGunIdle.Str())
+	a.onSwitchToIsoCamera = func() { // detach arms when switching back to iso camera
+		arms.SetTempParent(nil)
+		arms.SetAnimation(previousAnimation)
+	}
 }
 
 func (a *BattleClient) SwitchToIsoCamera() {
 	a.freeMouse()
 	a.cameraIsFirstPerson = false
 	a.resumeIdleAnimations()
+	if a.onSwitchToIsoCamera != nil {
+		a.onSwitchToIsoCamera()
+		a.onSwitchToIsoCamera = nil
+	}
 }
 
 func (a *BattleClient) SetConnection(connection *game.ServerConnection) {
@@ -558,47 +549,61 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	// TODO: animate unit firing
 	damageReport := ""
+
+	attacker, knownAttacker := a.clientUnitMap[msg.Attacker]
+	var attackerUnit *game.UnitInstance
+	if knownAttacker {
+		attackerUnit = attacker.UnitInstance
+	}
+	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
 		projectile := p
 		a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
 			// on arrival
+			projectileArrivalCounter++
 			if projectile.UnitHit >= 0 {
-				unit, ok := a.unitMap[uint64(projectile.UnitHit)]
+				unit, ok := a.clientUnitMap[uint64(projectile.UnitHit)]
+				isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
+				if isLethal {
+					unit.HitWithLethalProjectile(projectile.Velocity, projectile.BodyPart)
+				}
 				if !ok {
 					println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
 					return
 				}
 				println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
-				unit.HitWithProjectile(projectile.Velocity, projectile.BodyPart, projectile.Damage, projectile.IsLethal)
+			}
+
+			if projectileArrivalCounter == len(msg.Projectiles) {
+				a.Print(damageReport)
 			}
 		})
 		projectileNumber := index + 1
 		if projectile.UnitHit >= 0 {
-			hitUnit, _ := a.unitMap[uint64(projectile.UnitHit)]
+			hitUnit, _ := a.clientUnitMap[uint64(projectile.UnitHit)]
 			if projectile.IsLethal {
-				damageReport += fmt.Sprintf("%d. lethal hit on %s(%d)\n", projectileNumber, hitUnit.GetName(), projectile.UnitHit)
+				damageReport += fmt.Sprintf("%d. lethal hit on %s (%s)\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart)
 			} else {
-				damageReport += fmt.Sprintf("%d. hit on %s(%d) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.UnitHit, projectile.Damage)
+				damageReport += fmt.Sprintf("%d. hit on %s (%s) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart, projectile.Damage)
 			}
 		} else {
 			damageReport += fmt.Sprintf("%d. missed\n", projectileNumber)
 		}
 	}
-	a.Print(damageReport)
 }
 
 func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	// TODO: Find BUG
 	// When an enemy unit is leaving the LOS of a player owned unit,
 	// the space where the unit was standing is cleared on the client side map.
-	movingUnit, ok := a.unitMap[msg.MovingUnit]
+	movingUnit, ok := a.clientUnitMap[msg.MovingUnit]
 	if !ok && msg.UpdatedUnit == nil {
 		println(fmt.Sprintf("[BattleClient] Received LOS update for unknown unit %d", msg.MovingUnit))
 		return
 	}
 	if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 		a.AddOrUpdateUnit(msg.UpdatedUnit)
-		movingUnit = a.unitMap[msg.MovingUnit]
+		movingUnit = a.clientUnitMap[msg.MovingUnit]
 		println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward().ToString()))
 	}
 	println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
@@ -619,7 +624,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 			movingUnit.SetForward(msg.UpdatedUnit.ForwardVector)
 		}
-		if hasPath && a.UnitIsVisibleToPlayer(movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
+		if hasPath && a.UnitIsVisibleToPlayer(a.controllingUserID, movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
 			movingUnit.SetBlockPositionAndUpdateMap(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
 		}
@@ -677,14 +682,14 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 }
 
 func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
-	unit, known := a.unitMap[msg.UnitID]
+	unit, known := a.clientUnitMap[msg.UnitID]
 	if !known {
 		println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
 		return
 	}
 	println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
-	a.voxelMap.ClearHighlights()
+	a.GetVoxelMap().ClearHighlights()
 	a.unitSelector.Hide()
 	destination := msg.Path[len(msg.Path)-1]
 
@@ -710,8 +715,8 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 	println(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
 	println("[BattleClient] Map State:")
-	a.voxelMap.PrintArea2D(16, 16)
-	for _, unit := range a.allUnits {
+	a.GetVoxelMap().PrintArea2D(16, 16)
+	for _, unit := range a.GetAllUnits() {
 		println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
 	if msg.YourTurn {
@@ -735,32 +740,34 @@ func (a *BattleClient) SwitchToWaitForEvents() {
 }
 
 func (a *BattleClient) FirstUnit() *Unit {
-	for _, unit := range a.userUnits {
+	for _, unit := range a.GetPlayerUnits(a.controllingUserID) {
 		if unit.CanAct() {
-			return unit
+			return a.clientUnitMap[unit.UnitID()]
 		}
 	}
 	return nil
 }
 
 func (a *BattleClient) ResetUnitsForNextTurn() {
-	for _, unit := range a.userUnits {
+	for _, unit := range a.GetPlayerUnits(a.controllingUserID) {
 		unit.NextTurn()
 	}
 }
 
 func (a *BattleClient) freezeIdleAnimations() {
-	for _, unit := range a.allUnits {
+	for _, unit := range a.GetAllUnits() {
 		if unit.IsActive() {
-			unit.FreezeIdleAnimation()
+			clientUnit := a.clientUnitMap[unit.UnitID()]
+			clientUnit.FreezeIdleAnimation()
 		}
 	}
 }
 
 func (a *BattleClient) resumeIdleAnimations() {
-	for _, unit := range a.allUnits {
+	for _, unit := range a.GetAllUnits() {
 		if unit.IsActive() {
-			unit.StartIdleAnimationLoop()
+			clientUnit := a.clientUnitMap[unit.UnitID()]
+			clientUnit.StartIdleAnimationLoop()
 		}
 	}
 }
@@ -785,30 +792,10 @@ func (a *BattleClient) OnGameOver(msg game.GameOverMessage) {
 }
 
 func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
-	unit, known := a.unitMap[unitID]
+	unit, known := a.clientUnitMap[unitID]
 	return known && unit.IsUserControlled()
 }
 
-func (a *BattleClient) GetUnit(id uint64) *Unit {
-	unit, known := a.unitMap[id]
-	if !known {
-		return nil
-	}
-	return unit
-}
-
-func (a *BattleClient) UnitIsVisibleToPlayer(unitID uint64) bool {
-	for _, playerUnit := range a.userUnits {
-		if !playerUnit.IsActive() {
-			continue
-		}
-		if a.losMatrix[playerUnit.UnitID()][unitID] {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *BattleClient) SetLOSMatrix(matrix map[uint64]map[uint64]bool) {
-	a.losMatrix = matrix
+func (a *BattleClient) GetClientUnit(unitID uint64) *Unit {
+	return a.clientUnitMap[unitID]
 }

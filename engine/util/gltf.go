@@ -37,7 +37,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 		defaultSceneIndex = int(*doc.Scene)
 	}
 	defaultScene := doc.Scenes[defaultSceneIndex]
-	//fmt.Println(fmt.Sprintf("[LoadGLTF] Loading scene '%s' (1/%d)", defaultScene.Name, len(doc.Scenes)))
+	//fmt.Println(fmt.Sprintf("[LoadGLTF] Loading scene '%s' (1/%d)", defaultScene.name, len(doc.Scenes)))
 	//fmt.Println(fmt.Sprintf("[LoadGLTF] Scene contains %d node(s)", len(defaultScene.Nodes)))
 	result := &CompoundMesh{
 		SamplerFrames:  make(map[string][][]float32),
@@ -51,7 +51,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 	flatNodes := make([]*MeshNode, len(doc.Nodes))
 	for nodeIndex, node := range doc.Nodes {
 		flatNodes[nodeIndex] = &MeshNode{
-			Name:         node.Name,
+			name:         node.Name,
 			animations:   make(map[string]*SimpleAnimationData),
 			quatRotation: mgl32.QuatIdent(),
 			translation:  mgl32.Vec3{0, 0, 0},
@@ -103,7 +103,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 			}
 		}
 	}
-	rootNode := buildNodeHierarchy(doc, flatNodes, defaultScene.Nodes[0])
+	rootNode := buildNodeHierarchy(doc, flatNodes, defaultScene.Nodes[0], result.getSamplerFrames)
 	result.RootNode = rootNode
 	return result
 }
@@ -111,7 +111,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 	results := make([]*glhf.Texture, len(doc.Textures))
 	for texIndex, texture := range doc.Textures {
-		//print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.Name))
+		//print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.name))
 		imageSource := doc.Images[*texture.Source]
 		if imageSource.IsEmbeddedResource() {
 			embeddedTexture, err := loadEmbeddedTexture(imageSource)
@@ -158,7 +158,7 @@ func loadBufferTexture(doc *gltf.Document, imageSource *gltf.Image) *glhf.Textur
 	if err != nil {
 		println(fmt.Sprintf("Error loading texture from buffer: %s", err.Error()))
 	} else {
-		//println(fmt.Sprintf("'%s' loaded from buffer", imageSource.Name))
+		//println(fmt.Sprintf("'%s' loaded from buffer", imageSource.name))
 	}
 	return loadedTexture
 }
@@ -178,7 +178,7 @@ func loadEmbeddedTexture(image *gltf.Image) (*glhf.Texture, error) {
 	if image.Name == "" {
 		println("Loaded from embedded resource")
 	} else {
-		//println(fmt.Sprintf("'%s' loaded from embedded resource", image.Name))
+		//println(fmt.Sprintf("'%s' loaded from embedded resource", image.name))
 	}
 	return loadedTexture, nil
 }
@@ -277,14 +277,15 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 	return currentMesh
 }
 
-func buildNodeHierarchy(document *gltf.Document, meshNodes []*MeshNode, nodeIndex uint32) *MeshNode {
+func buildNodeHierarchy(document *gltf.Document, meshNodes []*MeshNode, nodeIndex uint32, samplerFrameSource func(animationName string) [][]float32) *MeshNode {
 	docNode := document.Nodes[nodeIndex]
 	meshNode := meshNodes[nodeIndex]
+	meshNode.SetSamplerSource(samplerFrameSource)
 	meshNode.Translate(docNode.TranslationOrDefault())
 	meshNode.Rotate(docNode.RotationOrDefault())
 	meshNode.Scale(docNode.ScaleOrDefault())
 	for _, childNodeIndex := range docNode.Children {
-		meshNode.children = append(meshNode.children, buildNodeHierarchy(document, meshNodes, childNodeIndex))
+		meshNode.children = append(meshNode.children, buildNodeHierarchy(document, meshNodes, childNodeIndex, samplerFrameSource))
 		childMeshNode := meshNodes[childNodeIndex]
 		childMeshNode.parent = meshNode
 	}

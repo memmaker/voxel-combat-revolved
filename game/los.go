@@ -7,6 +7,10 @@ import (
 	"math"
 )
 
+func (g *GameInstance) SetLOSMatrix(matrix map[uint64]map[uint64]bool) {
+	g.losMatrix = matrix
+}
+
 func (g *GameInstance) InitLOS() {
 	for _, unit := range g.units {
 		g.losMatrix[unit.UnitID()] = make(map[uint64]bool)
@@ -16,6 +20,33 @@ func (g *GameInstance) InitLOS() {
 			}
 		}
 	}
+}
+func (g *GameInstance) GetVisibleUnits(unitID uint64) []UnitCore {
+	result := make([]UnitCore, 0)
+	for enemyID, isVisble := range g.losMatrix[unitID] {
+		if isVisble {
+			result = append(result, g.units[enemyID])
+		}
+	}
+	return result
+}
+func (g *GameInstance) UnitIsVisibleToPlayer(playerID, unitID uint64) bool {
+	unit, isKnown := g.units[unitID]
+	if !isKnown {
+		return false
+	}
+	if unit.ControlledBy() == playerID {
+		return true
+	}
+	for _, playerUnit := range g.GetPlayerUnits(playerID) {
+		if !playerUnit.IsActive() {
+			continue
+		}
+		if g.losMatrix[playerUnit.UnitID()][unitID] {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *GameInstance) CanSee(one, another *UnitInstance) bool {
@@ -122,7 +153,7 @@ func (g *GameInstance) RayCastLineOfSight(rayStart, rayEnd mgl32.Vec3, targetUni
 				return true
 			} else if occupiedByTarget[currentBlockPos] {
 				unitHit = targetUnit.(*UnitInstance)
-				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.Name, x, y, z))
+				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.name, x, y, z))
 				return true
 			}
 		} else {
@@ -141,7 +172,7 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 	rayHitObject := false
 	var hitPart util.Collider
 	var hitPoint mgl32.Vec3
-	var hitUnit voxel.MapObject
+	var hitUnit *UnitInstance
 	var visitedBlocks []voxel.Int3
 	checkedCollision := make(map[voxel.MapObject]bool)
 	rayHitInfo := util.DDARaycast(rayStart, rayEnd, func(x, y, z int32) bool {
@@ -188,9 +219,14 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 		rayHitInfo = rayHitInfo.WithCollisionWorldPosition(hitPoint)
 	}
 	insideMap := g.voxelMap.ContainsGrid(rayHitInfo.CollisionGridPosition) || g.voxelMap.ContainsGrid(rayHitInfo.PreviousGridPosition)
-	partName := util.BodyPartNone
+	partName := util.ZoneNone
 	if hitPart != nil {
-		partName = hitPart.GetName()
+		colliderName := hitPart.GetName()
+		if colliderName == hitUnit.GetWeapon().Definition.Model {
+			partName = util.ZoneWeapon
+		} else {
+			partName = util.DamageZone(colliderName)
+		}
 	}
 	return &FreeAimHit{RayCastHit: RayCastHit{HitInfo3D: rayHitInfo, VisitedBlocks: visitedBlocks, UnitHit: hitUnit, InsideMap: insideMap}, BodyPart: partName}
 }

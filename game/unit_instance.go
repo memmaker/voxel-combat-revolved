@@ -59,23 +59,26 @@ type UnitDefinition struct {
 
 // UnitInstance is an instance of an unit on the battlefield. It contains the dynamic information about the unit.
 type UnitInstance struct {
-	GameUnitID    uint64 // ID of the unit in the current game instance
-	controlledBy  uint64 // ID of the player controlling this unit
-	Name          string
-	Position      voxel.Int3
-	Definition    *UnitDefinition // ID of the unit definition (= unit type)
-	canAct        bool
-	movesLeft     int
-	voxelMap      *voxel.Map
-	model         *util.CompoundMesh
-	Weapon        *Weapon
-	ForwardVector voxel.Int3
-	IsDead        bool
-	Health        int
+	GameUnitID      uint64 // ID of the unit in the current game instance
+	Owner           uint64 // ID of the player controlling this unit
+	Name            string
+	Position        voxel.Int3
+	Definition      *UnitDefinition // ID of the unit definition (= unit type)
+	canAct          bool
+	movesLeft       int
+	voxelMap        *voxel.Map
+	model           *util.CompoundMesh
+	Weapon          *Weapon
+	ForwardVector   voxel.Int3
+	IsDead          bool
+	Health          int
+	DamageZones     map[util.DamageZone]int
+	MovementPenalty int
+	AimPenalty      float64
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
-	return u.controlledBy
+	return u.Owner
 }
 
 func (u *UnitInstance) UnitID() uint64 {
@@ -87,14 +90,39 @@ func (u *UnitInstance) GetName() string {
 }
 
 func (u *UnitInstance) GetFriendlyDescription() string {
-	return fmt.Sprintf("> %s HP: %d/%d AP: %d", u.Name, u.Health, u.Definition.CoreStats.Health, u.movesLeft)
+	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.MovesLeft(), u.GetFreeAimAccuracy())
+	if u.Weapon != nil {
+		desc += fmt.Sprintf("x> %s Ammo: %d/%d Acc: (%0.2f)\n", u.Weapon.Definition.UniqueName, u.Weapon.AmmoCount, u.Weapon.Definition.MagazineSize, u.Weapon.Definition.AccuracyModifier)
+	}
+	if len(u.DamageZones) > 0 {
+		desc += fmt.Sprintf("x> Damage:\n")
+		for _, zone := range getDamageZones() {
+			if damage, ok := u.DamageZones[zone]; ok {
+				desc += fmt.Sprintf("x> %s: %d\n", zone, damage)
+			}
+		}
+	}
+	return desc
 }
 func (u *UnitInstance) GetEnemyDescription() string {
-	return fmt.Sprintf("! %s HP: %d/%d", u.Name, u.Health, u.Definition.CoreStats.Health)
+	desc := fmt.Sprintf("o> %s HP: %d/%d\n", u.Name, u.Health, u.Definition.CoreStats.Health)
+	if u.Weapon != nil {
+		desc += fmt.Sprintf("o> %s\n", u.Weapon.Definition.UniqueName)
+	}
+	if len(u.DamageZones) > 0 {
+		desc += fmt.Sprintf("o> Damage:\n")
+		for _, zone := range getDamageZones() {
+			if damage, ok := u.DamageZones[zone]; ok {
+				desc += fmt.Sprintf("o> %s: %d\n", zone, damage)
+			}
+		}
+	}
+
+	return desc
 }
 
 func (u *UnitInstance) MovesLeft() int {
-	return u.movesLeft
+	return u.movesLeft - u.MovementPenalty
 }
 
 func (u *UnitInstance) UseMovement(cost int) {
@@ -109,12 +137,13 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	compoundMesh := util.LoadGLTF(unitDef.ModelFile)
 	compoundMesh.RootNode.CreateColliders()
 	return &UnitInstance{
-		Name:       name,
-		Definition: unitDef,
-		canAct:     true,
-		movesLeft:  unitDef.CoreStats.Speed,
-		Health:     unitDef.CoreStats.Health,
-		model:      compoundMesh, // todo: cache models?
+		Name:        name,
+		Definition:  unitDef,
+		canAct:      true,
+		movesLeft:   unitDef.CoreStats.Speed,
+		Health:      unitDef.CoreStats.Health,
+		model:       compoundMesh, // todo: cache models?
+		DamageZones: make(map[util.DamageZone]int),
 	}
 }
 
@@ -122,7 +151,7 @@ func (u *UnitInstance) SetUnitID(id uint64) {
 	u.GameUnitID = id
 }
 func (u *UnitInstance) SetControlledBy(playerID uint64) {
-	u.controlledBy = playerID
+	u.Owner = playerID
 }
 
 func (u *UnitInstance) IsActive() bool {
@@ -224,7 +253,7 @@ func (u *UnitInstance) Kill() {
 }
 
 func (u *UnitInstance) GetFreeAimAccuracy() float64 {
-	return u.Definition.CoreStats.Accuracy * u.Weapon.Definition.AccuracyModifier
+	return (u.Definition.CoreStats.Accuracy - u.AimPenalty) * u.Weapon.GetAccuracyModifier()
 }
 
 func (u *UnitInstance) SetModel(model *util.CompoundMesh) {
@@ -243,13 +272,65 @@ func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
 	return u.Position.Add(voxel.Int3{Y: 1}).ToBlockCenterVec3()
 }
 
-func (u *UnitInstance) ApplyDamage(damage int, part util.PartName) bool {
-	u.Health -= damage
-	println(fmt.Sprintf("[UnitInstance] %s(%d) took %d damage to %s, Health is now %d", u.GetName(), u.UnitID(), damage, part, u.Health))
+func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {
+	// modify hp damage
+	hpDamage := damage
+	if part == util.ZoneHead {
+		hpDamage *= 2
+	} else if part == util.ZoneWeapon {
+		hpDamage = 0
+	}
+
+	if _, ok := u.DamageZones[part]; !ok {
+		u.DamageZones[part] = damage
+	} else {
+		u.DamageZones[part] += damage
+	}
+
+	u.updatePenalties()
+
+	u.Health -= hpDamage
+	println(fmt.Sprintf("[UnitInstance] %s(%d) took %d damage to %s, Health was reduced by %d and is now %d", u.GetName(), u.UnitID(), damage, part, hpDamage, u.Health))
 	if u.Health <= 0 {
 		return true
 	}
 	return false
+}
+
+func (u *UnitInstance) updatePenalties() {
+	//maxHealth := u.Definition.CoreStats.Health
+	totalDamageToLegs := 0
+	totalDamageToArms := 0
+	totalDamageToWeapon := 0
+
+	for part, damage := range u.DamageZones {
+		if part == util.ZoneLeftLeg || part == util.ZoneRightLeg {
+			totalDamageToLegs += damage
+		} else if part == util.ZoneLeftArm || part == util.ZoneRightArm {
+			totalDamageToArms += damage
+		} else if part == util.ZoneWeapon {
+			totalDamageToWeapon += damage
+		}
+	}
+
+	if totalDamageToWeapon > 0 { // each point of damage to the weapon reduces accuracy by 2%
+		u.Weapon.SetAccuracyPenalty((float64(totalDamageToWeapon) / 100.0) * 2)
+		// TODO: destroy weapon if damage is too high
+	}
+
+	if totalDamageToLegs > 0 { // each 3 points of damage to the legs reduces movement by 1 block
+		u.MovementPenalty = totalDamageToLegs / 3
+	}
+
+	if totalDamageToArms > 0 { // each 5 points of damage to the arms reduces accuracy by 10%
+		aimPenalty := totalDamageToArms / 5
+		u.AimPenalty = float64(aimPenalty) / 10.0
+	}
+}
+
+func getDamageZones() []util.DamageZone {
+	allZones := []util.DamageZone{util.ZoneHead, util.ZoneLeftArm, util.ZoneRightArm, util.ZoneLeftLeg, util.ZoneRightLeg, util.ZoneWeapon}
+	return allZones
 }
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {
