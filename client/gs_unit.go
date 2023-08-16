@@ -16,6 +16,10 @@ type GameStateUnit struct {
 	moveAction       *game.ActionMove
 }
 
+func (g *GameStateUnit) OnServerMessage(msgType string, json string) {
+
+}
+
 func NewGameStateUnit(engine *BattleClient, unit *Unit) *GameStateUnit {
 	return &GameStateUnit{
 		IsoMovementState: IsoMovementState{
@@ -80,8 +84,8 @@ func (g *GameStateUnit) setActionBar() {
 			Name:         "Fire",
 			TextureIndex: 1,
 			Execute: func() {
-				if !g.selectedUnit.CanAct() {
-					println("[GameStateUnit] Unit cannot act anymore.")
+				if !g.selectedUnit.CanFire() {
+					println("[GameStateUnit] Unit cannot fire anymore.")
 					return
 				}
 				g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))
@@ -92,8 +96,8 @@ func (g *GameStateUnit) setActionBar() {
 			Name:         "Free Aim",
 			TextureIndex: 2,
 			Execute: func() {
-				if !g.selectedUnit.CanAct() {
-					println("[GameStateUnit] Unit cannot act anymore.")
+				if !g.selectedUnit.CanFire() {
+					println("[GameStateUnit] Unit cannot fire anymore.")
 					return
 				}
 				g.engine.SwitchToFreeAim(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))

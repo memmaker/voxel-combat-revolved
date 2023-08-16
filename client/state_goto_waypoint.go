@@ -23,6 +23,7 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 			wp := a.unit.GetWaypoint()
 			fp := a.unit.GetBlockPosition()
 			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
+			println(fmt.Sprintf("[UnitGotoWaypointBehavior] Animation finished, snapping to blockPosition: %v", resolvedPosition))
 			a.snapToPosition(resolvedPosition)
 		} else {
 			return EventNone
@@ -45,6 +46,7 @@ func (a *UnitGotoWaypointBehavior) snapToPosition(blockPosition voxel.Int3) {
 }
 
 func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {
+	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
 	a.snapToPosition(a.unit.GetWaypoint())
 
 	if a.unit.IsLastWaypoint() {

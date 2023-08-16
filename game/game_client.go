@@ -266,15 +266,18 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
+		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
+		attackerUnit.ConsumeAP(msg.APCostForAttacker)
+		if msg.IsTurnEnding {
+			attackerUnit.EndTurn()
+		}
 	}
 	for _, p := range msg.Projectiles {
 		projectile := p
 		if projectile.UnitHit >= 0 {
 			victim, ok := a.GetUnit(uint64(projectile.UnitHit))
-			isLethal := a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
-			if isLethal {
-				a.Kill(attacker, victim)
-			}
+			a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
 			if !ok {
 				println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
 				return

@@ -35,11 +35,13 @@ func (v VisualEnemyUnitMoved) MessageType() string {
 }
 
 type VisualRangedAttack struct {
-	Projectiles  []VisualProjectile
-	WeaponType   WeaponType
-	AmmoCost     uint
-	Attacker     uint64
-	AimDirection voxel.Int3
+	Projectiles       []VisualProjectile
+	WeaponType        WeaponType
+	AmmoCost          uint
+	Attacker          uint64
+	AimDirection      voxel.Int3
+	APCostForAttacker int
+	IsTurnEnding      bool
 }
 type VisualProjectile struct {
 	Origin      mgl32.Vec3

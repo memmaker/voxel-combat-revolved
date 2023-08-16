@@ -11,4 +11,5 @@ type GameState interface {
 	OnUpperLeftAction()
 	OnScroll(deltaTime float64, xoff float64, yoff float64)
 	Init(wasPopped bool)
+	OnServerMessage(msgType string, json string)
 }

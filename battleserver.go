@@ -118,6 +118,7 @@ func NewBattleServer() *server.BattleServer {
 		MagazineSize:        5,
 		BaseDamagePerBullet: 3,
 		MinFOVForZoom:       40,
+		BaseAPForShot:       2,
 	})
 
 	battleServer.AddWeapon(game.WeaponDefinition{
@@ -131,6 +132,7 @@ func NewBattleServer() *server.BattleServer {
 		MagazineSize:        3,
 		BaseDamagePerBullet: 2,
 		MinFOVForZoom:       45,
+		BaseAPForShot:       2,
 	})
 
 	battleServer.AddWeapon(game.WeaponDefinition{
@@ -144,6 +146,7 @@ func NewBattleServer() *server.BattleServer {
 		MagazineSize:        3,
 		BaseDamagePerBullet: 4,
 		MinFOVForZoom:       20,
+		BaseAPForShot:       3,
 	})
 	return battleServer
 }

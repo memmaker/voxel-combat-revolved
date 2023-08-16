@@ -17,4 +17,5 @@ type TargetAction interface {
 	// It should work for both the server and the client
 	GetValidTargets(unit UnitCore) []voxel.Int3
 	IsValidTarget(unit UnitCore, target voxel.Int3) bool
+	IsTurnEnding() bool
 }

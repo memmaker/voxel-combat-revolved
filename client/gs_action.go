@@ -13,6 +13,18 @@ type GameStateAction struct {
 	selectedAction game.TargetAction
 }
 
+func (g *GameStateAction) OnServerMessage(msgType string, json string) {
+	switch msgType {
+	case "RangedAttack":
+		var msg game.VisualRangedAttack
+		if util.FromJson(json, &msg) {
+			if msg.Attacker == g.selectedUnit.UnitID() {
+				g.engine.SwitchToUnitNoCameraMovement(g.selectedUnit)
+			}
+		}
+	}
+}
+
 func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 	if !g.engine.actionbar.HandleKeyEvent(key) {
 		if key == glfw.KeyTab {
@@ -38,7 +50,5 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 	if g.selectedUnit.CanAct() && g.selectedAction.IsValidTarget(g.selectedUnit, groundBlock) {
 		println(fmt.Sprintf("[GameStateAction] Target %s is VALID, sending to server.", groundBlock.ToString()))
 		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), groundBlock))
-		g.engine.PopState()
-		g.engine.GetVoxelMap().ClearHighlights()
 	}
 }

@@ -18,6 +18,10 @@ type GameStateFreeAim struct {
 	lockedTarget   int
 }
 
+func (g *GameStateFreeAim) OnServerMessage(msgType string, json string) {
+
+}
+
 func (g *GameStateFreeAim) OnScroll(deltaTime float64, xoff float64, yoff float64) {
 	if yoff > 0 {
 		g.engine.fpsCamera.ChangeFOV(1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
@@ -30,6 +34,7 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyEscape {
 		g.engine.SwitchToIsoCamera()
 		g.engine.PopState()
+		g.engine.SwitchToUnitNoCameraMovement(g.selectedUnit)
 	} else if key == glfw.KeyM {
 		g.engine.fpsCamera.ChangeFOV(1, g.selectedUnit.GetWeapon().GetMinFOVForZoom())
 	} else if key == glfw.KeyN {

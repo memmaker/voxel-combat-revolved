@@ -92,6 +92,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer) *Bat
 		timer:         util.NewTimer(),
 	}
 	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, myApp.CreateClientUnit)
+	myApp.GameClient.SetEnvironment("GL-Client")
 	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
 	myApp.lineShader = myApp.loadLineShader()
@@ -438,12 +439,12 @@ func (a *BattleClient) SwitchToFirstPerson(unit *Unit) {
 	// attach arms of selected unit to camera
 	arms := unit.GetModel().GetNodeByName("Arms")
 	if arms != nil {
-		previousAnimation := arms.GetAnimationName()
+		previousAnimation := unit.GetModel().GetAnimationName()
 		arms.SetTempParent(a.fpsCamera)
 		arms.SetAnimation(game.AnimationWeaponIdle.Str())
 		a.onSwitchToIsoCamera = func() { // detach arms when switching back to iso camera
 			arms.SetTempParent(nil)
-			arms.SetAnimation(previousAnimation)
+			unit.GetModel().SetAnimation(previousAnimation, 1.0)
 		}
 	}
 }
@@ -504,6 +505,7 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 			a.OnGameOver(msg)
 		}
 	}
+	a.state().OnServerMessage(msgType, messageAsJson)
 }
 
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
@@ -515,6 +517,11 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
 		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
+		attackerUnit.ConsumeAP(msg.APCostForAttacker)
+		if msg.IsTurnEnding {
+			attackerUnit.EndTurn()
+		}
 	}
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
@@ -667,6 +674,8 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 			a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
 		}
 		unit.SetBlockPositionAndUpdateMap(destination)
+
+		a.SwitchToUnitNoCameraMovement(unit)
 	}
 	destinationReached := func() bool {
 		return voxel.ToGridInt3(unit.GetFootPosition()) == destination

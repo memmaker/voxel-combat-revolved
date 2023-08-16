@@ -9,6 +9,10 @@ type GameStateEditMap struct {
 	IsoMovementState
 }
 
+func (g *GameStateEditMap) OnServerMessage(msgType string, json string) {
+
+}
+
 func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyF {
 		g.engine.PlaceBlockAtCurrentSelection()

@@ -56,6 +56,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		var gameInfo GameStartedMessage
 		util.FromJson(messageAsJson, &gameInfo)
 		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo.OwnID, gameInfo.GameID, c.createDummyUnit)
+		c.GameClient.SetEnvironment("AI-Client")
 		println("Game started!")
 		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
 		c.GameClient.SetVoxelMap(loadedMap)

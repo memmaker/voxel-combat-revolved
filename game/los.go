@@ -34,9 +34,12 @@ func (g *GameInstance) GetVisibleUnits(unitID uint64) []*UnitInstance {
 func (g *GameInstance) GetVisibleEnemyUnits(unitID uint64) []*UnitInstance {
 	result := make([]*UnitInstance, 0)
 	ownInstance := g.units[unitID]
+	if !ownInstance.IsActive() {
+		return result
+	}
 	for enemyID, isVisble := range g.losMatrix[unitID] {
 		enemy := g.units[enemyID]
-		if isVisble && enemy.ControlledBy() != ownInstance.ControlledBy() {
+		if isVisble && enemy.ControlledBy() != ownInstance.ControlledBy() && enemy.IsActive() {
 			result = append(result, enemy)
 		}
 	}
@@ -80,7 +83,7 @@ func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEye
 	if observer == another || observer.ControlledBy() == another.ControlledBy() {
 		return true
 	}
-	if !observer.IsActive() {
+	if !observer.IsActive() || !another.IsActive() {
 		return false
 	}
 

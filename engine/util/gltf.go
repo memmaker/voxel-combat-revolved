@@ -281,9 +281,11 @@ func buildNodeHierarchy(document *gltf.Document, meshNodes []*MeshNode, nodeInde
 	docNode := document.Nodes[nodeIndex]
 	meshNode := meshNodes[nodeIndex]
 	meshNode.SetSamplerSource(samplerFrameSource)
-	meshNode.Translate(docNode.TranslationOrDefault())
-	meshNode.Rotate(docNode.RotationOrDefault())
-	meshNode.Scale(docNode.ScaleOrDefault())
+
+	meshNode.SetInitialTranslate(docNode.TranslationOrDefault())
+	meshNode.SetInitialRotate(docNode.RotationOrDefault())
+	meshNode.SetInitialScale(docNode.ScaleOrDefault())
+
 	for _, childNodeIndex := range docNode.Children {
 		meshNode.children = append(meshNode.children, buildNodeHierarchy(document, meshNodes, childNodeIndex, samplerFrameSource))
 		childMeshNode := meshNodes[childNodeIndex]

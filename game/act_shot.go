@@ -8,6 +8,10 @@ type ActionShot struct {
 	engine *GameInstance
 }
 
+func (a *ActionShot) IsTurnEnding() bool {
+	return true
+}
+
 func NewActionShot(engine *GameInstance) *ActionShot {
 	return &ActionShot{
 		engine: engine,

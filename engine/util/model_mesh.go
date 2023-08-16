@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/memmaker/battleground/engine/glhf"
+	"time"
 )
 
 type DrawPair struct {
@@ -34,6 +35,8 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 	scaledDeltaTime := deltaTime * m.animationSpeed
 	animationFinished := m.RootNode.UpdateAnimation(scaledDeltaTime)
 	if animationFinished && !m.loopAnimation {
+		ts := time.Now().Format("15:04:05.000")
+		println(fmt.Sprintf("[CompoundMesh] Animation %s finished at %s -> holding", m.currentAnimation, ts))
 		m.holdAnimation = true
 	}
 	return animationFinished
@@ -111,6 +114,11 @@ type MeshNode struct {
 	translation  [3]float32
 	quatRotation mgl32.Quat
 	scale        [3]float32
+
+	// t-pose (initial transform)
+	initialTranslation [3]float32
+	initialRotation    mgl32.Quat
+	initialScale       [3]float32
 
 	// animation
 	animations       map[string]*SimpleAnimationData
@@ -273,6 +281,9 @@ func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
 	m.SetAnimationSpeed(speedFactor)
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
+	// need millisec accuracy
+	ts := time.Now().Format("15:04:05.000")
+	println(fmt.Sprintf("[CompoundMesh] Animation started at %s", ts))
 	m.loopAnimation = false
 	m.holdAnimation = false
 }
@@ -302,6 +313,10 @@ func (m *CompoundMesh) SetForward(direction mgl32.Vec3) {
 	m.RootNode.SetForward(direction)
 }
 
+func (m *CompoundMesh) GetAnimationName() string {
+	return m.currentAnimation
+}
+
 func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
@@ -312,6 +327,7 @@ func (m *MeshNode) SetAnimationPose(name string) {
 		m.InitAnimationPose()
 	} else {
 		m.currentAnimation = ""
+		m.ResetToInitialTransform()
 	}
 }
 func (m *MeshNode) SetAnimation(name string) {
@@ -323,11 +339,13 @@ func (m *MeshNode) SetAnimation(name string) {
 	}
 	if _, ok := m.animations[name]; ok {
 		m.currentAnimation = name
-		m.ResetAnimation()
 		m.InitAnimationPose()
 	} else {
 		m.currentAnimation = ""
+		m.ResetToInitialTransform()
 	}
+	m.ResetAnimation()
+
 }
 
 func (m *MeshNode) ResetAnimation() {
@@ -340,7 +358,7 @@ func (m *MeshNode) ResetAnimation() {
 	m.outOfScaleFrames = false
 }
 func (m *MeshNode) InitAnimationPose() {
-	if m.IsAnimated() {
+	if m.IsCurrentAnimationValid() {
 		animation := m.GetCurrentAnimation()
 		if len(animation.TranslationFrames) > 0 {
 			m.Translate(animation.TranslationFrames[0])
@@ -358,7 +376,7 @@ func (m *MeshNode) InitAnimationPose() {
 }
 func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 	animationFinished := false
-	if m.IsAnimated() {
+	if m.IsCurrentAnimationValid() {
 		m.animationTimer += deltaTime
 		animation := m.GetCurrentAnimation()
 
@@ -460,6 +478,9 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 		}
 
 		if m.outOfTranslationFrames && m.outOfRotationFrames && m.outOfScaleFrames {
+			if m.currentAnimation == "animation.drop" {
+				println(fmt.Sprintf("[%s] Out of Frames for %s at %f", m.name, m.currentAnimation, m.animationTimer))
+			}
 			m.ResetAnimation()
 			animationFinished = true
 		}
@@ -467,13 +488,20 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 	for _, child := range m.children {
 		childAnimationFinished := child.UpdateAnimation(deltaTime)
 		if childAnimationFinished {
+			if m.currentAnimation == "animation.drop" {
+				println(fmt.Sprintf("[%s] Child finished %s at %f", m.name, m.currentAnimation, m.animationTimer))
+			}
 			animationFinished = true
 		}
+	}
+	if animationFinished && m.currentAnimation == "animation.drop" {
+		println(fmt.Sprintf("[%s] -> Finished %s at %f", m.name, m.currentAnimation, m.animationTimer))
+
 	}
 	return animationFinished
 }
 
-func (m *MeshNode) IsAnimated() bool {
+func (m *MeshNode) IsCurrentAnimationValid() bool {
 	if _, ok := m.animations[m.currentAnimation]; ok {
 		return true
 	}
@@ -542,7 +570,7 @@ func (m *MeshNode) GetAnimationDebugString(hierarchyLevel int) string {
 	}
 	result := ""
 	result += padding + fmt.Sprintf("Node: %s\n", m.name)
-	if m.IsAnimated() {
+	if m.IsCurrentAnimationValid() {
 		result += padding + fmt.Sprintf("Translation: %v\n", m.translation)
 		result += padding + fmt.Sprintf("Rotation: %v\n", m.quatRotation)
 		result += padding + fmt.Sprintf("Scale: %v\n", m.scale)
@@ -595,6 +623,30 @@ func (m *MeshNode) GetAnimationName() string {
 
 func (m *MeshNode) SetSamplerSource(source func(animationName string) [][]float32) {
 	m.samplerSource = source
+}
+
+func (m *MeshNode) SetInitialTranslate(translate [3]float32) {
+	m.initialTranslation = translate
+	m.Translate(translate)
+}
+
+func (m *MeshNode) SetInitialRotate(rotate [4]float32) {
+	m.initialRotation = mgl32.Quat{V: mgl32.Vec3{rotate[0], rotate[1], rotate[2]}, W: rotate[3]}
+	m.Rotate(rotate)
+
+}
+
+func (m *MeshNode) SetInitialScale(scale [3]float32) {
+	m.initialScale = scale
+	m.Scale(scale)
+}
+
+func (m *MeshNode) ResetToInitialTransform() {
+	if m.parent != nil { // workaround, because we fucked up and are moving the root node of the uniti models.. resetting it will cause havoc
+		m.translation = m.initialTranslation
+		m.quatRotation = m.initialRotation
+		m.scale = m.initialScale
+	}
 }
 
 type SubMesh struct {

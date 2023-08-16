@@ -227,6 +227,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 	}
 
 	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map)
+	battleGame.SetEnvironment("Server")
 	battleGame.AddPlayer(userId)
 	user.isReady = false
 	user.activeGame = gameID
@@ -494,27 +495,3 @@ func NewBattleServer() *BattleServer {
 		availableWeapons:  make(map[string]*game.WeaponDefinition),
 	}
 }
-
-// Client -> Server
-// Login(name, faction)
-// JoinGame(id)
-// GetGames()
-// GetMaps()
-// GetUnitTypes()
-// CreateGame(id, public, map)
-// AddUnitDefinition(availableUnits)
-// StartGame()
-// EndTurn()
-// UnitMove(unit, target)
-// UnitShot(unit, direction)
-
-// Server -> Client
-// ActionResponse(success, message)
-// JoinGameResponse(success, message)
-// MapList(maps)
-// UnitList(availableUnits)
-// GameList(games)
-// GameStarted()
-// TurnStarted()
-// UnitMoved(unit, target)
-// UnitShot(unit, direction)

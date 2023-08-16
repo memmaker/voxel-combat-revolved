@@ -38,6 +38,7 @@ func NewGameInstance(gameID string) *GameInstance {
 }
 
 type GameInstance struct {
+	// game instance metadata
 	id      string
 	owner   uint64
 	mapFile string
@@ -52,6 +53,13 @@ type GameInstance struct {
 	playerFactions     map[uint64]*Faction
 	playerUnits        map[uint64][]uint64
 	playersNeeded      int
+
+	// debug
+	environment string
+}
+
+func (g *GameInstance) SetEnvironment(environment string) {
+	g.environment = environment
 }
 
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
@@ -174,9 +182,9 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 
 func (g *GameInstance) Kill(killer, victim *UnitInstance) {
 	if killer != nil {
-		println(fmt.Sprintf("[GameInstance] %s(%d) killed %s(%d)", killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
+		println(fmt.Sprintf("[%s] %s(%d) killed %s(%d)", g.environment, killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
 	} else {
-		println(fmt.Sprintf("[GameInstance] %s(%d) died", victim.Name, victim.UnitID()))
+		println(fmt.Sprintf("[%s] %s(%d) died", g.environment, victim.Name, victim.UnitID()))
 	}
 	victim.Kill()
 }

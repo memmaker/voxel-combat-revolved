@@ -8,6 +8,10 @@ type GameStateWaitForEvents struct {
 	IsoMovementState
 }
 
+func (g *GameStateWaitForEvents) OnServerMessage(msgType string, json string) {
+
+}
+
 func (g *GameStateWaitForEvents) OnMouseClicked(x float64, y float64) {
 
 }

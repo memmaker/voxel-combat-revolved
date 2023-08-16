@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
+	"math"
 )
 
 type MeshAnimation string
@@ -44,7 +45,7 @@ type UnitClientDefinition struct {
 type UnitCoreStats struct {
 	Health        int     // Health points, unit dies when this reaches 0
 	Accuracy      float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
-	MovementPerAP float32
+	MovementPerAP float64 // MovementPerAP Movement per action point
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
@@ -66,8 +67,8 @@ type UnitInstance struct {
 	Name            string
 	Position        voxel.Int3
 	Definition      *UnitDefinition // ID of the unit definition (= unit type)
-	ActionPoints    int
-	MovementPerAP   float32
+	ActionPoints    float64
+	MovementPerAP   float64
 	voxelMap        *voxel.Map
 	model           *util.CompoundMesh
 	Weapon          *Weapon
@@ -75,9 +76,8 @@ type UnitInstance struct {
 	IsDead          bool
 	Health          int
 	DamageZones     map[util.DamageZone]int
-	MovementPenalty int
+	MovementPenalty float64
 	AimPenalty      float64
-	MovedThisTurn   int
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -93,7 +93,7 @@ func (u *UnitInstance) GetName() string {
 }
 
 func (u *UnitInstance) GetFriendlyDescription() string {
-	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.MovesLeft(), u.GetFreeAimAccuracy())
+	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetInterAP(), u.GetFreeAimAccuracy())
 	if u.Weapon != nil {
 		desc += fmt.Sprintf("x> %s Ammo: %d/%d Acc: (%0.2f)\n", u.Weapon.Definition.UniqueName, u.Weapon.AmmoCount, u.Weapon.Definition.MagazineSize, u.Weapon.Definition.AccuracyModifier)
 	}
@@ -130,35 +130,36 @@ func (u *UnitInstance) HasActionPointsLeft() bool {
 func (u *UnitInstance) CanAct() bool {
 	return u.HasActionPointsLeft() && u.IsActive()
 }
+func (u *UnitInstance) CanFire() bool {
+	apNeeded := u.Weapon.Definition.BaseAPForShot
+	enoughAP := u.GetInterAP() >= int(apNeeded)
+	return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
+}
+func (u *UnitInstance) EndTurn() {
+	u.ActionPoints = 0
+}
+
+func (u *UnitInstance) NextTurn() {
+	u.ActionPoints = 4
+}
 
 func (u *UnitInstance) CanMove() bool {
 	return u.HasActionPointsLeft() && u.MovesLeft() > 0 && u.IsActive()
 }
 
-func (u *UnitInstance) EndTurn() {
-	u.ActionPoints = 0
-	u.UseAllMovement()
-}
-
-func (u *UnitInstance) NextTurn() {
-	u.ActionPoints = 4
-	u.MovedThisTurn = 0
-}
 func (u *UnitInstance) MovesLeft() int {
-	return u.MovementAllowance() - u.MovedThisTurn
+	return int(math.Floor(u.ActionPoints / u.APPerMovement()))
 }
 
-func (u *UnitInstance) MovementAllowance() int {
-	return int(float32(u.ActionPoints)*u.MovementPerAP) - u.MovementPenalty
+func (u *UnitInstance) APPerMovement() float64 {
+	return (1.0 / u.MovementPerAP) + u.MovementPenalty
 }
 
 func (u *UnitInstance) UseMovement(cost int) {
-	u.MovedThisTurn += cost
-	// TODO: moving should also cost AP
-}
-
-func (u *UnitInstance) UseAllMovement() {
-	u.MovedThisTurn = u.MovementAllowance()
+	apCost := float64(cost) * u.APPerMovement()
+	u.ActionPoints -= apCost
+	println(fmt.Sprintf("[UnitInstance] %s used %d movement points, %d left", u.Name, cost, u.MovesLeft()))
+	println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP, %0.2f left", u.Name, apCost, u.ActionPoints))
 }
 
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -172,7 +173,6 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 		Name:          name,
 		Definition:    unitDef,
 		ActionPoints:  4,
-		MovedThisTurn: 0,
 		MovementPerAP: unitDef.CoreStats.MovementPerAP,
 		Health:        unitDef.CoreStats.Health,
 		model:         compoundMesh, // todo: cache models?
@@ -365,14 +365,23 @@ func (u *UnitInstance) updatePenalties() {
 		// TODO: destroy weapon if damage is too high
 	}
 
-	if totalDamageToLegs > 0 { // each 3 points of damage to the legs reduces movement by 1 block
-		u.MovementPenalty = totalDamageToLegs / 3
+	if totalDamageToLegs > 0 { // each 1 point of damage to the legs increases the AP cost of movement by 0.1
+		u.MovementPenalty = float64(totalDamageToLegs) / 10.0
 	}
 
 	if totalDamageToArms > 0 { // each 5 points of damage to the arms reduces accuracy by 10%
 		aimPenalty := totalDamageToArms / 5
 		u.AimPenalty = float64(aimPenalty) / 10.0
 	}
+}
+
+func (u *UnitInstance) GetInterAP() int {
+	return int(math.Floor(u.ActionPoints))
+}
+
+func (u *UnitInstance) ConsumeAP(shot int) {
+	u.ActionPoints -= float64(shot)
+	println(fmt.Sprintf("[UnitInstance] %s(%d) consumed %d AP, %f AP left", u.GetName(), u.UnitID(), shot, u.ActionPoints))
 }
 
 func getDamageZones() []util.DamageZone {
