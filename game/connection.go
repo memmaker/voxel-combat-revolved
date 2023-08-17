@@ -137,3 +137,7 @@ func (c *ServerConnection) EndTurn() error {
 func (c *ServerConnection) MapLoaded() error {
 	return c.send("MapLoaded", MapLoadedMessage{})
 }
+
+func (c *ServerConnection) ReloadAction(unitID uint64) error {
+	return c.send("Reload", UnitMessage{GameUnitID: unitID})
+}

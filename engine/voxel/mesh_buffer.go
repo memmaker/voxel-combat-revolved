@@ -209,39 +209,39 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []
 		mergedData = append(mergedData, vertexData...)
 		faceVertices[normalDir] = [2]int32{int32(startIndex), int32(count)}
 	}
-	m.faceMap[Int3{0, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0]}, Count: []int32{faceVertices[ZP][1]}}
-	m.faceMap[Int3{0, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0]}, Count: []int32{faceVertices[ZN][1]}}
-	m.faceMap[Int3{0, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0]}, Count: []int32{faceVertices[YP][1]}}
-	m.faceMap[Int3{0, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0]}, Count: []int32{faceVertices[YN][1]}}
-	m.faceMap[Int3{1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[XP][0]}, Count: []int32{faceVertices[XP][1]}}
-	m.faceMap[Int3{-1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[XN][0]}, Count: []int32{faceVertices[XN][1]}}
+	m.faceMap[Int3{0, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0]}, Count: []int32{faceVertices[South][1]}}
+	m.faceMap[Int3{0, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0]}, Count: []int32{faceVertices[North][1]}}
+	m.faceMap[Int3{0, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Top][0]}, Count: []int32{faceVertices[Top][1]}}
+	m.faceMap[Int3{0, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Bottom][0]}, Count: []int32{faceVertices[Bottom][1]}}
+	m.faceMap[Int3{1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[East][0]}, Count: []int32{faceVertices[East][1]}}
+	m.faceMap[Int3{-1, 0, 0}] = MultiDrawIndex{Start: []int32{faceVertices[West][0]}, Count: []int32{faceVertices[West][1]}}
 
 	// two axis
-	m.faceMap[Int3{0, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1]}}
-	m.faceMap[Int3{0, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1]}}
-	m.faceMap[Int3{0, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1]}}
-	m.faceMap[Int3{0, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1]}}
+	m.faceMap[Int3{0, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Top][0]}, Count: []int32{faceVertices[South][1], faceVertices[Top][1]}}
+	m.faceMap[Int3{0, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Top][0]}, Count: []int32{faceVertices[North][1], faceVertices[Top][1]}}
+	m.faceMap[Int3{0, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Bottom][0]}, Count: []int32{faceVertices[South][1], faceVertices[Bottom][1]}}
+	m.faceMap[Int3{0, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Bottom][0]}, Count: []int32{faceVertices[North][1], faceVertices[Bottom][1]}}
 
-	m.faceMap[Int3{1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{-1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[XN][1]}}
-	m.faceMap[Int3{-1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[East][0]}, Count: []int32{faceVertices[South][1], faceVertices[East][1]}}
+	m.faceMap[Int3{1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[East][0]}, Count: []int32{faceVertices[North][1], faceVertices[East][1]}}
+	m.faceMap[Int3{-1, 0, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[West][0]}, Count: []int32{faceVertices[South][1], faceVertices[West][1]}}
+	m.faceMap[Int3{-1, 0, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[West][0]}, Count: []int32{faceVertices[North][1], faceVertices[West][1]}}
 
-	m.faceMap[Int3{1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[YP][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[YN][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{-1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[YP][1], faceVertices[XN][1]}}
-	m.faceMap[Int3{-1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[YN][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Top][0], faceVertices[East][0]}, Count: []int32{faceVertices[Top][1], faceVertices[East][1]}}
+	m.faceMap[Int3{1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Bottom][0], faceVertices[East][0]}, Count: []int32{faceVertices[Bottom][1], faceVertices[East][1]}}
+	m.faceMap[Int3{-1, 1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Top][0], faceVertices[West][0]}, Count: []int32{faceVertices[Top][1], faceVertices[West][1]}}
+	m.faceMap[Int3{-1, -1, 0}] = MultiDrawIndex{Start: []int32{faceVertices[Bottom][0], faceVertices[West][0]}, Count: []int32{faceVertices[Bottom][1], faceVertices[West][1]}}
 
 	// three axis
-	m.faceMap[Int3{1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1], faceVertices[XP][1]}}
-	m.faceMap[Int3{1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0], faceVertices[XP][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1], faceVertices[XP][1]}}
+	m.faceMap[Int3{1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Top][0], faceVertices[East][0]}, Count: []int32{faceVertices[South][1], faceVertices[Top][1], faceVertices[East][1]}}
+	m.faceMap[Int3{1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Top][0], faceVertices[East][0]}, Count: []int32{faceVertices[North][1], faceVertices[Top][1], faceVertices[East][1]}}
+	m.faceMap[Int3{1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Bottom][0], faceVertices[East][0]}, Count: []int32{faceVertices[South][1], faceVertices[Bottom][1], faceVertices[East][1]}}
+	m.faceMap[Int3{1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Bottom][0], faceVertices[East][0]}, Count: []int32{faceVertices[North][1], faceVertices[Bottom][1], faceVertices[East][1]}}
 
-	m.faceMap[Int3{-1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YP][1], faceVertices[XN][1]}}
-	m.faceMap[Int3{-1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YP][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YP][1], faceVertices[XN][1]}}
-	m.faceMap[Int3{-1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[ZP][0], faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZP][1], faceVertices[YN][1], faceVertices[XN][1]}}
-	m.faceMap[Int3{-1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[ZN][0], faceVertices[YN][0], faceVertices[XN][0]}, Count: []int32{faceVertices[ZN][1], faceVertices[YN][1], faceVertices[XN][1]}}
+	m.faceMap[Int3{-1, 1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Top][0], faceVertices[West][0]}, Count: []int32{faceVertices[South][1], faceVertices[Top][1], faceVertices[West][1]}}
+	m.faceMap[Int3{-1, 1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Top][0], faceVertices[West][0]}, Count: []int32{faceVertices[North][1], faceVertices[Top][1], faceVertices[West][1]}}
+	m.faceMap[Int3{-1, -1, 1}] = MultiDrawIndex{Start: []int32{faceVertices[South][0], faceVertices[Bottom][0], faceVertices[West][0]}, Count: []int32{faceVertices[South][1], faceVertices[Bottom][1], faceVertices[West][1]}}
+	m.faceMap[Int3{-1, -1, -1}] = MultiDrawIndex{Start: []int32{faceVertices[North][0], faceVertices[Bottom][0], faceVertices[West][0]}, Count: []int32{faceVertices[North][1], faceVertices[Bottom][1], faceVertices[West][1]}}
 
 	return mergedData
 }

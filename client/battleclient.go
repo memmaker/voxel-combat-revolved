@@ -29,7 +29,6 @@ type BattleClient struct {
 	lastHitInfo         *game.RayCastHit
 	projectiles         []*Projectile
 	debugObjects        []PositionDrawable
-	blockTypeToPlace    byte
 	isoCamera           *util.ISOCamera
 	fpsCamera           *util.FPSCamera
 	cameraIsFirstPerson bool
@@ -49,6 +48,7 @@ type BattleClient struct {
 	isBusy              bool
 	onSwitchToIsoCamera func()
 	bulletModel         *util.CompoundMesh
+	blockLibrary        *game.BlockLibrary
 }
 
 func (a *BattleClient) state() GameState {
@@ -115,7 +115,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer) *Bat
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
 	myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
 	myApp.bulletModel.ConvertVertexData(myApp.modelShader)
-	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn"})
+	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload"})
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
 	myApp.SwitchToBlockSelector()
@@ -346,7 +346,7 @@ func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
 }
 
 func (a *BattleClient) SwitchToEditMap() {
-	a.stateStack = append(a.stateStack, &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}})
+	a.stateStack = append(a.stateStack, &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}, blockTypeToPlace: 1})
 	a.state().Init(false)
 }
 
@@ -402,6 +402,7 @@ func (a *BattleClient) SwitchToGroundSelector() {
 func (a *BattleClient) SwitchToBlockSelector() {
 	a.selector = a.blockSelector
 	a.isBlockSelection = true
+	a.unitSelector.Hide()
 }
 
 func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
@@ -519,6 +520,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 		attackerUnit.SetForward(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
+		attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
 		if msg.IsTurnEnding {
 			attackerUnit.EndTurn()
 		}
@@ -762,4 +764,8 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
 	// TODO: Spawn blood particles
 	// TODO: Add blood decals on unit skin
+}
+
+func (a *BattleClient) SetBlockLibrary(bl *game.BlockLibrary) {
+	a.blockLibrary = bl
 }

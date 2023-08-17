@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
+	"github.com/memmaker/battleground/engine/voxel"
 )
 
 type LineMesh struct {
@@ -46,4 +47,8 @@ func NewLineMesh(shader *glhf.Shader, lines [][2]mgl32.Vec3) *LineMesh {
 }
 func (m *LineMesh) GetMatrix() mgl32.Mat4 {
 	return mgl32.Translate3D(m.pos.X(), m.pos.Y(), m.pos.Z())
+}
+
+func (m *LineMesh) GetBlockPosition() voxel.Int3 {
+	return voxel.ToGridInt3(m.pos)
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
-	"math/rand"
 	"os"
 	"sort"
 )
@@ -21,7 +20,23 @@ type Map struct {
 	terrainTexture     *glhf.Texture
 	knownUnitPositions map[uint64]Int3
 
-	spawnCounter int
+	spawnCounter    int
+	textureCallback func(block *Block, side FaceType) byte
+	selectionIndex  byte
+}
+
+func (m *Map) SetSize(width, height, depth int32) {
+	m.width = width
+	m.height = height
+	m.depth = depth
+	m.chunks = make([]*Chunk, width*height*depth)
+	for i := range m.chunks {
+		x := i % int(width)
+		y := (i / int(width)) % int(height)
+		z := i / (int(width) * int(height))
+		m.chunks[i] = NewChunk(m.chunkShader, m, int32(x), int32(y), int32(z))
+		println("Created empty chunk at", x, y, z)
+	}
 }
 
 func NewMap(width, height, depth int32) *Map {
@@ -77,7 +92,11 @@ func (m *Map) SaveToDisk() {
 		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosZ)
 		println(fmt.Sprintf("[Map] Saving chunk %d %d %d", chunk.chunkPosX, chunk.chunkPosY, chunk.chunkPosZ))
 		for _, block := range chunk.data {
-			binary.Write(gzipWriter, binary.LittleEndian, block.ID)
+			id := byte(0)
+			if block != nil {
+				id = block.ID
+			}
+			binary.Write(gzipWriter, binary.LittleEndian, id)
 		}
 		println(fmt.Sprintf("[Map] Saved %d blocks", len(chunk.data)))
 	}
@@ -289,23 +308,8 @@ func (m *Map) SetFloorAtHeight(yLevel int, block *Block) {
 	}
 }
 
-func (m *Map) SetSetRandomStuff(block *Block) {
-	for _, chunk := range m.chunks {
-		if chunk.chunkPosX == 0 && chunk.chunkPosZ == 0 && chunk.chunkPosY == 0 {
-			continue
-		}
-		for x := int32(0); x < CHUNK_SIZE; x++ {
-			for z := int32(0); z < CHUNK_SIZE; z++ {
-				randomHeight := rand.Intn(10)
-				chunk.SetBlock(x, int32(randomHeight), z, block)
-			}
-		}
-	}
-}
-
 type MapObject interface {
 	GetOccupiedBlockOffsets() []Int3
-	ControlledBy() uint64
 	UnitID() uint64
 	GetName() string
 }
@@ -381,7 +385,7 @@ func GetBlocksNeededByConstruction(construction *Construction) []string {
 		}
 	}
 	var blockNames []string
-	println("[Map] Blocks needed by construction:")
+	println("[Map] blocks needed by construction:")
 	for blockName := range blocks {
 		blockNames = append(blockNames, blockName)
 		println("[Map] -", blockName)
@@ -498,7 +502,8 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 	return voxelMap
 }
 
-func (m *Map) SetHighlights(highlightPositions []Int3, textureIndex byte) {
+func (m *Map) SetHighlights(highlightPositions []Int3) {
+	textureIndex := m.selectionIndex
 	sort.Slice(highlightPositions, func(i, j int) bool {
 		chunkXI, chunkYI, chunkZI := highlightPositions[i].X/CHUNK_SIZE, highlightPositions[i].Y/CHUNK_SIZE, highlightPositions[i].Z/CHUNK_SIZE
 		chunkXJ, chunkYJ, chunkZJ := highlightPositions[j].X/CHUNK_SIZE, highlightPositions[j].Y/CHUNK_SIZE, highlightPositions[j].Z/CHUNK_SIZE
@@ -655,4 +660,28 @@ func (m *Map) GetNextDebugSpawn() Int3 {
 	spawnPos := debugSpawnPositions[m.spawnCounter]
 	m.spawnCounter++
 	return spawnPos
+}
+
+func (m *Map) getTextureIndexForSide(block *Block, side FaceType) byte {
+	if m.textureCallback != nil {
+		return m.textureCallback(block, side)
+	}
+	return block.ID - 1
+}
+
+func (m *Map) SetTextureIndexCallback(callback func(block *Block, side FaceType) byte, selectionIndex byte) {
+	m.textureCallback = callback
+	m.selectionIndex = selectionIndex
+}
+
+func (m *Map) ClearAllChunks() {
+	for _, chunk := range m.chunks {
+		if chunk != nil {
+			chunk.ClearAllBlocks()
+		}
+	}
+}
+
+func (m *Map) GetTerrainTexture() *glhf.Texture {
+	return m.terrainTexture
 }

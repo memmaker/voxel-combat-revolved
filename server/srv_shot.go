@@ -29,8 +29,8 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 	}
 
 	costOfAPForShot := int(a.unit.Weapon.Definition.BaseAPForShot) + a.additionalAPCost
-	if a.unit.GetInterAP() < costOfAPForShot {
-		return false, fmt.Sprintf("Not enough AP for shot. Need %d, have %d", costOfAPForShot, a.unit.GetInterAP())
+	if a.unit.GetIntegerAP() < costOfAPForShot {
+		return false, fmt.Sprintf("Not enough AP for shot. Need %d, have %d", costOfAPForShot, a.unit.GetIntegerAP())
 	}
 
 	return true, ""

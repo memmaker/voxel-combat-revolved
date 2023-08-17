@@ -6,6 +6,7 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
+	"math/rand"
 )
 
 type MeshAnimation string
@@ -93,7 +94,7 @@ func (u *UnitInstance) GetName() string {
 }
 
 func (u *UnitInstance) GetFriendlyDescription() string {
-	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetInterAP(), u.GetFreeAimAccuracy())
+	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetIntegerAP(), u.GetFreeAimAccuracy())
 	if u.Weapon != nil {
 		desc += fmt.Sprintf("x> %s Ammo: %d/%d Acc: (%0.2f)\n", u.Weapon.Definition.UniqueName, u.Weapon.AmmoCount, u.Weapon.Definition.MagazineSize, u.Weapon.Definition.AccuracyModifier)
 	}
@@ -132,7 +133,7 @@ func (u *UnitInstance) CanAct() bool {
 }
 func (u *UnitInstance) CanFire() bool {
 	apNeeded := u.Weapon.Definition.BaseAPForShot
-	enoughAP := u.GetInterAP() >= int(apNeeded)
+	enoughAP := u.GetIntegerAP() >= int(apNeeded)
 	return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
 }
 func (u *UnitInstance) EndTurn() {
@@ -339,6 +340,14 @@ func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {
 	u.Health -= hpDamage
 	println(fmt.Sprintf("[UnitInstance] %s(%d) took %d damage to %s, Health was reduced by %d and is now %d", u.GetName(), u.UnitID(), damage, part, hpDamage, u.Health))
 	if u.Health <= 0 {
+		// TODO: do not apply to AI units
+		// TODO: give feedback via UI
+		// divine intervention
+		if rand.Float64() < 0.01 {
+			println(fmt.Sprintf("[UnitInstance] %s(%d) was saved by divine intervention from a fatal wound.", u.GetName(), u.UnitID()))
+			u.Health = 1
+			return false
+		}
 		return true
 	}
 	return false
@@ -375,13 +384,27 @@ func (u *UnitInstance) updatePenalties() {
 	}
 }
 
-func (u *UnitInstance) GetInterAP() int {
+func (u *UnitInstance) GetIntegerAP() int {
 	return int(math.Floor(u.ActionPoints))
 }
 
 func (u *UnitInstance) ConsumeAP(shot int) {
 	u.ActionPoints -= float64(shot)
 	println(fmt.Sprintf("[UnitInstance] %s(%d) consumed %d AP, %f AP left", u.GetName(), u.UnitID(), shot, u.ActionPoints))
+}
+
+func (u *UnitInstance) CanReload() bool {
+	if u.GetWeapon().IsMagazineFull() {
+		return false
+	}
+	apNeeded := u.Weapon.Definition.BaseAPForReload
+	return u.GetIntegerAP() >= int(apNeeded)
+}
+
+func (u *UnitInstance) Reload() {
+	apNeeded := u.Weapon.Definition.BaseAPForReload
+	u.ConsumeAP(int(apNeeded))
+	u.Weapon.Reload()
 }
 
 func getDamageZones() []util.DamageZone {
@@ -408,14 +431,14 @@ func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitFor
 }
 func getWallIdleDirection(wallDirection voxel.Int3) voxel.Int3 {
 	switch wallDirection {
-	case voxel.North:
-		return voxel.East
-	case voxel.East:
-		return voxel.South
-	case voxel.South:
-		return voxel.West
-	case voxel.West:
-		return voxel.North
+	case voxel.NorthDir:
+		return voxel.EastDir
+	case voxel.EastDir:
+		return voxel.SouthDir
+	case voxel.SouthDir:
+		return voxel.WestDir
+	case voxel.WestDir:
+		return voxel.NorthDir
 	}
-	return voxel.North
+	return voxel.NorthDir
 }

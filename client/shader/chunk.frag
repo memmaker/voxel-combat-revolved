@@ -60,18 +60,27 @@ void main() {
     //vec4 surfaceColor = vec4(1, 0.2, 0.2, 1);
     // our uv coords are in steps of 1/16
     // so we are interpolating in between that interval
-    int xOffset = VertTexIndex % 16; // tiles per row
-    int yOffset = VertTexIndex / 16; // tiles per column
+    int xOffset = VertTexIndex % 16;// tiles per row
+    int yOffset = VertTexIndex / 16;// tiles per column
     float u = 0.0, v = 0.0;
-    if (VertNormal.z > 0 || VertNormal.z < 0) {
+    if (VertNormal.z > 0) {
         u = (xOffset + fract(VertPos.x)) / 16.0;
-        v = (yOffset + fract(VertPos.y)) / 16.0;
-    } else if (VertNormal.x > 0 || VertNormal.x < 0) {
+        v = (yOffset + (1.0 - fract(VertPos.y))) / 16.0;
+    } else if (VertNormal.z < 0) {
+        u = (xOffset + (1.0 - fract(VertPos.x))) / 16.0;
+        v = (yOffset + (1.0 - fract(VertPos.y))) / 16.0;
+    } else if (VertNormal.x > 0) {
+        u = (xOffset + (1.0 - fract(VertPos.z))) / 16.0;
+        v = (yOffset + (1.0 - fract(VertPos.y))) / 16.0;
+    } else if (VertNormal.x < 0) {
         u = (xOffset + fract(VertPos.z)) / 16.0;
-        v = (yOffset + fract(VertPos.y)) / 16.0;
-    } else if (VertNormal.y > 0 || VertNormal.y < 0) {
+        v = (yOffset + (1.0 - fract(VertPos.y))) / 16.0;
+    } else if (VertNormal.y > 0) {
         u = (xOffset + fract(VertPos.x)) / 16.0;
-        v = (yOffset + fract(VertPos.z)) / 16.0;
+        v = (yOffset + fract(VertPos.z)) / 16.0;//old and working
+    } else if (VertNormal.y < 0) {
+        u = (xOffset + (1.0 - fract(VertPos.x))) / 16.0;
+        v = (yOffset + fract(VertPos.z)) / 16.0;//old and working
     }
 
     // clamp to 0-1 range

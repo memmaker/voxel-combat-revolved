@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/gui"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/game"
 )
@@ -16,8 +15,22 @@ type GameStateUnit struct {
 	moveAction       *game.ActionMove
 }
 
-func (g *GameStateUnit) OnServerMessage(msgType string, json string) {
+func (g *GameStateUnit) OnMouseReleased(x float64, y float64) {
 
+}
+
+func (g *GameStateUnit) OnServerMessage(msgType string, json string) {
+	switch msgType {
+	case "Reload":
+		var msg game.UnitMessage
+		if util.FromJson(json, &msg) {
+			if msg.UnitID() == g.selectedUnit.UnitID() {
+				g.selectedUnit.Reload()
+				g.engine.Print(fmt.Sprintf("%s reloaded the %s.", g.selectedUnit.GetName(), g.selectedUnit.GetWeapon().Definition.UniqueName))
+				g.engine.UpdateActionbarFor(g.selectedUnit)
+			}
+		}
+	}
 }
 
 func NewGameStateUnit(engine *BattleClient, unit *Unit) *GameStateUnit {
@@ -62,7 +75,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		if g.selectedUnit.CanMove() {
 			validTargets := g.moveAction.GetValidTargets(g.selectedUnit)
 			if len(validTargets) > 0 {
-				g.engine.GetVoxelMap().SetHighlights(validTargets, 12)
+				g.engine.GetVoxelMap().SetHighlights(validTargets)
 			}
 		}
 		println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
@@ -74,43 +87,8 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 			g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
 		}
 
-		g.setActionBar()
+		g.engine.UpdateActionbarFor(g.selectedUnit)
 	}
-}
-
-func (g *GameStateUnit) setActionBar() {
-	g.engine.actionbar.SetActions([]gui.ActionItem{
-		{
-			Name:         "Fire",
-			TextureIndex: 1,
-			Execute: func() {
-				if !g.selectedUnit.CanFire() {
-					println("[GameStateUnit] Unit cannot fire anymore.")
-					return
-				}
-				g.engine.SwitchToAction(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))
-			},
-			Hotkey: glfw.KeyR,
-		},
-		{
-			Name:         "Free Aim",
-			TextureIndex: 2,
-			Execute: func() {
-				if !g.selectedUnit.CanFire() {
-					println("[GameStateUnit] Unit cannot fire anymore.")
-					return
-				}
-				g.engine.SwitchToFreeAim(g.selectedUnit, game.NewActionShot(g.engine.GameInstance))
-			},
-			Hotkey: glfw.KeyF,
-		},
-		{
-			Name:         "End Turn",
-			TextureIndex: 3,
-			Execute:      g.engine.EndTurn,
-			Hotkey:       glfw.KeyF8,
-		},
-	})
 }
 
 func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {

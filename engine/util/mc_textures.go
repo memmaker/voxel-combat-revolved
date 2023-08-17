@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"github.com/memmaker/battleground/engine/glhf"
+	"github.com/memmaker/battleground/engine/voxel"
 	"image"
 	"image/png"
 	"os"
@@ -34,9 +35,11 @@ func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Textu
 		file.Close()
 		imageWidth := img.Bounds().Dx()
 		imageHeight := img.Bounds().Dy()
+
+		texturesPerRow := 256 / imageWidth // 256 / 16 = 16
 		// copy the image into the atlas
-		tilePosX := textureIndex % imageWidth
-		tilePosY := textureIndex / imageHeight
+		tilePosX := textureIndex % texturesPerRow
+		tilePosY := textureIndex / texturesPerRow
 		offsetX := tilePosX * imageWidth
 		offsetY := tilePosY * imageHeight
 		for x := 0; x < imageWidth; x++ {
@@ -65,7 +68,99 @@ func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*gl
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
 	})
-	debugNames := []string{"debug", "debug2"}
-	blocksNeeded = append(debugNames, blocksNeeded...)
-	return CreateAtlasFromDirectory(directory, blocksNeeded)
+	var allFaceTextureNames []string
+	for i := 0; i < len(blocksNeeded); i++ {
+		allFaceTextureNames = append(allFaceTextureNames, tryMCStyleFaceNames(directory, blocksNeeded[i])...)
+	}
+
+	return CreateAtlasFromDirectory(directory, allFaceTextureNames)
+}
+
+func tryMCStyleFaceNames(directory, blockName string) []string {
+	var result []string
+
+	texturePath := path.Join(directory, blockName+".png")
+	if doesFileExist(texturePath) {
+		result = append(result, blockName)
+	}
+
+	for _, suffix := range getMCSuffixes() {
+		texturePath := path.Join(directory, blockName+suffix+".png")
+		if doesFileExist(texturePath) {
+			result = append(result, blockName+suffix)
+		}
+	}
+	return result
+}
+func getMCSuffixes() []string {
+	return []string{"_top", "_bottom", "_side", "_sides", "_front", "_back", "_side1", "_side2", "_side3"}
+}
+func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffixes map[string]byte) byte {
+	switch face {
+	case voxel.Top:
+		if textureIndex, ok := availableSuffixes[blockname+"_top"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	case voxel.Bottom:
+		if textureIndex, ok := availableSuffixes[blockname+"_bottom"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	case voxel.North:
+		if textureIndex, ok := availableSuffixes[blockname+"_back"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_side2"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_side"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_sides"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	case voxel.South:
+		if textureIndex, ok := availableSuffixes[blockname+"_front"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_side"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_sides"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	case voxel.East:
+		if textureIndex, ok := availableSuffixes[blockname+"_side3"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_side"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_sides"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	case voxel.West:
+		if textureIndex, ok := availableSuffixes[blockname+"_side1"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_side"]; ok {
+			return textureIndex
+		}
+		if textureIndex, ok := availableSuffixes[blockname+"_sides"]; ok {
+			return textureIndex
+		}
+		return availableSuffixes[blockname]
+	}
+	return availableSuffixes[blockname]
+}
+func doesFileExist(filename string) bool {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }

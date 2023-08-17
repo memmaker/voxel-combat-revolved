@@ -1,11 +1,15 @@
 package client
 
 import (
-	"github.com/go-gl/glfw/v3.3/glfw"
+    "github.com/go-gl/glfw/v3.3/glfw"
 )
 
 type GameStateWaitForEvents struct {
-	IsoMovementState
+    IsoMovementState
+}
+
+func (g *GameStateWaitForEvents) OnMouseReleased(x float64, y float64) {
+
 }
 
 func (g *GameStateWaitForEvents) OnServerMessage(msgType string, json string) {
@@ -21,7 +25,7 @@ func (g *GameStateWaitForEvents) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateWaitForEvents) Init(wasPopped bool) {
-	g.engine.GetVoxelMap().ClearHighlights()
-	g.engine.SwitchToGroundSelector()
-	g.engine.actionbar.Hide()
+    g.engine.GetVoxelMap().ClearHighlights()
+    g.engine.SwitchToGroundSelector()
+    g.engine.actionbar.Hide()
 }

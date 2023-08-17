@@ -1,3 +1,7 @@
+# Annoying Bugs
+ - Dropping animation still stuck
+ - Action Points seem to be out of sync / not correctly updated
+
 # Design Guidelines
  - Turn based
  - Free aim
@@ -9,7 +13,7 @@
 # Design goals
  - Tactical decision making
  - Art of war
- - Deception
+ - Deception - Smoke & Mirrors
  - Yomi - Reading the mind of the opponent
 
 # Known issues

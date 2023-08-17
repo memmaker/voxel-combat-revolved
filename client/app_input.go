@@ -42,11 +42,17 @@ func (a *BattleClient) handleMouseButtonEvents(button glfw.MouseButton, action g
 	if !a.isMouseInWindow() {
 		return
 	}
-	if button == glfw.MouseButtonLeft && action == glfw.Press {
-		if a.actionbar.IsMouseOver(a.lastMousePosX, a.lastMousePosY) {
+	if a.actionbar.IsMouseOver(a.lastMousePosX, a.lastMousePosY) {
+		if button == glfw.MouseButtonLeft && action == glfw.Press {
 			a.actionbar.OnMouseClicked(a.lastMousePosX, a.lastMousePosY)
-		} else {
+		}
+		return
+	}
+	if button == glfw.MouseButtonLeft {
+		if action == glfw.Press {
 			a.state().OnMouseClicked(a.lastMousePosX, a.lastMousePosY)
+		} else if action == glfw.Release {
+			a.state().OnMouseReleased(a.lastMousePosX, a.lastMousePosY)
 		}
 	}
 }
@@ -89,17 +95,6 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 
 	if key == glfw.KeyQ && action == glfw.Press {
 		a.state().OnUpperLeftAction()
-	}
-
-	if key == glfw.Key1 && action == glfw.Press {
-		a.blockTypeToPlace = a.blockTypeToPlace - 1
-		if a.blockTypeToPlace < 1 {
-			a.blockTypeToPlace = 1
-		}
-	}
-
-	if key == glfw.Key2 && action == glfw.Press {
-		a.blockTypeToPlace = a.blockTypeToPlace + 1
 	}
 
 	if key == glfw.KeyF1 && action == glfw.Press {

@@ -134,6 +134,11 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		if toJson(message, &mapLoadedMsg) {
 			b.MapLoaded(id, mapLoadedMsg)
 		}
+	case "Reload":
+		var reloadMsg game.UnitMessage
+		if toJson(message, &reloadMsg) {
+			b.Reload(id, reloadMsg.UnitID())
+		}
 	case "EndTurn":
 		b.EndTurn(id)
 	}
@@ -484,6 +489,46 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 
 func (b *BattleServer) AddWeapon(weaponDefinition game.WeaponDefinition) {
 	b.availableWeapons[weaponDefinition.UniqueName] = &weaponDefinition
+}
+
+func (b *BattleServer) Reload(userID uint64, unitID uint64) {
+	user, exists := b.connectedClients[userID]
+	if !exists {
+		println(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", userID))
+		return
+	}
+
+	gameID := user.activeGame
+	if gameID == "" {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		return
+	}
+
+	gameInstance, exists := b.runningGames[gameID]
+	if !exists {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		return
+	}
+
+	unit, exists := gameInstance.GetUnit(unitID)
+	if !exists {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return
+	}
+
+	if !unit.CanAct() {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		return
+	}
+
+	if !unit.CanReload() {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot reload"})
+		return
+	}
+
+	unit.Reload()
+
+	b.respond(user, "Reload", game.UnitMessage{GameUnitID: unit.UnitID()})
 }
 
 func NewBattleServer() *BattleServer {

@@ -18,6 +18,10 @@ type GameStateFreeAim struct {
 	lockedTarget   int
 }
 
+func (g *GameStateFreeAim) OnMouseReleased(x float64, y float64) {
+
+}
+
 func (g *GameStateFreeAim) OnServerMessage(msgType string, json string) {
 
 }

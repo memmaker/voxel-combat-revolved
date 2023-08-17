@@ -9,10 +9,6 @@ func (b *Block) IsAir() bool {
 	return b.ID == EMPTY
 }
 
-func (b *Block) GetTextureIndexForSide(side FaceType) byte {
-	return b.ID - 1
-}
-
 func (b *Block) RemoveUnit(unit MapObject) {
 	if b.occupant.UnitID() == unit.UnitID() {
 		b.occupant = nil
@@ -24,6 +20,9 @@ func (b *Block) AddUnit(unit MapObject) {
 }
 
 func (b *Block) IsOccupied() bool {
+	if b == nil {
+		return false
+	}
 	return b.occupant != nil
 }
 

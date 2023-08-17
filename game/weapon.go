@@ -23,6 +23,7 @@ type WeaponDefinition struct {
 	BaseDamagePerBullet int
 	MinFOVForZoom       uint
 	BaseAPForShot       uint
+	BaseAPForReload     uint
 }
 type Weapon struct {
 	Definition      *WeaponDefinition
@@ -53,6 +54,10 @@ func (w *Weapon) GetAccuracyModifier() float64 {
 
 func (w *Weapon) GetMinFOVForZoom() uint {
 	return w.Definition.MinFOVForZoom
+}
+
+func (w *Weapon) IsMagazineFull() bool {
+	return w.AmmoCount == w.Definition.MagazineSize
 }
 
 func NewWeapon(definition *WeaponDefinition) *Weapon {

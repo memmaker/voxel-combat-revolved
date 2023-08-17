@@ -52,15 +52,6 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 	return a.lastHitInfo
 }
 
-func (a *BattleClient) PlaceBlockAtCurrentSelection() {
-	if a.lastHitInfo == nil {
-		return
-	}
-	previousGridPosition := a.lastHitInfo.PreviousGridPosition
-
-	a.PlaceBlock(previousGridPosition, voxel.NewTestBlock(a.blockTypeToPlace))
-}
-
 func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
 	voxelMap := a.GetVoxelMap()
 	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
@@ -115,50 +106,82 @@ func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 		"stone",
 	}
 	var loadedMap *voxel.Map
-	terrainTexture, textureIndices := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
+	terrainTextureAtlas, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
+	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 
-	bf := voxel.NewBlockFactory(textureIndices)
+	//bf := voxel.NewBlockFactory(textureIndices)
 	sizeHorizontal := 3
 	sizeVertical := 1
 	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
 	loadedMap.SetShader(a.chunkShader)
-	loadedMap.SetTerrainTexture(terrainTexture)
+	loadedMap.SetTerrainTexture(terrainTextureAtlas)
+	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces, bl.GetTextureIndexByName("selection"))
 	for x := 0; x < sizeHorizontal; x++ {
 		for z := 0; z < sizeHorizontal; z++ {
 			loadedMap.NewChunk(int32(x), 0, int32(z))
 		}
 	}
-	loadedMap.SetFloorAtHeight(0, bf.GetBlockByName("stone"))
-	//loadedMap.SetSetRandomStuff(bf.GetBlockByName("stone"))
+	loadedMap.SetFloorAtHeight(0, bl.NewBlockFromName("stone"))
 	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
 }
-func (a *BattleClient) LoadMap(filename string) *voxel.Map {
+func (a *BattleClient) LoadMap(filename string) {
 	listOfBlocks := []string{
+		"debug2",
 		"selection",
-		"brick",
+		"bricks",
 		"clay",
 		"copper_block",
+		"weathered_copper",
+		"weathered_cut_copper",
 		"diamond_block",
 		"emerald_block",
 		"granite",
 		"gravel",
 		"iron_block",
-		"sand",
 		"sandstone",
-		"stone",
+		"ancient_debris",
+		"barrel",
+		"bedrock",
+		"birch_planks",
+		"black_terracotta",
+		"yellow_terracotta",
+		"white_glazed_terracotta",
+		"black_wool",
+		"brown_terracotta",
+		"pink_terracotta",
+		"chiseled_quartz_block",
+		"cracked_nether_bricks",
+		"crafting_table",
+		"deepslate_tiles",
+		"dispenser",
+		"dried_kelp",
+		"fletching_table",
+		"exposed_copper",
+		"furnace",
+		"piston",
+		"red_nether_bricks",
+		"smithing_table",
+		"stripped_oak_log",
+		"stripped_spruce_log",
+		"observer",
+		"target",
+		"tnt",
 	}
 	var loadedMap *voxel.Map
-	terrainTexture, _ := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
+	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/star_odyssey", listOfBlocks)
+	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
+
 	//bf := voxel.NewBlockFactory(textureIndices)
 	sizeHorizontal := 3
 	sizeVertical := 1
 	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
 	loadedMap.SetShader(a.chunkShader)
 	loadedMap.SetTerrainTexture(terrainTexture)
+	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces, bl.GetTextureIndexByName("selection"))
 	loadedMap.LoadFromDisk(filename)
 	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
-	return loadedMap
+	a.SetBlockLibrary(bl)
 }

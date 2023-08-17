@@ -13,6 +13,10 @@ type GameStateAction struct {
 	selectedAction game.TargetAction
 }
 
+func (g *GameStateAction) OnMouseReleased(x float64, y float64) {
+
+}
+
 func (g *GameStateAction) OnServerMessage(msgType string, json string) {
 	switch msgType {
 	case "RangedAttack":
@@ -38,7 +42,7 @@ func (g *GameStateAction) Init(bool) {
 	validTargets := g.selectedAction.GetValidTargets(g.selectedUnit)
 	println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
 	if len(validTargets) > 0 {
-		g.engine.GetVoxelMap().SetHighlights(validTargets, 12)
+		g.engine.GetVoxelMap().SetHighlights(validTargets)
 	}
 }
 

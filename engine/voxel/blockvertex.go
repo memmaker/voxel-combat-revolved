@@ -5,18 +5,18 @@ import "github.com/memmaker/battleground/engine/glhf"
 type FaceType int32
 
 const (
-	XP FaceType = iota
-	XN
-	YP
-	YN
-	ZP
-	ZN
+	East FaceType = iota
+	West
+	Top
+	Bottom
+	South
+	North
 )
 
-var North = Int3{0, 0, -1}
-var South = Int3{0, 0, 1}
-var East = Int3{1, 0, 0}
-var West = Int3{-1, 0, 0}
+var NorthDir = Int3{0, 0, -1}
+var SouthDir = Int3{0, 0, 1}
+var EastDir = Int3{1, 0, 0}
+var WestDir = Int3{-1, 0, 0}
 var Up = Int3{0, 1, 0}
 var Down = Int3{0, -1, 0}
 
@@ -49,17 +49,11 @@ func (f *BlockFactory) GetBlockByName(name string) *Block {
 	if block, exists := f.KnownBlocks[name]; exists {
 		return block
 	} else if textureIndex, textureExists := f.TextureIndices[name]; textureExists {
-		f.KnownBlocks[name] = NewTestBlock(textureIndex)
+		f.KnownBlocks[name] = NewBlock(textureIndex)
 		return f.KnownBlocks[name]
 	} else {
 		f.UnknownBlocks[name] = true
-		return NewTestBlock(0)
-	}
-}
-
-func NewTestBlock(textureIndex byte) *Block {
-	return &Block{
-		ID: textureIndex + 1,
+		return NewBlock(0)
 	}
 }
 

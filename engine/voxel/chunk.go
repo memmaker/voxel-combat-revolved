@@ -62,7 +62,11 @@ func (c *Chunk) GetLocalBlock(i, j, k int32) *Block {
 	if !c.Contains(i, j, k) {
 		return nil
 	}
-	return c.data[blockIndex(i, j, k)]
+	block := c.data[blockIndex(i, j, k)]
+	if block == nil {
+		return NewAirBlock()
+	}
+	return block
 }
 
 func (c *Chunk) SetBlock(x, y, z int32, block *Block) {
@@ -153,11 +157,11 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
 			switch {
 			case d == 0:
-				side = map[bool]FaceType{true: XN, false: XP}[backFace]
+				side = map[bool]FaceType{true: West, false: East}[backFace]
 			case d == 1:
-				side = map[bool]FaceType{true: YN, false: YP}[backFace]
+				side = map[bool]FaceType{true: Bottom, false: Top}[backFace]
 			case d == 2:
-				side = map[bool]FaceType{true: ZN, false: ZP}[backFace]
+				side = map[bool]FaceType{true: North, false: South}[backFace]
 			}
 
 			for x[d] = -1; x[d] < CHUNK_SIZE; {
@@ -266,7 +270,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 	}
 	var neighbor *Block
 	switch side {
-	case XN:
+	case West:
 		if x == 0 {
 			if c.cXN != nil {
 				neighbor = c.cXN.GetLocalBlock(CHUNK_SIZE-1, y, z)
@@ -274,7 +278,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x-1, y, z)
 		}
-	case XP:
+	case East:
 		if x == CHUNK_SIZE-1 {
 			if c.cXP != nil {
 				neighbor = c.cXP.GetLocalBlock(0, y, z)
@@ -282,7 +286,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x+1, y, z)
 		}
-	case YN:
+	case Bottom:
 		if y == 0 {
 			if c.cYN != nil {
 				neighbor = c.cYN.GetLocalBlock(x, CHUNK_SIZE-1, z)
@@ -290,7 +294,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y-1, z)
 		}
-	case YP:
+	case Top:
 		if y == CHUNK_SIZE-1 {
 			if c.cYP != nil {
 				neighbor = c.cYP.GetLocalBlock(x, 0, z)
@@ -298,7 +302,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y+1, z)
 		}
-	case ZN:
+	case North:
 		if z == 0 {
 			if c.cZN != nil {
 				neighbor = c.cZN.GetLocalBlock(x, y, CHUNK_SIZE-1)
@@ -306,7 +310,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		} else {
 			neighbor = c.GetLocalBlock(x, y, z-1)
 		}
-	case ZP:
+	case South:
 		if z == CHUNK_SIZE-1 {
 			if c.cZP != nil {
 				neighbor = c.cZP.GetLocalBlock(x, y, 0)
@@ -316,7 +320,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		}
 	}
 
-	face := &VoxelFace{side: side, textureIndex: block.GetTextureIndexForSide(side), transparent: false}
+	face := &VoxelFace{side: side, textureIndex: c.m.getTextureIndexForSide(block, side), transparent: false}
 	if neighbor != nil && !neighbor.IsAir() {
 		face.hidden = true
 		face.transparent = true
@@ -458,4 +462,14 @@ func (c *Chunk) SetHighlights(positions []Int3, textureIndex byte) {
 
 func (c *Chunk) ClearHighlights() {
 	c.highLightMesh = nil
+}
+
+func (c *Chunk) ClearAllBlocks() {
+	for i := int32(0); i < CHUNK_SIZE; i++ {
+		for j := int32(0); j < CHUNK_SIZE; j++ {
+			for k := int32(0); k < CHUNK_SIZE; k++ {
+				c.SetBlock(i, j, k, NewAirBlock())
+			}
+		}
+	}
 }
