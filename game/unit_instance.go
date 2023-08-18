@@ -277,6 +277,9 @@ func (u *UnitInstance) GetFreeAimAccuracy() float64 {
 }
 
 func (u *UnitInstance) SetModel(model *util.CompoundMesh) {
+	if model == nil {
+		return
+	}
 	u.model = model
 	u.model.RootNode.SetParent(u.Transform)
 }

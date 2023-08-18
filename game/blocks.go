@@ -6,12 +6,24 @@ import (
 	"github.com/memmaker/battleground/engine/voxel"
 )
 
+const VoidName = "!void"
+
+var VoidBlockDefinition = &BlockDefinition{
+	BlockID:                0,
+	UniqueName:             VoidName,
+	TextureIndicesForFaces: map[voxel.FaceType]byte{},
+}
+
 type BlockDefinition struct {
 	BlockID                byte
 	UniqueName             string
 	TextureIndicesForFaces map[voxel.FaceType]byte
 	OnDamageReceived       func(blockPos voxel.Int3, damage int)
 	IsBlockingProjectile   func() bool
+}
+
+func (b *BlockDefinition) IsVoid() bool {
+	return b.UniqueName == VoidName
 }
 
 type BlockLibrary struct {

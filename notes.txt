@@ -1,5 +1,5 @@
-# Annoying Bugs
- - Dropping animation still stuck
+# Annoying Bugs / Issues
+ - Cannot look inside buildings with roofs
  - Action Points seem to be out of sync / not correctly updated
 
 # Design Guidelines

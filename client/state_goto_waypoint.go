@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
@@ -23,14 +22,10 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 			wp := a.unit.GetWaypoint()
 			fp := a.unit.GetBlockPosition()
 			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
-			println(fmt.Sprintf("[UnitGotoWaypointBehavior] Animation finished, snapping to blockPosition: %v", resolvedPosition))
 			a.snapToPosition(resolvedPosition)
 		} else {
 			return EventNone
 		}
-	}
-	if a.unit.IsInTheAir() {
-		return EventNone
 	}
 	if a.unit.HasReachedWaypoint() {
 		return a.onWaypointReached()
@@ -42,9 +37,9 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 
 func (a *UnitGotoWaypointBehavior) snapToPosition(blockPosition voxel.Int3) {
 	a.unit.GetModel().SetAnimationLoop(game.AnimationWeaponWalk.Str(), 1.0)
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
 	a.unit.SetBlockPosition(blockPosition)
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
 }
 
 func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {

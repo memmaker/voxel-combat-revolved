@@ -306,5 +306,8 @@ func (g *GameInstance) GetBlockLibrary() *BlockLibrary {
 }
 func (g *GameInstance) GetBlockDefAt(blockPos voxel.Int3) *BlockDefinition {
 	block := g.voxelMap.GetGlobalBlock(blockPos.X, blockPos.Y, blockPos.Z)
+	if block == nil {
+		return VoidBlockDefinition
+	}
 	return g.blockLibrary.GetBlockDefinition(block.ID)
 }
