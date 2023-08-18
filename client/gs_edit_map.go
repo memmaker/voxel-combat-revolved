@@ -68,7 +68,7 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateEditMap) lastPage(itemsPerPage int) int {
-	return int(math.Floor(float64(g.engine.blockLibrary.LastBlockID()-1) / float64(itemsPerPage)))
+	return int(math.Floor(float64(g.engine.GetBlockLibrary().LastBlockID()-1) / float64(itemsPerPage)))
 }
 func (g *GameStateEditMap) PlaceBlockAtCurrentSelection() {
 	if g.engine.lastHitInfo == nil {
@@ -110,10 +110,10 @@ func (g *GameStateEditMap) setBlockPage(page int) {
 	}
 	firstItem := (page * itemsPerPage) + 1
 	lastItem := firstItem + itemsPerPage
-	if lastItem > int(g.engine.blockLibrary.LastBlockID()) {
-		lastItem = int(g.engine.blockLibrary.LastBlockID())
+	if lastItem > int(g.engine.GetBlockLibrary().LastBlockID()) {
+		lastItem = int(g.engine.GetBlockLibrary().LastBlockID())
 	}
-	blockLib := g.engine.blockLibrary
+	blockLib := g.engine.GetBlockLibrary()
 	actions := make([]gui.ActionItem, 0)
 	for i := firstItem; i < lastItem; i++ {
 		index := i
@@ -130,7 +130,7 @@ func (g *GameStateEditMap) setBlockPage(page int) {
 
 func (g *GameStateEditMap) changeBlockTypeToPlace(blockType byte) {
 	g.blockTypeToPlace = blockType
-	blockDef := g.engine.blockLibrary.GetBlockDefinition(g.blockTypeToPlace)
+	blockDef := g.engine.GetBlockLibrary().GetBlockDefinition(g.blockTypeToPlace)
 	g.engine.Print(fmt.Sprintf("Block: %s", blockDef.UniqueName))
 }
 
@@ -148,6 +148,6 @@ func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
 func (g *GameStateEditMap) ClearMap() {
 	loadedMap := g.engine.GetVoxelMap()
 	loadedMap.ClearAllChunks()
-	loadedMap.SetFloorAtHeight(0, g.engine.blockLibrary.NewBlockFromName("bricks"))
+	loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
 	loadedMap.GenerateAllMeshes()
 }

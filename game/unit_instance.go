@@ -32,7 +32,7 @@ type UnitCore interface {
 	GetName() string
 	MovesLeft() int
 	GetEyePosition() mgl32.Vec3
-	SetBlockPositionAndUpdateMapAndModelAndAnimations(pos voxel.Int3)
+	SetBlockPosition(pos voxel.Int3)
 	GetBlockPosition() voxel.Int3
 	UnitID() uint64
 	ControlledBy() uint64
@@ -63,17 +63,17 @@ type UnitDefinition struct {
 
 // UnitInstance is an instance of an unit on the battlefield. It contains the dynamic information about the unit.
 type UnitInstance struct {
-	GameUnitID      uint64 // ID of the unit in the current game instance
-	Owner           uint64 // ID of the player controlling this unit
+	// serialize as json
+	Transform       *util.Transform `json:"transform"`
+	GameUnitID      uint64          // ID of the unit in the current game instance
+	Owner           uint64          // ID of the player controlling this unit
 	Name            string
-	Position        voxel.Int3
 	Definition      *UnitDefinition // ID of the unit definition (= unit type)
 	ActionPoints    float64
 	MovementPerAP   float64
 	voxelMap        *voxel.Map
 	model           *util.CompoundMesh
 	Weapon          *Weapon
-	ForwardVector   voxel.Int3
 	IsDead          bool
 	Health          int
 	DamageZones     map[util.DamageZone]int
@@ -92,7 +92,9 @@ func (u *UnitInstance) UnitID() uint64 {
 func (u *UnitInstance) GetName() string {
 	return u.Name
 }
-
+func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
+	return u.Transform.GetBlockPosition()
+}
 func (u *UnitInstance) GetFriendlyDescription() string {
 	desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetIntegerAP(), u.GetFreeAimAccuracy())
 	if u.Weapon != nil {
@@ -171,6 +173,7 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	compoundMesh := util.LoadGLTF(unitDef.ModelFile)
 	compoundMesh.RootNode.CreateColliders()
 	return &UnitInstance{
+		Transform:     util.NewDefaultTransform(name),
 		Name:          name,
 		Definition:    unitDef,
 		ActionPoints:  4,
@@ -192,69 +195,46 @@ func (u *UnitInstance) IsActive() bool {
 	return !u.IsDead
 }
 
+func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
+	u.Transform.SetBlockPosition(pos)
+	u.UpdateMapAndAnimation()
+	//println(fmt.Sprintf("[UnitInstance] %s moved to %s", u.Name, pos.ToString()))
+}
+
+func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
+	oldBlockPos := u.Transform.GetBlockPosition()
+	newBlockPos := voxel.PositionToGridInt3(pos)
+
+	u.Transform.SetPosition(pos)
+
+	if oldBlockPos != newBlockPos { // only update if the block position has changed
+		u.UpdateMapAndAnimation()
+	}
+	//println(fmt.Sprintf("[UnitInstance] %s moved to %v", u.Name, pos))
+}
+
 // UpdateMapAndModelAndAnimation updates the position of the unit in the voxel map and the model position and rotation.
 // It will also set the animation pose on the model.
-func (u *UnitInstance) UpdateMapAndModelAndAnimation() {
-	u.voxelMap.SetUnit(u, u.Position)
-	if u.model != nil {
-		u.UpdateModelAndAnimation()
+func (u *UnitInstance) UpdateMapAndAnimation() {
+	u.UpdateMap()
+	if u.model != nil && u.IsPlayingIdleAnimation() {
+		u.UpdateAnimation()
 	}
-	//println(u.model.GetAnimationDebugString())
 }
 
-func (u *UnitInstance) UpdateMapAndModel() {
-	u.voxelMap.SetUnit(u, u.Position)
-	if u.model != nil {
-		u.UpdateModel()
-	}
-	//println(u.model.GetAnimationDebugString())
-}
-
-func (u *UnitInstance) UpdateModelAndAnimation() {
-	u.UpdateModel()
-	u.UpdateAnimation()
+func (u *UnitInstance) UpdateMap() {
+	u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
 }
 
 func (u *UnitInstance) UpdateAnimation() {
-	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Position, u.ForwardVector)
-	println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
-	u.SetForward(newForward)
+	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Transform.GetBlockPosition(), u.Transform.GetForward2DCardinal())
+	//println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
+	u.SetForward2DCardinal(newForward)
 	u.model.SetAnimationLoop(animation.Str(), 1.0)
 }
 
-func (u *UnitInstance) UpdateModel() {
-	worldPos := u.Position.ToBlockCenterVec3()
-	u.model.RootNode.Translate([3]float32{worldPos[0], worldPos[1], worldPos[2]})
-	println(fmt.Sprintf("[UnitInstance] Moved %s(%d) to %v facing %v", u.GetName(), u.UnitID(), u.Position, u.ForwardVector))
-}
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3().Add(u.GetEyeOffset())
-}
-
-func (u *UnitInstance) GetFootPosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3()
-}
-
-// SetBlockPositionAndUpdateMapAndModelAndAnimations sets the position of the unit in the voxel map.
-// NOTE: THIS WILL CALL updateMapAndModelPosition.
-// CALLING THIS WILL FREEZE THE ANIMATION OF THE UNIT.
-func (u *UnitInstance) SetBlockPositionAndUpdateMapAndModelAndAnimations(pos voxel.Int3) {
-	u.Position = pos
-	u.UpdateMapAndModelAndAnimation()
-}
-
-func (u *UnitInstance) SetBlockPositionAndUpdateMapAndModel(pos voxel.Int3) {
-	u.Position = pos
-	u.UpdateMapAndModel()
-}
-
-func (u *UnitInstance) SetBlockPositionAndUpdateMap(pos voxel.Int3) {
-	u.Position = pos
-	u.voxelMap.SetUnit(u, u.Position)
-}
-
-func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
-	return u.Position
+	return u.Transform.GetPosition().Add(u.GetEyeOffset())
 }
 
 func (u *UnitInstance) SetVoxelMap(voxelMap *voxel.Map) {
@@ -280,18 +260,10 @@ func (u *UnitInstance) GetWeapon() *Weapon {
 	return u.Weapon
 }
 
-// SetForward sets the forward vector of the unit and rotates the model accordingly
-func (u *UnitInstance) SetForward(forward voxel.Int3) {
-	//println(fmt.Sprintf("[UnitInstance] SetForward for %s(%d): %v", u.GetName(), u.UnitID(), forward))
-	forward = forward.ToCardinalDirection()
-	u.ForwardVector = forward
-	if u.model != nil {
-		u.model.SetYRotationAngle(util.DirectionToAngle(forward))
-	}
-}
-
-func (u *UnitInstance) GetForward() voxel.Int3 {
-	return u.ForwardVector
+// SetForward2DCardinal sets the forward vector of the unit and rotates the model accordingly
+func (u *UnitInstance) SetForward2DCardinal(forward voxel.Int3) {
+	direction := forward.ToCardinalDirection()
+	u.Transform.SetForward2DCardinal(direction)
 }
 
 func (u *UnitInstance) Kill() {
@@ -306,6 +278,7 @@ func (u *UnitInstance) GetFreeAimAccuracy() float64 {
 
 func (u *UnitInstance) SetModel(model *util.CompoundMesh) {
 	u.model = model
+	u.model.RootNode.SetParent(u.Transform)
 }
 
 func (u *UnitInstance) GetModel() *util.CompoundMesh {
@@ -317,7 +290,7 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
 }
 
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
-	return u.Position.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1.3, 0})
+	return u.Transform.GetPosition().Add(mgl32.Vec3{0, 1.3, 0})
 }
 
 func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {
@@ -407,6 +380,21 @@ func (u *UnitInstance) Reload() {
 	u.Weapon.Reload()
 }
 
+func (u *UnitInstance) GetForward2DCardinal() voxel.Int3 {
+	return u.Transform.GetForward2DCardinal()
+}
+
+func (u *UnitInstance) GetPosition() mgl32.Vec3 {
+	return u.Transform.GetPosition()
+}
+
+func (u *UnitInstance) IsPlayingIdleAnimation() bool {
+	currentAnimation := u.model.GetAnimationName()
+	return currentAnimation == AnimationWeaponIdle.Str() ||
+		currentAnimation == AnimationIdle.Str() ||
+		currentAnimation == AnimationWallIdle.Str()
+}
+
 func getDamageZones() []util.DamageZone {
 	allZones := []util.DamageZone{util.ZoneHead, util.ZoneLeftArm, util.ZoneRightArm, util.ZoneLeftLeg, util.ZoneRightLeg, util.ZoneWeapon}
 	return allZones
@@ -422,6 +410,7 @@ func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitFor
 	})
 	if len(solidNeighbors) == 0 {
 		// if no wall next to us, we can idle normally
+		println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))
 		return AnimationWeaponIdle, unitForward
 	} else {
 		// if there is a wall next to us, we need to turn to face it

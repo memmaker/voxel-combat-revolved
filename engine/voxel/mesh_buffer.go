@@ -120,6 +120,9 @@ func (m *MeshBuffer) Reset() {
 }
 
 func (m *MeshBuffer) FlushMesh(shader *glhf.Shader) {
+	if shader == nil {
+		return
+	}
 	if m.drawMode == Indexed {
 		m.drawableVertexData = glhf.MakeIntVertexSlice(shader, m.vertexCount, m.vertexCount, m.indexBuffer)
 	} else {

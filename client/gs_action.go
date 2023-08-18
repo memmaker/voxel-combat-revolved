@@ -38,9 +38,9 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateAction) Init(bool) {
-	println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
+	//println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
 	validTargets := g.selectedAction.GetValidTargets(g.selectedUnit)
-	println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
+	//println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
 	if len(validTargets) > 0 {
 		g.engine.GetVoxelMap().SetHighlights(validTargets)
 	}

@@ -10,6 +10,15 @@
  - Animations
  - Data driven
 
+# Overwatch - Reaction fire
+ - Player can select dedicated block positions to watch
+ - Watched positions must be in line of sight
+ - high base penalty to hit accuracy (eg. 20%)
+ - Each additional watched position costs more action points & will reduce the chance to hit
+ - Units in overwatch being attacked from positions they don't watch, receive additional damage on hit
+   - Only adjacent positions can be watched
+ - Only usable once per unit per combat encounter
+
 # Design goals
  - Tactical decision making
  - Art of war

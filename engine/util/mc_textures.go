@@ -64,6 +64,21 @@ func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Textu
 	return glhf.NewTexture(256, 256, false, pixels.Pix), indices
 }
 
+func createIndicesDirectory(directory string, whiteList []string) map[string]byte {
+	indices := map[string]byte{}
+	textureIndex := 0
+	for _, blockName := range whiteList {
+		texturePath := path.Join(directory, blockName+".png")
+		if !doesFileExist(texturePath) {
+			continue
+		}
+		indices[blockName] = byte(textureIndex)
+		println(fmt.Sprintf("[Index] %d -> %s", textureIndex, blockName))
+		textureIndex++
+	}
+	return indices
+}
+
 func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, map[string]byte) {
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
@@ -76,6 +91,17 @@ func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*gl
 	return CreateAtlasFromDirectory(directory, allFaceTextureNames)
 }
 
+func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) map[string]byte {
+	sort.SliceStable(blocksNeeded, func(i, j int) bool {
+		return blocksNeeded[i] < blocksNeeded[j]
+	})
+	var allFaceTextureNames []string
+	for i := 0; i < len(blocksNeeded); i++ {
+		allFaceTextureNames = append(allFaceTextureNames, tryMCStyleFaceNames(directory, blocksNeeded[i])...)
+	}
+	return createIndicesDirectory(directory, allFaceTextureNames)
+}
+
 func tryMCStyleFaceNames(directory, blockName string) []string {
 	var result []string
 
@@ -85,7 +111,7 @@ func tryMCStyleFaceNames(directory, blockName string) []string {
 	}
 
 	for _, suffix := range getMCSuffixes() {
-		texturePath := path.Join(directory, blockName+suffix+".png")
+		texturePath = path.Join(directory, blockName+suffix+".png")
 		if doesFileExist(texturePath) {
 			result = append(result, blockName+suffix)
 		}

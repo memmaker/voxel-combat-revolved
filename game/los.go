@@ -72,7 +72,7 @@ func (g *GameInstance) CanSee(one, another *UnitInstance) bool {
 }
 
 func (g *GameInstance) CanSeeFrom(observer, another *UnitInstance, observerEyePosition mgl32.Vec3) bool {
-	return g.CanSeeFromTo(observer, another, observerEyePosition, another.GetFootPosition())
+	return g.CanSeeFromTo(observer, another, observerEyePosition, another.GetPosition())
 }
 
 func (g *GameInstance) CanSeeTo(observer, another *UnitInstance, targetFootPosition mgl32.Vec3) bool {
@@ -92,12 +92,12 @@ func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEye
 
 	//print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
 
-	rayOne := g.RayCastLineOfSight(observerEyePosition, targetOne, another, voxel.ToGridInt3(targetFootPosition))
+	rayOne := g.RayCastLineOfSight(observerEyePosition, targetOne, another, voxel.PositionToGridInt3(targetFootPosition))
 	if rayOne.UnitHit == another { // fast exit
 		//println("Line of sight is CLEAR")
 		return true
 	}
-	rayTwo := g.RayCastLineOfSight(observerEyePosition, targetTwo, another, voxel.ToGridInt3(targetFootPosition))
+	rayTwo := g.RayCastLineOfSight(observerEyePosition, targetTwo, another, voxel.PositionToGridInt3(targetFootPosition))
 
 	hasLos := rayTwo.UnitHit == another
 	if hasLos {

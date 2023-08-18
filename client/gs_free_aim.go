@@ -52,7 +52,7 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 func (g *GameStateFreeAim) aimAtNextTarget() {
 	visibleEnemies := g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
 	if len(visibleEnemies) == 0 {
-		g.engine.fpsCamera.FPSLookAt(g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward().ToVec3()))
+		g.engine.fpsCamera.FPSLookAt(g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward()))
 		return
 	}
 	g.lockedTarget = (g.lockedTarget + 1) % len(visibleEnemies)

@@ -78,8 +78,8 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 				g.engine.GetVoxelMap().SetHighlights(validTargets)
 			}
 		}
-		println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
-		footPos := util.ToGrid(g.selectedUnit.GetFootPosition())
+		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
+		footPos := util.ToGrid(g.selectedUnit.GetPosition())
 		g.engine.SwitchToGroundSelector()
 		g.engine.unitSelector.SetPosition(footPos)
 

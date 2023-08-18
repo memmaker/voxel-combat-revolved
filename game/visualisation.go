@@ -51,6 +51,7 @@ type VisualProjectile struct {
 	BodyPart    util.DamageZone
 	Damage      int
 	IsLethal    bool
+	BlocksHit   []voxel.Int3 // BlocksHit will only contain blocks that have an OnDamageReceived effect
 }
 
 func (v VisualRangedAttack) MessageType() string {

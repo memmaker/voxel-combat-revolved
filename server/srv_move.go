@@ -41,7 +41,7 @@ func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, tar
 	}
 }
 func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
-	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
+	currentPos := a.unit.GetBlockPosition()
 	distance := a.gameAction.GetCost(a.target)
 	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %d)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), a.target.ToString(), distance))
 
@@ -107,10 +107,10 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	}
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
-	a.unit.SetForward(unitForward)
-	a.unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(destination)
+	a.unit.SetForward2DCardinal(unitForward)
+	a.unit.SetBlockPosition(destination)
 
-	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward().ToString()))
+	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
 
 	// PROBLEM: We actually need to send a partial path to the players who can't see the unit
 	// for the whole path. For every step on the path, we need to check if the unit is visible

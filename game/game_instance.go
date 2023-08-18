@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
+	"math"
 	"path"
 )
 
@@ -37,6 +38,7 @@ func NewGameInstance(gameID string) *GameInstance {
 	}
 }
 
+// GameInstance is the core game state. This data structure is shared by server and client albeit with different states.
 type GameInstance struct {
 	// game instance metadata
 	id      string
@@ -54,6 +56,7 @@ type GameInstance struct {
 	playerUnits        map[uint64][]uint64
 	playersNeeded      int
 
+	blockLibrary *BlockLibrary
 	// debug
 	environment string
 }
@@ -125,7 +128,7 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 	// TODO: change spawn position
-	unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(g.voxelMap.GetNextDebugSpawn())
+	unit.SetBlockPosition(g.voxelMap.GetNextDebugSpawn())
 	return unitInstanceID
 }
 func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
@@ -264,4 +267,44 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 		return true
 	}
 	return false
+}
+
+func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
+	println(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
+	// TODO: implement visual effect
+	xStart := int32(position.X) - int32(radius)
+	xEnd := int32(position.X) + int32(radius)
+	yStart := int32(position.Y) - int32(radius)
+	yEnd := int32(position.Y) + int32(radius)
+	zStart := int32(position.Z) - int32(radius)
+	zEnd := int32(position.Z) + int32(radius)
+
+	for x := xStart; x <= xEnd; x++ {
+		for y := yStart; y <= yEnd; y++ {
+			for z := zStart; z <= zEnd; z++ {
+				dist := math.Sqrt(math.Pow(float64(x-position.X), 2) + math.Pow(float64(y-position.Y), 2) + math.Pow(float64(z-position.Z), 2))
+				if dist <= float64(radius) {
+					explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
+					if explodingBlock.IsOccupied() {
+						affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
+						g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone?
+					}
+					g.voxelMap.SetBlock(x, y, z, voxel.NewAirBlock())
+				}
+			}
+		}
+	}
+	g.voxelMap.GenerateAllMeshes()
+}
+
+func (g *GameInstance) SetBlockLibrary(bl *BlockLibrary) {
+	g.blockLibrary = bl
+}
+
+func (g *GameInstance) GetBlockLibrary() *BlockLibrary {
+	return g.blockLibrary
+}
+func (g *GameInstance) GetBlockDefAt(blockPos voxel.Int3) *BlockDefinition {
+	block := g.voxelMap.GetGlobalBlock(blockPos.X, blockPos.Y, blockPos.Z)
+	return g.blockLibrary.GetBlockDefinition(block.ID)
 }

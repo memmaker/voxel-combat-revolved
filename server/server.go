@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"log"
@@ -234,6 +235,14 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map)
 	battleGame.SetEnvironment("Server")
 	battleGame.AddPlayer(userId)
+
+	listOfBlocks := game.GetDebugBlockNames()
+	indexMap := util.CreateIndexMapFromDirectory("assets/textures/blocks/star_odyssey", listOfBlocks)
+
+	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
+	bl.ApplyGameplayRules(battleGame)
+
+	battleGame.SetBlockLibrary(bl)
 	user.isReady = false
 	user.activeGame = gameID
 
@@ -330,10 +339,9 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		}
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
-		unit.SetForward(voxel.Int3{X: 0, Y: 0, Z: 1})
+		unit.SetForward2DCardinal(voxel.Int3{X: 0, Y: 0, Z: 1})
 		unitID := gameInstance.ServerSpawnUnit(userID, unit) // sets the instance userID
 		println(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
-
 	}
 
 	b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: true, Message: "Units selected"})

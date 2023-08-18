@@ -29,10 +29,12 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 			return EventNone
 		}
 	}
-
+	if a.unit.IsInTheAir() {
+		return EventNone
+	}
 	if a.unit.HasReachedWaypoint() {
 		return a.onWaypointReached()
-	} else if a.unit.IsOnGround() {
+	} else if !a.unit.IsInTheAir() {
 		a.unit.MoveTowardsWaypoint()
 	}
 	return EventNone
@@ -41,12 +43,12 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 func (a *UnitGotoWaypointBehavior) snapToPosition(blockPosition voxel.Int3) {
 	a.unit.GetModel().SetAnimationLoop(game.AnimationWeaponWalk.Str(), 1.0)
 	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
-	a.unit.SetBlockPositionAndUpdateMapAndModel(blockPosition)
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetFootPosition()))
+	a.unit.SetBlockPosition(blockPosition)
+	println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
 }
 
 func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
 	a.snapToPosition(a.unit.GetWaypoint())
 
 	if a.unit.IsLastWaypoint() {

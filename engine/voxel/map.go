@@ -199,7 +199,7 @@ func isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
 func (m *Map) GenerateAllMeshes() {
 	totalTriangles := 0
 	for _, chunk := range m.chunks {
-		if chunk != nil {
+		if chunk != nil && chunk.isDirty {
 			meshBuffer := chunk.GreedyMeshing()
 			totalTriangles += meshBuffer.TriangleCount()
 			if meshBuffer.TriangleCount() > 0 {
@@ -314,8 +314,14 @@ type MapObject interface {
 	GetName() string
 }
 
-func ToGridInt3(pos mgl32.Vec3) Int3 {
+// PositionToGridInt3 converts a Vec3 to a Int3 by flooring the values.
+// DO NOT USE THIS FOR NEGATIVE VALUES, eg. direction vectors
+func PositionToGridInt3(pos mgl32.Vec3) Int3 {
 	return Int3{int32(math.Floor(float64(pos.X()))), int32(math.Floor(float64(pos.Y()))), int32(math.Floor(float64(pos.Z())))}
+}
+
+func DirectionToGridInt3(dir mgl32.Vec3) Int3 {
+	return Int3{int32(math.Round(float64(dir.X()))), int32(math.Round(float64(dir.Y()))), int32(math.Round(float64(dir.Z())))}
 }
 func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) (bool, string) {
 	offsets := unit.GetOccupiedBlockOffsets()

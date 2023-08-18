@@ -50,5 +50,5 @@ func (m *LineMesh) GetMatrix() mgl32.Mat4 {
 }
 
 func (m *LineMesh) GetBlockPosition() voxel.Int3 {
-	return voxel.ToGridInt3(m.pos)
+	return voxel.PositionToGridInt3(m.pos)
 }

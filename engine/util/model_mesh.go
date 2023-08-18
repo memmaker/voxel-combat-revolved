@@ -5,7 +5,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/memmaker/battleground/engine/glhf"
-	"time"
 )
 
 type DrawPair struct {
@@ -35,8 +34,8 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 	scaledDeltaTime := deltaTime * m.animationSpeed
 	animationFinished := m.RootNode.UpdateAnimation(scaledDeltaTime)
 	if animationFinished && !m.loopAnimation {
-		ts := time.Now().Format("15:04:05.000")
-		println(fmt.Sprintf("[CompoundMesh] Animation %s finished at %s -> holding", m.currentAnimation, ts))
+		//ts := time.Now().Format("15:04:05.000")
+		//println(fmt.Sprintf("[CompoundMesh] Animation %s finished at %s -> holding", m.currentAnimation, ts))
 		m.holdAnimation = true
 	}
 	return animationFinished
@@ -57,11 +56,6 @@ func (m *CompoundMesh) DrawWithoutTransform(shader *glhf.Shader) {
 
 func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
 	m.RootNode.Scale([3]float32{float32(scaleFactor), float32(scaleFactor), float32(scaleFactor)})
-}
-
-func (m *CompoundMesh) SetYRotationAngle(angle float32) {
-	//println(fmt.Sprintf("[CompoundMesh] Setting Y rotation angle to %f", angle))
-	m.RootNode.SetYRotationAngle(angle)
 }
 
 func (m *CompoundMesh) GetNodeByName(nodeName string) *MeshNode {
@@ -103,8 +97,8 @@ type MeshNode struct {
 	name string
 	// Hierarchy
 	children        []*MeshNode
-	parent          Transform
-	temporaryParent Transform
+	parent          Transformer
+	temporaryParent Transformer
 
 	// rendering
 	mesh      *SimpleMesh
@@ -213,23 +207,6 @@ func (m *MeshNode) DrawWithoutTransform(shader *glhf.Shader, textures []*glhf.Te
 		child.DrawWithoutTransform(shader, textures)
 	}
 }
-func (m *MeshNode) SetYRotationAngle(angle float32) {
-	m.quatRotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0})
-}
-
-func (m *MeshNode) SetForward(direction mgl32.Vec3) {
-	eyePos := mgl32.Vec3{m.translation[0], m.translation[1], m.translation[2]}
-	target := eyePos.Add(direction)
-	m.quatRotation = mgl32.QuatBetweenVectors(eyePos, target)
-}
-
-func (m *MeshNode) SetXRotationAngle(angle float32) {
-	m.quatRotation = mgl32.QuatRotate(angle, mgl32.Vec3{1, 0, 0})
-}
-
-func (m *MeshNode) SetZRotationAngle(angle float32) {
-	m.quatRotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 0, 1})
-}
 func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 	if m.temporaryParent != nil {
 		externalParent := m.temporaryParent.GetTransformMatrix()
@@ -252,24 +229,16 @@ func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	return translation.Mul4(quaternion).Mul4(scale)
 }
 
-func (m *CompoundMesh) GetFront() mgl32.Vec3 {
-	return m.RootNode.GetFront()
-}
-
-func (m *CompoundMesh) SetXRotationAngle(angle float32) {
-	m.RootNode.SetXRotationAngle(angle)
-}
-
 func (m *CompoundMesh) ResetAnimations() {
-	println("[CompoundMesh] Resetting animations")
+	//println("[CompoundMesh] Resetting animations")
 	m.RootNode.ResetAnimations()
 }
 func (m *CompoundMesh) StopAnimations() {
-	println("[CompoundMesh] Stopping animations")
+	//println("[CompoundMesh] Stopping animations")
 	m.holdAnimation = true
 }
 func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float64) {
-	println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
+	//println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
@@ -277,19 +246,19 @@ func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float6
 	m.holdAnimation = false
 }
 func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
-	println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
+	//println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
 	// need millisec accuracy
-	ts := time.Now().Format("15:04:05.000")
-	println(fmt.Sprintf("[CompoundMesh] Animation started at %s", ts))
+	//ts := time.Now().Format("15:04:05.000")
+	//println(fmt.Sprintf("[CompoundMesh] Animation started at %s", ts))
 	m.loopAnimation = false
 	m.holdAnimation = false
 }
 
 func (m *CompoundMesh) SetAnimationPose(animation string) {
-	println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
+	//println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
 	m.RootNode.SetAnimationPose(animation)
 	m.holdAnimation = true
 }
@@ -307,10 +276,6 @@ func (m *CompoundMesh) IsHoldingAnimation() bool {
 
 func (m *CompoundMesh) HideChildrenOfBoneExcept(parentName string, exception string) {
 	m.RootNode.HideChildrenOfBoneExcept(false, parentName, exception)
-}
-
-func (m *CompoundMesh) SetForward(direction mgl32.Vec3) {
-	m.RootNode.SetForward(direction)
 }
 
 func (m *CompoundMesh) GetAnimationName() string {
@@ -478,9 +443,6 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 		}
 
 		if m.outOfTranslationFrames && m.outOfRotationFrames && m.outOfScaleFrames {
-			if m.currentAnimation == "animation.drop" {
-				println(fmt.Sprintf("[%s] Out of Frames for %s at %f", m.name, m.currentAnimation, m.animationTimer))
-			}
 			m.ResetAnimation()
 			animationFinished = true
 		}
@@ -488,16 +450,10 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 	for _, child := range m.children {
 		childAnimationFinished := child.UpdateAnimation(deltaTime)
 		if childAnimationFinished {
-			if m.currentAnimation == "animation.drop" {
-				println(fmt.Sprintf("[%s] Child finished %s at %f", m.name, m.currentAnimation, m.animationTimer))
-			}
 			animationFinished = true
 		}
 	}
-	if animationFinished && m.currentAnimation == "animation.drop" {
-		println(fmt.Sprintf("[%s] -> Finished %s at %f", m.name, m.currentAnimation, m.animationTimer))
 
-	}
 	return animationFinished
 }
 
@@ -604,16 +560,16 @@ func (m *MeshNode) HideChildrenOfBoneExcept(isChild bool, name string, exception
 	}
 }
 
-type Transform interface {
+type Transformer interface {
 	GetTransformMatrix() mgl32.Mat4
 	GetName() string
 }
 
-func (m *MeshNode) SetTempParent(transform Transform) {
+func (m *MeshNode) SetTempParent(transform Transformer) {
 	m.temporaryParent = transform
 }
 
-func (m *MeshNode) SetParent(transform Transform) {
+func (m *MeshNode) SetParent(transform Transformer) {
 	m.parent = transform
 }
 

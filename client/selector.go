@@ -65,7 +65,7 @@ func (g *GroundSelector) Draw() {
 }
 
 func (g *GroundSelector) GetBlockPosition() voxel.Int3 {
-	return voxel.ToGridInt3(g.mesh.GetPosition())
+	return voxel.PositionToGridInt3(g.mesh.GetPosition())
 }
 
 func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSelector {

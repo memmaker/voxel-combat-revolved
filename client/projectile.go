@@ -7,37 +7,8 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 )
 
-type Transform struct {
-	position mgl32.Vec3
-	rotation mgl32.Quat
-	scale    mgl32.Vec3
-}
-
-func (t *Transform) GetTransformMatrix() mgl32.Mat4 {
-	translation := mgl32.Translate3D(t.position.X(), t.position.Y(), t.position.Z())
-	rotation := t.rotation.Mat4()
-	scale := mgl32.Scale3D(t.scale.X(), t.scale.Y(), t.scale.Z())
-	return translation.Mul4(rotation).Mul4(scale)
-}
-func (t *Transform) GetPosition() mgl32.Vec3 {
-	return t.position
-}
-func (t *Transform) SetPosition(position mgl32.Vec3) {
-	t.position = position
-}
-
-func (t *Transform) GetRotation() mgl32.Quat {
-	return t.rotation
-}
-func (t *Transform) SetForward(forward mgl32.Vec3) {
-	t.rotation = mgl32.QuatBetweenVectors(mgl32.Vec3{0, 0, -1}, forward)
-}
-func (t *Transform) GetScale() mgl32.Vec3 {
-	return t.scale
-}
-
 type Projectile struct {
-	*Transform
+	*util.Transform
 
 	velocity mgl32.Vec3
 	shader   *glhf.Shader
@@ -69,17 +40,13 @@ func (p *Projectile) IsDead() bool {
 func NewProjectile(shader *glhf.Shader, model *util.CompoundMesh, pos, velocity mgl32.Vec3) *Projectile {
 	println(fmt.Sprintf("\n>> Projectile spawned at %v", pos))
 	p := &Projectile{
-		Transform: &Transform{
-			position: pos,
-			rotation: mgl32.QuatIdent(),
-			scale:    mgl32.Vec3{0.5, 0.5, 0.5},
-		},
-		velocity: velocity,
-		startPos: pos,
-		shader:   shader,
-		model:    model,
+		Transform: util.NewTransform(pos, mgl32.QuatIdent(), mgl32.Vec3{0.5, 0.5, 0.5}),
+		velocity:  velocity,
+		startPos:  pos,
+		shader:    shader,
+		model:     model,
 	}
-	p.SetForward(velocity.Normalize())
+	p.SetForward2D(velocity.Normalize())
 	model.RootNode.SetParent(p)
 	return p
 }
@@ -91,7 +58,7 @@ func (p *Projectile) Update(delta float64) {
 	oldPos := p.GetPosition()
 	newPos := oldPos.Add(p.velocity.Mul(float32(delta)))
 	p.SetPosition(newPos)
-	arrived := newPos.Sub(p.destination).Len() < 0.05
+	arrived := newPos.Sub(p.destination).Len() < PositionalTolerance
 	traveled := newPos.Sub(p.startPos).Len()
 	distance := p.startPos.Sub(p.destination).Len()
 	tooFar := traveled > distance

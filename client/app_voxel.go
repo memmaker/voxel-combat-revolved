@@ -108,7 +108,7 @@ func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 	var loadedMap *voxel.Map
 	terrainTextureAtlas, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
-
+	bl.ApplyGameplayRules(a.GameInstance)
 	//bf := voxel.NewBlockFactory(textureIndices)
 	sizeHorizontal := 3
 	sizeVertical := 1
@@ -127,52 +127,11 @@ func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 	return loadedMap
 }
 func (a *BattleClient) LoadMap(filename string) {
-	listOfBlocks := []string{
-		"debug2",
-		"selection",
-		"bricks",
-		"clay",
-		"copper_block",
-		"weathered_copper",
-		"weathered_cut_copper",
-		"diamond_block",
-		"emerald_block",
-		"granite",
-		"gravel",
-		"iron_block",
-		"sandstone",
-		"ancient_debris",
-		"barrel",
-		"bedrock",
-		"birch_planks",
-		"black_terracotta",
-		"yellow_terracotta",
-		"white_glazed_terracotta",
-		"black_wool",
-		"brown_terracotta",
-		"pink_terracotta",
-		"chiseled_quartz_block",
-		"cracked_nether_bricks",
-		"crafting_table",
-		"deepslate_tiles",
-		"dispenser",
-		"dried_kelp",
-		"fletching_table",
-		"exposed_copper",
-		"furnace",
-		"piston",
-		"red_nether_bricks",
-		"smithing_table",
-		"stripped_oak_log",
-		"stripped_spruce_log",
-		"observer",
-		"target",
-		"tnt",
-	}
+	listOfBlocks := game.GetDebugBlockNames()
 	var loadedMap *voxel.Map
 	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/star_odyssey", listOfBlocks)
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
-
+	bl.ApplyGameplayRules(a.GameInstance)
 	//bf := voxel.NewBlockFactory(textureIndices)
 	sizeHorizontal := 3
 	sizeVertical := 1

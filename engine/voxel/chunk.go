@@ -44,6 +44,7 @@ func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
 			visitZN: make([]bool, CHUNK_SIZE_CUBED),
 			visitZP: make([]bool, CHUNK_SIZE_CUBED),
 		},
+		isDirty:    true,
 		meshBuffer: NewMeshBuffer(),
 	}
 	for i := int32(0); i < CHUNK_SIZE_CUBED; i++ {
@@ -373,8 +374,8 @@ func (i Int3) ToCardinalDirection() Int3 {
 	// east: 1,0,0
 	// south: 0,0,1
 	// west: -1,0,0
-	if i.ManhattanLength() == 1 && i.Y == 0 {
-		return i
+	if i.ManhattanLength2() == 1 {
+		return Int3{i.X, 0, i.Z}
 	}
 
 	absX := int32(math.Abs(float64(i.X)))
@@ -397,6 +398,14 @@ func (i Int3) ToCardinalDirection() Int3 {
 
 func (i Int3) ManhattanLength() int {
 	return int(math.Abs(float64(i.X)) + math.Abs(float64(i.Y)) + math.Abs(float64(i.Z)))
+}
+
+func (i Int3) ManhattanLength2() int {
+	return int(math.Abs(float64(i.X)) + math.Abs(float64(i.Z)))
+}
+
+func (i Int3) IsBelow(grid Int3) bool {
+	return i.Y == grid.Y-1
 }
 
 func (c *Chunk) Draw(shader *glhf.Shader, camDirection mgl32.Vec3) {

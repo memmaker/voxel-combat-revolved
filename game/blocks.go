@@ -10,6 +10,8 @@ type BlockDefinition struct {
 	BlockID                byte
 	UniqueName             string
 	TextureIndicesForFaces map[voxel.FaceType]byte
+	OnDamageReceived       func(blockPos voxel.Int3, damage int)
+	IsBlockingProjectile   func() bool
 }
 
 type BlockLibrary struct {
@@ -33,6 +35,7 @@ func NewBlockLibrary(blockNames []string, indexMap map[string]byte) *BlockLibrar
 	b.loadFromIndexMap(blockNames, indexMap)
 	return b
 }
+
 func (b *BlockLibrary) LastBlockID() byte {
 	return byte(len(b.blocks) - 1)
 }
@@ -90,6 +93,22 @@ func (b *BlockLibrary) GetTextureIndexByName(name string) byte {
 func (b *BlockLibrary) GetBlockDefinition(blockID byte) *BlockDefinition {
 	return b.blocks[blockID]
 }
+
+func (b *BlockLibrary) GetBlockDefinitionByName(name string) *BlockDefinition {
+	if blockID, exists := b.nameToId[name]; exists {
+		return b.blocks[blockID]
+	}
+	return nil
+}
+
+func (b *BlockLibrary) ApplyGameplayRules(a *GameInstance) {
+
+	tntDef := b.GetBlockDefinitionByName("tnt")
+	tntDef.OnDamageReceived = func(block voxel.Int3, damage int) {
+		a.CreateExplodeEffect(block, 4)
+	}
+
+}
 func getFaceMapForBlock(blockName string, indexMap map[string]byte) map[voxel.FaceType]byte {
 	result := make(map[voxel.FaceType]byte)
 	result[voxel.North] = util.MapFaceToTextureIndex(blockName, voxel.North, indexMap)
@@ -99,4 +118,50 @@ func getFaceMapForBlock(blockName string, indexMap map[string]byte) map[voxel.Fa
 	result[voxel.Top] = util.MapFaceToTextureIndex(blockName, voxel.Top, indexMap)
 	result[voxel.Bottom] = util.MapFaceToTextureIndex(blockName, voxel.Bottom, indexMap)
 	return result
+}
+
+func GetDebugBlockNames() []string {
+	listOfBlocks := []string{
+		"debug2",
+		"selection",
+		"bricks",
+		"clay",
+		"copper_block",
+		"weathered_copper",
+		"weathered_cut_copper",
+		"diamond_block",
+		"emerald_block",
+		"granite",
+		"gravel",
+		"iron_block",
+		"sandstone",
+		"ancient_debris",
+		"barrel",
+		"bedrock",
+		"birch_planks",
+		"black_terracotta",
+		"yellow_terracotta",
+		"white_glazed_terracotta",
+		"black_wool",
+		"brown_terracotta",
+		"pink_terracotta",
+		"chiseled_quartz_block",
+		"cracked_nether_bricks",
+		"crafting_table",
+		"deepslate_tiles",
+		"dispenser",
+		"dried_kelp",
+		"fletching_table",
+		"exposed_copper",
+		"furnace",
+		"piston",
+		"red_nether_bricks",
+		"smithing_table",
+		"stripped_oak_log",
+		"stripped_spruce_log",
+		"observer",
+		"target",
+		"tnt",
+	}
+	return listOfBlocks
 }

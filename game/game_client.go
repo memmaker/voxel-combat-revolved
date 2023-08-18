@@ -13,10 +13,9 @@ type ClientUnit interface {
 	SetServerInstance(*UnitInstance)
 	UnitID() uint64
 	GetBlockPosition() voxel.Int3
-	SetForward(voxel.Int3)
+	SetBlockPosition(voxel.Int3)
+	SetForward2DCardinal(voxel.Int3)
 	UseMovement(cost int)
-	SetBlockPositionAndUpdateMap(voxel.Int3)
-	SetBlockPositionAndUpdateMapAndModel(voxel.Int3)
 }
 type GameClient[U ClientUnit] struct {
 	*GameInstance
@@ -36,7 +35,7 @@ func NewGameClient[U ClientUnit](controllingUserID uint64, gameID string, newCli
 
 func (a *GameClient[U]) OnTargetedUnitActionResponse(msg ActionResponse) {
 	if !msg.Success {
-		println(fmt.Sprintf("[BattleClient] Action failed: %s", msg.Message))
+		println(fmt.Sprintf("[%s] Action failed: %s", a.environment, msg.Message))
 		a.Print(fmt.Sprintf("Action failed: %s", msg.Message))
 	}
 }
@@ -52,12 +51,11 @@ func (a *GameClient[U]) AddOrUpdateUnit(currentUnit *UnitInstance) {
 func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 	unitID := currentUnit.GameUnitID
 	if _, ok := a.clientUnitMap[unitID]; ok {
-		println(fmt.Sprintf("[GameClient] Unit %d already known", unitID))
+		println(fmt.Sprintf("[%s] Unit %d already known", a.environment, unitID))
 		return a.clientUnitMap[unitID]
 	}
 	// add to game instance
 	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
-
 	currentUnit.SetVoxelMap(a.GetVoxelMap())
 
 	unit := a.newClientUnit(currentUnit)
@@ -77,7 +75,7 @@ func (a *GameClient[U]) UpdateUnit(currentUnit *UnitInstance) {
 	knownUnit, ok := a.clientUnitMap[unitID]
 
 	if !ok {
-		println(fmt.Sprintf("[GameClient] ClientUpdateUnit: unit %d not found", unitID))
+		println(fmt.Sprintf("[%s] ClientUpdateUnit: unit %d not found", a.environment, unitID))
 		return
 	}
 	knownUnit.SetServerInstance(currentUnit)
@@ -136,7 +134,7 @@ func (a *GameClient[U]) IsMyUnit(unitID uint64) bool {
 }
 
 func (a *GameClient[U]) Print(text string) {
-	println(fmt.Sprintf("[GameClient] %s", text))
+	println(fmt.Sprintf("[%s] %s", a.environment, text))
 }
 func (a *GameClient[U]) OnGameOver(msg GameOverMessage) {
 	var printedMessage string
@@ -150,7 +148,7 @@ func (a *GameClient[U]) OnGameOver(msg GameOverMessage) {
 func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 	unit, exists := a.GetClientUnit(msg.UnitID)
 	if !exists {
-		println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
+		println(fmt.Sprintf("[%s] Unknown unit %d", a.environment, msg.UnitID))
 		return
 	}
 	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
@@ -167,7 +165,7 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 		a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
 	}
 
-	unit.SetBlockPositionAndUpdateMap(destination)
+	unit.SetBlockPosition(destination)
 }
 
 func (a *GameClient[U]) SetLOSLost(observer, unitID uint64) {
@@ -191,15 +189,15 @@ func (a *GameClient[U]) SetLOSAcquired(observer, unitID uint64) {
 }
 
 func (a *GameClient[U]) OnNextPlayer(msg NextPlayerMessage) {
-	println(fmt.Sprintf("[GameClient] NextPlayer: %v", msg))
-	println("[GameClient] Map State:")
+	println(fmt.Sprintf("[%s] NextPlayer: %v", a.environment, msg))
+	println(fmt.Sprintf("[%s] VoxelMap:", a.environment))
 	a.GetVoxelMap().PrintArea2D(16, 16)
 	for _, unit := range a.GetAllUnits() {
-		println(fmt.Sprintf("[GameClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
+		println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
 	if msg.YourTurn {
 		a.ResetUnitsForNextTurn()
-		println("[GameClient] Your turn!")
+		println(fmt.Sprintf("[%s] It's your turn!", a.environment))
 	}
 }
 func (a *GameClient[U]) ResetUnitsForNextTurn() {
@@ -213,18 +211,18 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	// the space where the unit was standing is cleared on the client side map.
 	movingUnit, exists := a.GetClientUnit(msg.MovingUnit)
 	if !exists && msg.UpdatedUnit == nil {
-		println(fmt.Sprintf("[BattleClient] Received LOS update for unknown unit %d", msg.MovingUnit))
+		println(fmt.Sprintf("[%s] Received LOS update for unknown unit %d", a.environment, msg.MovingUnit))
 		return
 	}
 	if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 		a.AddOrUpdateUnit(msg.UpdatedUnit)
 		movingUnit, _ = a.GetClientUnit(msg.MovingUnit)
 	}
-	println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
+	println(fmt.Sprintf("[%s] Enemy unit %s(%d) moving", a.environment, movingUnit.GetName(), movingUnit.UnitID()))
 	for i, path := range msg.PathParts {
-		println(fmt.Sprintf("[BattleClient] Path %d", i))
+		println(fmt.Sprintf("[%s] Path %d", a.environment, i))
 		for _, pathPos := range path {
-			println(fmt.Sprintf("[BattleClient] --> %s", pathPos.ToString()))
+			println(fmt.Sprintf("[%s] --> %s", a.environment, pathPos.ToString()))
 		}
 	}
 	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
@@ -236,17 +234,17 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 			a.SetLOSAcquired(unit, movingUnit.UnitID())
 		}
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward(msg.UpdatedUnit.ForwardVector)
+			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
-			movingUnit.SetBlockPositionAndUpdateMap(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
+			movingUnit.SetBlockPosition(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
 		}
 	}
 
 	if !hasPath {
 		if msg.UpdatedUnit != nil {
-			movingUnit.SetBlockPositionAndUpdateMapAndModel(msg.UpdatedUnit.GetBlockPosition())
+			movingUnit.SetBlockPosition(msg.UpdatedUnit.GetBlockPosition())
 		}
 		changeLOS()
 		return
@@ -256,7 +254,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	if currentPos == destination {
 		changeLOS()
 	} else {
-		movingUnit.SetBlockPositionAndUpdateMapAndModel(destination)
+		movingUnit.SetBlockPosition(destination)
 		changeLOS()
 	}
 }
@@ -266,7 +264,7 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
-		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.SetForward2DCardinal(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		if msg.IsTurnEnding {
@@ -279,10 +277,15 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 			victim, ok := a.GetUnit(uint64(projectile.UnitHit))
 			a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
 			if !ok {
-				println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
+				println(fmt.Sprintf("[%s] Projectile hit unit %d, but unit not found", a.environment, projectile.UnitHit))
 				return
 			}
-			println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", victim.GetName(), victim.UnitID()))
+			println(fmt.Sprintf("[%s] Projectile hit unit %s(%d)", a.environment, victim.GetName(), victim.UnitID()))
+		}
+
+		for _, damagedBlock := range projectile.BlocksHit {
+			blockDef := a.GetBlockDefAt(damagedBlock)
+			blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
 		}
 	}
 }

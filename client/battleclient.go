@@ -48,7 +48,6 @@ type BattleClient struct {
 	isBusy              bool
 	onSwitchToIsoCamera func()
 	bulletModel         *util.CompoundMesh
-	blockLibrary        *game.BlockLibrary
 }
 
 func (a *BattleClient) state() GameState {
@@ -517,7 +516,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
-		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.SetForward2DCardinal(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
@@ -549,6 +548,11 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 				println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
 			}
 
+			for _, damagedBlock := range projectile.BlocksHit {
+				blockDef := a.GetBlockDefAt(damagedBlock)
+				blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
+			}
+
 			if projectileArrivalCounter == len(msg.Projectiles) {
 				a.Print(damageReport)
 			}
@@ -578,15 +582,18 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 		a.AddOrUpdateUnit(msg.UpdatedUnit)
 		movingUnit, _ = a.GetClientUnit(msg.MovingUnit)
-		println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward().ToString()))
+		//println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward2DCardinal().ToString()))
 	}
-	println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
-	for i, path := range msg.PathParts {
-		println(fmt.Sprintf("[BattleClient] Path %d", i))
-		for _, pathPos := range path {
-			println(fmt.Sprintf("[BattleClient] --> %s", pathPos.ToString()))
+	//println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
+	/*
+		for i, path := range msg.PathParts {
+			//println(fmt.Sprintf("[BattleClient] Path %d", i))
+			for _, pathPos := range path {
+				//println(fmt.Sprintf("[BattleClient] --> %s", pathPos.ToString()))
+			}
 		}
-	}
+
+	*/
 	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
 	changeLOS := func() {
 		for _, unit := range msg.LOSLostBy {
@@ -596,17 +603,17 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 			a.SetLOSAcquired(unit, movingUnit.UnitID())
 		}
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward(msg.UpdatedUnit.ForwardVector)
+			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
-			movingUnit.SetBlockPositionAndUpdateMap(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
+			movingUnit.SetBlockPosition(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
 		}
 	}
 	currentPathPart := 0
 	observerPositionReached := func() bool { return false }
 	observerPositionReached = func() bool {
-		reachedLastWaypoint := voxel.ToGridInt3(movingUnit.GetFootPosition()) == movingUnit.GetLastWaypoint()
+		reachedLastWaypoint := voxel.PositionToGridInt3(movingUnit.GetPosition()) == movingUnit.GetLastWaypoint()
 		if !reachedLastWaypoint { // not yet at last waypoint
 			return false
 		}
@@ -617,7 +624,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 			// NOTE: We really instantly teleport to the next path part.
 			currentPathPart++
 			startPos := msg.PathParts[currentPathPart][0]
-			movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(startPos)
+			movingUnit.SetBlockPosition(startPos)
 			movingUnit.SetPath(msg.PathParts[currentPathPart])
 			return false
 		}
@@ -630,7 +637,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 
 	if !hasPath {
 		if msg.UpdatedUnit != nil {
-			movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(msg.UpdatedUnit.GetBlockPosition())
+			movingUnit.SetBlockPosition(msg.UpdatedUnit.GetBlockPosition())
 		}
 		changeLOS()
 		return
@@ -639,7 +646,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	startPos := firstPath[0]
 	currentPos := movingUnit.GetBlockPosition()
 	if voxel.ManhattanDistance2(currentPos, startPos) > 1 {
-		movingUnit.SetBlockPositionAndUpdateMapAndModelAndAnimations(startPos)
+		movingUnit.SetBlockPosition(startPos)
 		currentPos = startPos
 	}
 	destination := firstPath[len(firstPath)-1]
@@ -661,7 +668,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 		println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
 		return
 	}
-	println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
+	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
 	a.GetVoxelMap().ClearHighlights()
 	a.unitSelector.Hide()
@@ -675,12 +682,11 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 			a.AddOrUpdateUnit(acquiredLOSUnit)
 			a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
 		}
-		unit.SetBlockPositionAndUpdateMap(destination)
-
+		unit.SetBlockPosition(destination)
 		a.SwitchToUnitNoCameraMovement(unit)
 	}
 	destinationReached := func() bool {
-		return voxel.ToGridInt3(unit.GetFootPosition()) == destination
+		return unit.IsAtLocation(destination)
 	}
 	a.scheduleWaitForCondition(destinationReached, changeLOS)
 
@@ -764,8 +770,4 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
 	// TODO: Spawn blood particles
 	// TODO: Add blood decals on unit skin
-}
-
-func (a *BattleClient) SetBlockLibrary(bl *game.BlockLibrary) {
-	a.blockLibrary = bl
 }

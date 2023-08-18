@@ -32,7 +32,7 @@ func (d *DummyClientUnit) SetServerInstance(instance *UnitInstance) {
 	instance.SetVoxelMap(oldVoxelMap)
 
 	d.UnitInstance = instance
-	d.UpdateMapAndModelAndAnimation()
+	d.UpdateMapAndAnimation()
 }
 
 type DummyClient struct {
@@ -60,6 +60,11 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		println("Game started!")
 		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
 		c.GameClient.SetVoxelMap(loadedMap)
+		blockList := GetDebugBlockNames()
+		indexMap := util.CreateIndexMapFromDirectory("assets/textures/blocks/star_odyssey", blockList)
+		bl := NewBlockLibrary(blockList, indexMap)
+		bl.ApplyGameplayRules(c.GameInstance)
+		c.SetBlockLibrary(bl)
 
 		for _, unit := range gameInfo.OwnUnits {
 			c.AddOwnedUnit(unit)
@@ -75,7 +80,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		var msg VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnOwnUnitMoved(msg)
-			println(fmt.Sprintf("[DummyClient] Unit %d moved to %s", msg.UnitID, msg.EndPosition.ToString()))
+			//println(fmt.Sprintf("[DummyClient] Unit %d moved to %s", msg.UnitID, msg.EndPosition.ToString()))
 			c.movedUnits[msg.UnitID] = true
 			c.makeMove()
 		}
@@ -161,7 +166,7 @@ func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
 		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), chosenDest))
 		// HACK: assume this works
-		unit.SetBlockPositionAndUpdateMapAndModelAndAnimations(chosenDest)
+		unit.SetBlockPosition(chosenDest)
 		c.waitingForUnit = unit.UnitID()
 		return true
 	} else {

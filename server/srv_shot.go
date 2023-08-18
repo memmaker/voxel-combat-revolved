@@ -68,7 +68,7 @@ func newServerActionShot(engine *game.GameInstance, unit *game.UnitInstance, cam
 	return s
 }
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
-	currentPos := voxel.ToGridInt3(a.unit.GetFootPosition())
+	currentPos := a.unit.GetBlockPosition()
 	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from %s.", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString()))
 
 	var projectiles []game.VisualProjectile
@@ -84,7 +84,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
 	newForward := util.DirectionToCardinalAim(a.aimDirection)
-	a.unit.SetForward(newForward)
+	a.unit.SetForward2DCardinal(newForward)
 
 	mb.AddMessageForAll(game.VisualRangedAttack{
 		Projectiles:       projectiles,
@@ -106,6 +106,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHidID := int64(-1)
 	var hitUnit *game.UnitInstance = nil
+	var hitBlocks []voxel.Int3
 	if rayHitInfo.UnitHit != nil && rayHitInfo.UnitHit != hitUnit {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
@@ -113,7 +114,15 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		lethal = a.engine.ApplyDamage(a.unit, hitUnit, projectileDamage, rayHitInfo.BodyPart)
 	} else {
 		if rayHitInfo.Hit {
-			println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s", rayHitInfo.HitInfo3D.PreviousGridPosition.ToString()))
+			blockPosHit := rayHitInfo.HitInfo3D.CollisionGridPosition
+			blockDef := a.engine.GetBlockDefAt(blockPosHit)
+			if blockDef.OnDamageReceived != nil {
+				blockDef.OnDamageReceived(blockPosHit, projectileDamage)
+				hitBlocks = append(hitBlocks, blockPosHit)
+				println(fmt.Sprintf("[ServerActionShot] HIT -> Block with on damage effect %s at %s", blockDef.UniqueName, blockPosHit.ToString()))
+			} else {
+				println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s hit %s", rayHitInfo.HitInfo3D.CollisionGridPosition.ToString(), blockDef.UniqueName))
+			}
 		} else {
 			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision"))
 		}
@@ -127,6 +136,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		BodyPart:    rayHitInfo.BodyPart,
 		Damage:      projectileDamage,
 		IsLethal:    lethal,
+		BlocksHit:   hitBlocks,
 	}
 	return projectile
 }
