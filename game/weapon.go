@@ -1,6 +1,9 @@
 package game
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type WeaponType string
 
@@ -65,4 +68,21 @@ func NewWeapon(definition *WeaponDefinition) *Weapon {
 		Definition: definition,
 		AmmoCount:  definition.MagazineSize,
 	}
+}
+
+func (w *Weapon) AdjustDamageForDistance(distance float32, projectileBaseDamage int) int {
+	rangeAdjustedDamage := projectileBaseDamage
+	effectiveWeaponRange := float32(w.Definition.EffectiveRange)
+	inEffectiveRange := distance <= effectiveWeaponRange
+	if !inEffectiveRange { // damage falloff
+		falloff := float64(1.0 - (distance-effectiveWeaponRange)/(float32(w.Definition.MaxRange)-effectiveWeaponRange))
+		rangeAdjustedDamage = int(math.Ceil(float64(projectileBaseDamage) * falloff))
+	}
+	return rangeAdjustedDamage
+}
+
+func (w *Weapon) GetEstimatedDamage(distance float32) int {
+	damagePerBullet := w.AdjustDamageForDistance(distance, w.Definition.BaseDamagePerBullet)
+	maxDamage := damagePerBullet * int(w.Definition.BulletsPerShot)
+	return maxDamage
 }

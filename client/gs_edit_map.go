@@ -29,7 +29,7 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	}
 
 	if key == glfw.KeyO {
-		g.engine.GetVoxelMap().SaveToDisk()
+		g.engine.SaveMapToDisk()
 	}
 
 	if key == glfw.KeyP {

@@ -73,7 +73,7 @@ func (a *BattleClient) RemoveBlock() {
 	}
 }
 
-func (a *BattleClient) LoadVoxelMap(filename string) *voxel.Map {
+func (a *BattleClient) LoadConstructionFile(filename string) *voxel.Map {
 	construction := voxel.LoadConstruction(filename)
 	listOfBlocks := voxel.GetBlocksNeededByConstruction(construction)
 	listOfBlockEntities := voxel.GetBlockEntitiesNeededByConstruction(construction)
@@ -132,14 +132,9 @@ func (a *BattleClient) LoadMap(filename string) {
 	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/star_odyssey", listOfBlocks)
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 	bl.ApplyGameplayRules(a.GameInstance)
-	//bf := voxel.NewBlockFactory(textureIndices)
-	sizeHorizontal := 3
-	sizeVertical := 1
-	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
-	loadedMap.SetShader(a.chunkShader)
-	loadedMap.SetTerrainTexture(terrainTexture)
+
+	loadedMap = voxel.NewMapFromFile(filename, a.chunkShader, terrainTexture)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces, bl.GetTextureIndexByName("selection"))
-	loadedMap.LoadFromDisk(filename)
 	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	a.SetBlockLibrary(bl)

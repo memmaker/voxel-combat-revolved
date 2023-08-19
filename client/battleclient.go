@@ -9,6 +9,7 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
+	"os"
 )
 
 type BattleClient struct {
@@ -48,6 +49,7 @@ type BattleClient struct {
 	isBusy              bool
 	onSwitchToIsoCamera func()
 	bulletModel         *util.CompoundMesh
+	settings            ClientSettings
 }
 
 func (a *BattleClient) state() GameState {
@@ -61,21 +63,40 @@ func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
 	return false
 }
 
+type ClientSettings struct {
+	Width                  int
+	Height                 int
+	FPSCameraInvertedMouse bool
+}
+
+func NewClientSettingsFromFile(filename string) ClientSettings {
+	if util.DoesFileExist(filename) {
+		var settings ClientSettings
+		file, _ := os.ReadFile(filename)
+		if util.FromJson(string(file), &settings) {
+			return settings
+		}
+	}
+	return ClientSettings{ // default settings
+		Width:                  800,
+		Height:                 600,
+		FPSCameraInvertedMouse: true,
+	}
+}
+
 type ClientInitializer struct {
 	Title             string
-	Width             int
-	Height            int
 	OwnerID           uint64
 	GameID            string
 	MapFile           string
 	ControllingUserID uint64
 }
 
-func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer) *BattleClient {
-	window, terminateFunc := util.InitOpenGL(initInfos.Title, initInfos.Width, initInfos.Height)
+func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, settings ClientSettings) *BattleClient {
+	window, terminateFunc := util.InitOpenGL(initInfos.Title, settings.Width, settings.Height)
 	glApp := &util.GlApplication{
-		WindowWidth:   initInfos.Width,
-		WindowHeight:  initInfos.Height,
+		WindowWidth:   settings.Width,
+		WindowHeight:  settings.Height,
 		Window:        window,
 		TerminateFunc: terminateFunc,
 	}
@@ -84,11 +105,15 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer) *Bat
 	window.SetMouseButtonCallback(glApp.MouseButtonCallback)
 	window.SetScrollCallback(glApp.ScrollCallback)
 
+	fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, settings.Width, settings.Height)
+	fpsCamera.SetInvertedY(settings.FPSCameraInvertedMouse)
+
 	myApp := &BattleClient{
 		GlApplication: glApp,
-		isoCamera:     util.NewISOCamera(initInfos.Width, initInfos.Height),
-		fpsCamera:     util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, initInfos.Width, initInfos.Height),
+		isoCamera:     util.NewISOCamera(settings.Width, settings.Height),
+		fpsCamera:     fpsCamera,
 		timer:         util.NewTimer(),
+		settings:      settings,
 	}
 	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, myApp.CreateClientUnit)
 	myApp.GameClient.SetEnvironment("GL-Client")
@@ -374,7 +399,6 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	rayStart, rayEnd := a.isoCamera.GetPickingRayFromScreenPosition(newX, newY)
 	//a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
 	hitInfo := a.RayCastGround(rayStart, rayEnd)
-
 	if hitInfo.HitUnit() {
 		unitHit, _ := a.GetClientUnit(hitInfo.UnitHit.UnitID())
 		if unitHit.IsUserControlled() {

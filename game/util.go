@@ -13,7 +13,8 @@ type RayCastHit struct {
 }
 
 func (h RayCastHit) HitUnit() bool {
-	return h.UnitHit != nil
+	var noUnit *UnitInstance
+	return h.UnitHit != noUnit && h.UnitHit != nil
 }
 
 type FreeAimHit struct {

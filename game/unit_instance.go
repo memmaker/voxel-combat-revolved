@@ -6,7 +6,6 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
-	"math/rand"
 )
 
 type MeshAnimation string
@@ -172,16 +171,17 @@ func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	compoundMesh := util.LoadGLTF(unitDef.ModelFile)
 	compoundMesh.RootNode.CreateColliders()
-	return &UnitInstance{
+	u := &UnitInstance{
 		Transform:     util.NewDefaultTransform(name),
 		Name:          name,
 		Definition:    unitDef,
 		ActionPoints:  4,
 		MovementPerAP: unitDef.CoreStats.MovementPerAP,
 		Health:        unitDef.CoreStats.Health,
-		model:         compoundMesh, // todo: cache models?
 		DamageZones:   make(map[util.DamageZone]int),
 	}
+	u.SetModel(compoundMesh)
+	return u
 }
 
 func (u *UnitInstance) SetUnitID(id uint64) {
@@ -316,14 +316,6 @@ func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {
 	u.Health -= hpDamage
 	println(fmt.Sprintf("[UnitInstance] %s(%d) took %d damage to %s, Health was reduced by %d and is now %d", u.GetName(), u.UnitID(), damage, part, hpDamage, u.Health))
 	if u.Health <= 0 {
-		// TODO: do not apply to AI units
-		// TODO: give feedback via UI
-		// divine intervention
-		if rand.Float64() < 0.01 {
-			println(fmt.Sprintf("[UnitInstance] %s(%d) was saved by divine intervention from a fatal wound.", u.GetName(), u.UnitID()))
-			u.Health = 1
-			return false
-		}
 		return true
 	}
 	return false

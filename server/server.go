@@ -97,47 +97,47 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 	switch msgType {
 	case "Login":
 		var loginMsg game.LoginMessage
-		if toJson(message, &loginMsg) {
+		if FromJson(message, &loginMsg) {
 			b.Login(con, id, loginMsg)
 		}
 	case "CreateGame":
 		var createGameMsg game.CreateGameMessage
-		if toJson(message, &createGameMsg) {
+		if FromJson(message, &createGameMsg) {
 			b.CreateGame(id, createGameMsg)
 		}
 	case "SelectFaction":
 		var selectFactionMsg game.SelectFactionMessage
-		if toJson(message, &selectFactionMsg) {
+		if FromJson(message, &selectFactionMsg) {
 			b.SelectFaction(id, selectFactionMsg)
 		}
 	case "SelectUnits":
 		var selectUnitsMsg game.SelectUnitsMessage
-		if toJson(message, &selectUnitsMsg) {
+		if FromJson(message, &selectUnitsMsg) {
 			b.SelectUnits(id, selectUnitsMsg)
 		}
 	case "JoinGame":
 		var joinGameMsg game.JoinGameMessage
-		if toJson(message, &joinGameMsg) {
+		if FromJson(message, &joinGameMsg) {
 			b.JoinGame(id, joinGameMsg)
 		}
 	case "UnitAction":
 		var targetedUnitActionMsg game.TargetedUnitActionMessage
-		if toJson(message, &targetedUnitActionMsg) {
+		if FromJson(message, &targetedUnitActionMsg) {
 			b.UnitAction(id, targetedUnitActionMsg)
 		}
 	case "FreeAimAction":
 		var freeAimActionMsg game.FreeAimActionMessage
-		if toJson(message, &freeAimActionMsg) {
+		if FromJson(message, &freeAimActionMsg) {
 			b.UnitAction(id, freeAimActionMsg)
 		}
 	case "MapLoaded":
 		var mapLoadedMsg game.MapLoadedMessage
-		if toJson(message, &mapLoadedMsg) {
+		if FromJson(message, &mapLoadedMsg) {
 			b.MapLoaded(id, mapLoadedMsg)
 		}
 	case "Reload":
 		var reloadMsg game.UnitMessage
-		if toJson(message, &reloadMsg) {
+		if FromJson(message, &reloadMsg) {
 			b.Reload(id, reloadMsg.UnitID())
 		}
 	case "EndTurn":
@@ -145,7 +145,7 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 	}
 }
 
-func toJson(message string, msg interface{}) bool {
+func FromJson(message string, msg interface{}) bool {
 	err := json.Unmarshal([]byte(message), &msg)
 	if err != nil {
 		println(err.Error())

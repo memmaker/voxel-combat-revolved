@@ -16,6 +16,7 @@ type GameStateFreeAim struct {
 	lastMouseY     float64
 	selectedAction game.TargetAction
 	lockedTarget   int
+	visibleEnemies []*game.UnitInstance
 }
 
 func (g *GameStateFreeAim) OnMouseReleased(x float64, y float64) {
@@ -50,29 +51,73 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 	}
 }
 func (g *GameStateFreeAim) aimAtNextTarget() {
-	visibleEnemies := g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
-	if len(visibleEnemies) == 0 {
+	if len(g.visibleEnemies) == 0 {
 		g.engine.fpsCamera.FPSLookAt(g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward()))
 		return
 	}
-	g.lockedTarget = (g.lockedTarget + 1) % len(visibleEnemies)
-	g.engine.fpsCamera.FPSLookAt(visibleEnemies[g.lockedTarget].GetEyePosition())
-	g.engine.Print(visibleEnemies[g.lockedTarget].GetEnemyDescription())
+	g.lockedTarget = (g.lockedTarget + 1) % len(g.visibleEnemies)
+	targetUnit := g.visibleEnemies[g.lockedTarget]
+
+	g.engine.fpsCamera.FPSLookAt(targetUnit.GetEyePosition())
+
+	g.showTargetInfo(targetUnit, util.ZoneNone)
+}
+
+func (g *GameStateFreeAim) updateTargetInfo() {
+	rayStart := g.engine.fpsCamera.GetPosition()
+	rayEnd := g.engine.fpsCamera.GetPosition().Add(g.engine.fpsCamera.GetFront().Mul(100))
+	hitInfo := g.engine.RayCastFreeAim(rayStart, rayEnd, g.selectedUnit.UnitInstance)
+	if hitInfo.HitUnit() {
+		hitUnit := hitInfo.UnitHit.(*game.UnitInstance)
+		zone := hitInfo.BodyPart
+		g.showTargetInfo(hitUnit, zone)
+	} else {
+		distanceToTarget := hitInfo.CollisionWorldPosition.Sub(rayStart).Len()
+		g.engine.Print(fmt.Sprintf("Distance to target: %0.2f", distanceToTarget))
+	}
+}
+
+func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone util.DamageZone) {
+	weaponMaxRange := float32(g.selectedUnit.GetWeapon().Definition.MaxRange)
+	weaponEffectiveRange := float32(g.selectedUnit.GetWeapon().Definition.EffectiveRange)
+	distanceToTarget := g.selectedUnit.GetEyePosition().Sub(targetUnit.GetCenterOfMassPosition()).Len()
+
+	description := targetUnit.GetEnemyDescription()
+
+	description += fmt.Sprintf("\nZone: %s", zone)
+
+	if distanceToTarget > weaponMaxRange {
+		description += fmt.Sprintf("\nTarget is out of max range (%0.2f > %0.2f)", distanceToTarget, weaponMaxRange)
+	} else if distanceToTarget > weaponEffectiveRange {
+		description += fmt.Sprintf("\nTarget is out of effective range (%0.2f > %0.2f)", distanceToTarget, weaponEffectiveRange)
+	} else {
+		description += fmt.Sprintf("\nTarget is in effective range (%0.2f < %0.2f)", distanceToTarget, weaponEffectiveRange)
+	}
+
+	projectedMaxDamage := g.selectedUnit.GetWeapon().GetEstimatedDamage(distanceToTarget)
+	health := targetUnit.Health
+	bestCaseHealth := health - projectedMaxDamage
+
+	description += fmt.Sprintf("\nMax Damage: %d > Enemy HP: %d", projectedMaxDamage, bestCaseHealth)
+
+	g.engine.Print(description)
 }
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
 
 	g.engine.SwitchToFirstPerson(g.selectedUnit)
 
+	g.visibleEnemies = g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
+
 	g.aimAtNextTarget()
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {
-	g.engine.isoCamera.RotateRight()
+
 }
 
 func (g *GameStateFreeAim) OnUpperLeftAction() {
-	g.engine.isoCamera.RotateLeft()
+
 }
 
 func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
@@ -88,14 +133,17 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateFreeAim) OnDirectionKeys(elapsed float64, movementVector [2]int) {
-	g.engine.isoCamera.ChangePosition(movementVector, float32(elapsed))
-	g.engine.UpdateMousePicking(g.lastMouseX, g.lastMouseY)
+
 }
 
 func (g *GameStateFreeAim) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
 	g.lastMouseX = newX
 	g.lastMouseY = newY
+
 	dx := newX - oldX
 	dy := newY - oldY
+
 	g.engine.fpsCamera.ChangeAngles(float32(dx), float32(dy))
+
+	g.updateTargetInfo()
 }

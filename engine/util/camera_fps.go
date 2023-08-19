@@ -53,6 +53,10 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 	}
 }
 
+func (c *FPSCamera) SetInvertedY(inverted bool) {
+	c.invertedY = inverted
+}
+
 // GetViewMatrix returns the view matrix for the camera.
 // A view matrix will transform a point from world space to camera space.
 func (c *FPSCamera) GetTransformMatrix() mgl32.Mat4 {

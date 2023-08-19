@@ -51,13 +51,15 @@ func NewMap(width, height, depth int32) *Map {
 	return m
 }
 
-func NewMapFromFile(filename string) *Map {
+func NewMapFromFile(filename string, shader *glhf.Shader, texture *glhf.Texture) *Map {
 	m := &Map{
 		chunks:             make([]*Chunk, 0),
 		width:              0,
 		height:             0,
 		depth:              0,
 		knownUnitPositions: make(map[uint64]Int3),
+		chunkShader:        shader,
+		terrainTexture:     texture,
 	}
 	m.LoadFromDisk(filename)
 	return m

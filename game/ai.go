@@ -58,7 +58,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo.OwnID, gameInfo.GameID, c.createDummyUnit)
 		c.GameClient.SetEnvironment("AI-Client")
 		println("Game started!")
-		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile)
+		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile, nil, nil)
 		c.GameClient.SetVoxelMap(loadedMap)
 		blockList := GetDebugBlockNames()
 		indexMap := util.CreateIndexMapFromDirectory("assets/textures/blocks/star_odyssey", blockList)

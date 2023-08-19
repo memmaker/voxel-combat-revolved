@@ -69,7 +69,7 @@ func createIndicesDirectory(directory string, whiteList []string) map[string]byt
 	textureIndex := 0
 	for _, blockName := range whiteList {
 		texturePath := path.Join(directory, blockName+".png")
-		if !doesFileExist(texturePath) {
+		if !DoesFileExist(texturePath) {
 			continue
 		}
 		indices[blockName] = byte(textureIndex)
@@ -106,13 +106,13 @@ func tryMCStyleFaceNames(directory, blockName string) []string {
 	var result []string
 
 	texturePath := path.Join(directory, blockName+".png")
-	if doesFileExist(texturePath) {
+	if DoesFileExist(texturePath) {
 		result = append(result, blockName)
 	}
 
 	for _, suffix := range getMCSuffixes() {
 		texturePath = path.Join(directory, blockName+suffix+".png")
-		if doesFileExist(texturePath) {
+		if DoesFileExist(texturePath) {
 			result = append(result, blockName+suffix)
 		}
 	}
@@ -183,7 +183,7 @@ func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffi
 	}
 	return availableSuffixes[blockname]
 }
-func doesFileExist(filename string) bool {
+func DoesFileExist(filename string) bool {
 	_, err := os.Stat(filename)
 	if os.IsNotExist(err) {
 		return false

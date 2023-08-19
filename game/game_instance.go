@@ -11,7 +11,6 @@ import (
 func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 	mapDir := "./assets/maps"
 	mapFile = path.Join(mapDir, mapFile)
-	loadedMap := voxel.NewMapFromFile(mapFile)
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
 	return &GameInstance{
 		id:             gameID,
@@ -22,7 +21,8 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
-		voxelMap:       loadedMap,
+		voxelMap:       voxel.NewMapFromFile(mapFile, nil, nil),
+		mapMeta:        NewMapMetadataFromFile(mapFile + ".meta"),
 	}
 }
 func NewGameInstance(gameID string) *GameInstance {
@@ -51,6 +51,7 @@ type GameInstance struct {
 	units              map[uint64]*UnitInstance
 	losMatrix          map[uint64]map[uint64]bool
 	voxelMap           *voxel.Map
+	mapMeta            *MapMetadata
 	players            []uint64
 	playerFactions     map[uint64]*Faction
 	playerUnits        map[uint64][]uint64
@@ -260,6 +261,10 @@ func (g *GameInstance) SetVoxelMap(loadedMap *voxel.Map) {
 	g.voxelMap = loadedMap
 }
 
+func (g *GameInstance) SaveMapToDisk() {
+	g.voxelMap.SaveToDisk()
+	g.mapMeta.SaveToDisk(g.mapFile)
+}
 func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, bodyPart util.DamageZone) bool {
 	lethal := hitUnit.ApplyDamage(damage, bodyPart)
 	if lethal {

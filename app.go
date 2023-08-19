@@ -43,16 +43,14 @@ func runNetworkClient(createOrJoin string, endpoint string) {
 		terminalClient(connection, createOrJoin)
 	})
 }
-func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage) {
+func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage, settings client.ClientSettings) {
 	initInfos := client.ClientInitializer{
 		Title:             "BattleGrounds",
-		Width:             800,
-		Height:            600,
 		GameID:            gameInfo.GameID,
 		MapFile:           gameInfo.MapFile,
 		ControllingUserID: gameInfo.OwnID,
 	}
-	gameClient := client.NewBattleGame(con, initInfos)
+	gameClient := client.NewBattleGame(con, initInfos, settings)
 	gameClient.LoadMap(gameInfo.MapFile)
 
 	for _, unit := range gameInfo.OwnUnits {
@@ -203,7 +201,8 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	println("[Client] Waiting for game to start...")
 	util.WaitForTrue(&gameStarted)
 	println("[Client] Game started!")
-	startGraphicalClient(con, gameInfo)
+
+	startGraphicalClient(con, gameInfo, client.NewClientSettingsFromFile("settings.json"))
 }
 
 type TextItem struct {

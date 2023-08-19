@@ -98,7 +98,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 }
 
 func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
-	projectileDamage := a.unit.Weapon.Definition.BaseDamagePerBullet
+	projectileBaseDamage := a.unit.Weapon.Definition.BaseDamagePerBullet
 	lethal := false
 	origin, direction := a.createRay()
 	endOfRay := origin.Add(direction.Mul(float32(a.unit.Weapon.Definition.MaxRange)))
@@ -111,13 +111,16 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
 		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
-		lethal = a.engine.ApplyDamage(a.unit, hitUnit, projectileDamage, rayHitInfo.BodyPart)
+
+		distance := rayHitInfo.HitInfo3D.CollisionWorldPosition.Sub(origin).Len()
+		projectileBaseDamage = a.unit.GetWeapon().AdjustDamageForDistance(distance, projectileBaseDamage)
+		lethal = a.engine.ApplyDamage(a.unit, hitUnit, projectileBaseDamage, rayHitInfo.BodyPart)
 	} else {
 		if rayHitInfo.Hit {
 			blockPosHit := rayHitInfo.HitInfo3D.CollisionGridPosition
 			blockDef := a.engine.GetBlockDefAt(blockPosHit)
 			if blockDef.OnDamageReceived != nil {
-				blockDef.OnDamageReceived(blockPosHit, projectileDamage)
+				blockDef.OnDamageReceived(blockPosHit, projectileBaseDamage)
 				hitBlocks = append(hitBlocks, blockPosHit)
 				println(fmt.Sprintf("[ServerActionShot] HIT -> Block with on damage effect %s at %s", blockDef.UniqueName, blockPosHit.ToString()))
 			} else {
@@ -134,7 +137,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
 		UnitHit:     unitHidID,
 		BodyPart:    rayHitInfo.BodyPart,
-		Damage:      projectileDamage,
+		Damage:      projectileBaseDamage,
 		IsLethal:    lethal,
 		BlocksHit:   hitBlocks,
 	}
