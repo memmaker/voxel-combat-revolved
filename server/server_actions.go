@@ -9,6 +9,10 @@ type InvalidServerAction struct {
 	Reason string
 }
 
+func (i InvalidServerAction) SetAPCost(newCost int) {
+
+}
+
 func (i InvalidServerAction) IsValid() (bool, string) {
 	return false, i.Reason
 }
@@ -31,6 +35,7 @@ type ServerAction interface {
 	IsValid() (bool, string)
 	Execute(mb *game.MessageBuffer)
 	IsTurnEnding() bool
+	SetAPCost(newCost int)
 }
 
 func GetServerActionForUnit(g *game.GameInstance, actionMessage game.UnitActionMessage, unit *game.UnitInstance) ServerAction {
@@ -46,9 +51,11 @@ func GetServerActionForUnit(g *game.GameInstance, actionMessage game.UnitActionM
 func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActionMessage, unit *game.UnitInstance) ServerAction {
 	switch targetAction.Action {
 	case "Move":
-		return NewServerActionMove(g, unit, targetAction.Target)
+		return NewServerActionMove(g, unit, targetAction.Targets)
 	case "Shot":
-		return NewServerActionSnapShot(g, unit, targetAction.Target)
+		return NewServerActionSnapShot(g, unit, targetAction.Targets)
+	case "Overwatch":
+		return NewServerActionOverwatch(g, unit, targetAction.Targets)
 	}
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", targetAction.Action))
 }
@@ -56,7 +63,7 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 func GetFreeAimAction(g *game.GameInstance, msg game.FreeAimActionMessage, unit *game.UnitInstance) ServerAction {
 	switch msg.Action {
 	case "Shot":
-		return NewServerActionFreeShot(g, unit, msg.CamPos, msg.CamRotX, msg.CamRotY)
+		return NewServerActionFreeShot(g, unit, msg.CamPos, msg.TargetAngles)
 	}
 	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", msg.Action))
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", msg.Action))

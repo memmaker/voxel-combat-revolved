@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
 
@@ -39,8 +40,9 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 
 func (g *GameStateAction) Init(bool) {
 	//println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
-	validTargets := g.selectedAction.GetValidTargets(g.selectedUnit)
+	validTargets := g.selectedAction.GetValidTargets(g.selectedUnit.UnitInstance)
 	//println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
+	g.engine.GetVoxelMap().ClearHighlights()
 	if len(validTargets) > 0 {
 		g.engine.GetVoxelMap().SetHighlights(validTargets)
 	}
@@ -51,8 +53,8 @@ func (g *GameStateAction) OnMouseClicked(x float64, y float64) {
 	// project point from screen space to isoCamera space
 	groundBlock := g.engine.groundSelector.GetBlockPosition()
 	println(fmt.Sprintf("[GameStateAction] Block %s", groundBlock.ToString()))
-	if g.selectedUnit.CanAct() && g.selectedAction.IsValidTarget(g.selectedUnit, groundBlock) {
-		println(fmt.Sprintf("[GameStateAction] Target %s is VALID, sending to server.", groundBlock.ToString()))
-		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), groundBlock))
+	if g.selectedUnit.CanAct() && g.selectedAction.IsValidTarget(g.selectedUnit.UnitInstance, groundBlock) {
+		println(fmt.Sprintf("[GameStateAction] Targets %s is VALID, sending to server.", groundBlock.ToString()))
+		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), []voxel.Int3{groundBlock}))
 	}
 }

@@ -11,11 +11,15 @@ import (
 // for snap
 
 type ServerActionShot struct {
-	engine           *game.GameInstance
-	unit             *game.UnitInstance
-	createRay        func() (mgl32.Vec3, mgl32.Vec3)
-	aimDirection     mgl32.Vec3
-	additionalAPCost int
+	engine       *game.GameInstance
+	unit         *game.UnitInstance
+	createRay    func() (mgl32.Vec3, mgl32.Vec3)
+	aimDirection mgl32.Vec3
+	totalAPCost  int
+}
+
+func (a *ServerActionShot) SetAPCost(newCost int) {
+	a.totalAPCost = newCost
 }
 
 func (a *ServerActionShot) IsTurnEnding() bool {
@@ -28,45 +32,69 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 		return false, "Weapon is not ready"
 	}
 
-	costOfAPForShot := int(a.unit.Weapon.Definition.BaseAPForShot) + a.additionalAPCost
-	if a.unit.GetIntegerAP() < costOfAPForShot {
-		return false, fmt.Sprintf("Not enough AP for shot. Need %d, have %d", costOfAPForShot, a.unit.GetIntegerAP())
+	if a.unit.GetIntegerAP() < a.totalAPCost {
+		return false, fmt.Sprintf("Not enough AP for shot. Need %d, have %d", a.totalAPCost, a.unit.GetIntegerAP())
 	}
 
 	return true, ""
 }
-func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camPos mgl32.Vec3, camRotX, camRotY float32) *ServerActionShot {
+func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camPos mgl32.Vec3, targetAngles [][2]float32) *ServerActionShot {
 	camera := util.NewFPSCamera(camPos, 100, 100)
-	camera.Reposition(camPos, camRotX, camRotY)
-	additionalAPNeeded := 1
-	return newServerActionShot(g, unit, camera, additionalAPNeeded)
-}
-func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, target voxel.Int3) ServerAction {
-	camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
-	if !g.GetVoxelMap().IsOccupied(target) {
-		return NewInvalidServerAction(fmt.Sprintf("SnapShot target %s is not occupied", target.ToString()))
-	}
-	targetUnit := g.GetVoxelMap().GetMapObjectAt(target).(*game.UnitInstance)
-	if targetUnit != nil {
-		camera.FPSLookAt(targetUnit.GetCenterOfMassPosition())
-	}
-	additionalAPNeeded := 0
-	return newServerActionShot(g, unit, camera, additionalAPNeeded)
-}
-func newServerActionShot(engine *game.GameInstance, unit *game.UnitInstance, cam *util.FPSCamera, addedAPNeeded int) *ServerActionShot {
+	rayCalls := 0
+
 	s := &ServerActionShot{
-		engine:           engine,
-		unit:             unit,
-		additionalAPCost: addedAPNeeded,
-		aimDirection:     cam.GetFront(),
-		createRay: func() (mgl32.Vec3, mgl32.Vec3) {
-			startRay, endRay := cam.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
-			direction := endRay.Sub(startRay).Normalize()
-			return startRay, direction
-		},
+		engine:       g,
+		unit:         unit,
+		totalAPCost:  int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
+		aimDirection: camera.GetFront(),
+	}
+	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
+		targetAngle := targetAngles[rayCalls]
+
+		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
+		s.aimDirection = camera.GetFront()
+
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+		direction := endRay.Sub(startRay).Normalize()
+
+		rayCalls = rayCalls + 1%len(targetAngles)
+		return startRay, direction
 	}
 	return s
 }
+func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) ServerAction {
+	camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
+	targetsInWorld := make([]mgl32.Vec3, len(targets))
+	for i, target := range targets {
+		if !g.GetVoxelMap().IsOccupied(target) {
+			return NewInvalidServerAction(fmt.Sprintf("SnapShot target %s is not occupied", target.ToString()))
+		} else {
+			targetsInWorld[i] = g.GetVoxelMap().GetMapObjectAt(target).(*game.UnitInstance).GetCenterOfMassPosition()
+		}
+	}
+
+	rayCalls := 0
+
+	s := &ServerActionShot{
+		engine:       g,
+		unit:         unit,
+		totalAPCost:  int(unit.GetWeapon().Definition.BaseAPForShot),
+		aimDirection: camera.GetFront(),
+	}
+	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
+		targetLocation := targetsInWorld[rayCalls]
+		camera.FPSLookAt(targetLocation)
+		s.aimDirection = camera.GetFront()
+
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+		direction := endRay.Sub(startRay).Normalize()
+
+		rayCalls = rayCalls + 1%len(targets)
+		return startRay, direction
+	}
+	return s
+}
+
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	currentPos := a.unit.GetBlockPosition()
 	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from %s.", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString()))
@@ -79,7 +107,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	}
 
 	ammoCost := uint(1)
-	costOfAPForShot := int(a.unit.Weapon.Definition.BaseAPForShot) + a.additionalAPCost
+	costOfAPForShot := int(a.unit.Weapon.Definition.BaseAPForShot) + a.totalAPCost
 	a.unit.ConsumeAP(costOfAPForShot)
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
@@ -111,10 +139,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
 		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
-
-		distance := rayHitInfo.HitInfo3D.CollisionWorldPosition.Sub(origin).Len()
-		projectileBaseDamage = a.unit.GetWeapon().AdjustDamageForDistance(distance, projectileBaseDamage)
-		lethal = a.engine.ApplyDamage(a.unit, hitUnit, projectileBaseDamage, rayHitInfo.BodyPart)
+		projectileBaseDamage, lethal = a.engine.HandleUnitHitWithProjectile(a.unit, rayHitInfo)
 	} else {
 		if rayHitInfo.Hit {
 			blockPosHit := rayHitInfo.HitInfo3D.CollisionGridPosition

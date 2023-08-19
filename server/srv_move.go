@@ -10,7 +10,11 @@ type ServerActionMove struct {
 	engine     *game.GameInstance
 	gameAction *game.ActionMove
 	unit       *game.UnitInstance
-	target     voxel.Int3
+	targets    []voxel.Int3
+}
+
+func (a ServerActionMove) SetAPCost(newCost int) {
+
 }
 
 func (a ServerActionMove) IsTurnEnding() bool {
@@ -18,37 +22,42 @@ func (a ServerActionMove) IsTurnEnding() bool {
 }
 
 func (a ServerActionMove) IsValid() (bool, string) {
-	if !a.gameAction.IsValidTarget(a.unit, a.target) {
-		return false, fmt.Sprintf("Target %s is not valid", a.target.ToString())
+	if len(a.targets) != 1 {
+		return false, fmt.Sprintf("Expected 1 movement target for now, got %d", len(a.targets))
 	}
+	for _, target := range a.targets {
+		if !a.gameAction.IsValidTarget(a.unit, target) {
+			return false, fmt.Sprintf("Targets %s is not valid", target.ToString())
+		}
 
-	dist := a.gameAction.GetCost(a.target)
-	movesLeft := a.unit.MovesLeft()
+		dist := a.gameAction.GetCost(target)
+		movesLeft := a.unit.MovesLeft()
 
-	if dist > movesLeft {
-		return false, fmt.Sprintf("Target %s is too far away (dist: %d, moves left: %d)", a.target.ToString(), dist, movesLeft)
+		if dist > movesLeft {
+			return false, fmt.Sprintf("Targets %s is too far away (dist: %d, moves left: %d)", target.ToString(), dist, movesLeft)
+		}
 	}
-
 	return true, ""
 }
 
-func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, target voxel.Int3) *ServerActionMove {
+func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) *ServerActionMove {
 	return &ServerActionMove{
 		engine:     engine,
 		gameAction: game.NewActionMove(engine.GetVoxelMap()),
 		unit:       unit,
-		target:     target,
+		targets:    targets,
 	}
 }
 func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	currentPos := a.unit.GetBlockPosition()
-	distance := a.gameAction.GetCost(a.target)
-	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %d)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), a.target.ToString(), distance))
+	moveTarget := a.targets[0]
+	distance := a.gameAction.GetCost(moveTarget)
+	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %d)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
 
-	foundPath := a.gameAction.GetPath(a.target)
+	foundPath := a.gameAction.GetPath(moveTarget)
 	destination := foundPath[len(foundPath)-1]
 	controller := a.unit.ControlledBy()
-
+	var triggeredOverwatchBy []*game.UnitInstance
 	var visibles []*game.UnitInstance
 	var invisibles []*game.UnitInstance
 	var unitForward voxel.Int3
@@ -90,8 +99,22 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 				pathPartsPerUser[enemyUserID] = append(pathPartsPerUser[enemyUserID], make([]voxel.Int3, 0))
 			}
 		}
+		// check if somebody is watching this position
+		var isBeingWatched bool
+		triggeredOverwatchBy, isBeingWatched = a.engine.GetEnemiesWatchingPosition(a.unit.ControlledBy(), pos)
+		if isBeingWatched {
+			destination = pos
+			foundPath = foundPath[:index+1]
+			if len(foundPath) > 1 {
+				unitForward = destination.Sub(foundPath[len(foundPath)-2])
+			} else {
+				unitForward = destination.Sub(currentPos)
+			}
+			break
+		}
+
+		// check if we can spot a new enemy unit from here
 		var newContact bool
-		// check if we can spot an enemy unit from here
 		if visibles, invisibles, newContact = a.engine.GetLOSChanges(a.unit, pos); newContact {
 			println(fmt.Sprintf(" --> can spot %d new enemies from here: ", len(visibles)))
 			destination = pos
@@ -165,6 +188,24 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	}
 	for _, unit := range hiddenTo {
 		a.engine.SetLOS(unit, a.unit.UnitID(), false)
+	}
+
+	// handle overwatch
+	if len(triggeredOverwatchBy) > 0 {
+		a.handleOverwatch(mb, a.unit, triggeredOverwatchBy)
+	}
+}
+
+func (a ServerActionMove) handleOverwatch(mb *game.MessageBuffer, movingUnit *game.UnitInstance, watchers []*game.UnitInstance) {
+	targetPos := movingUnit.GetBlockPosition()
+	for _, watcher := range watchers {
+		shot := NewServerActionSnapShot(a.engine, watcher, []voxel.Int3{targetPos})
+		shot.SetAPCost(0) // paid in the previous turn
+		if valid, _ := shot.IsValid(); valid {
+			println(fmt.Sprintf(" --> %s(%d) triggered overwatch by %s(%d) at %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString()))
+			shot.Execute(mb)
+			a.engine.RemoveOverwatch(watcher.UnitID(), targetPos)
+		}
 	}
 }
 

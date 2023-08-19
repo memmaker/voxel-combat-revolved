@@ -364,6 +364,10 @@ func (i Int3) ToBlockCenterVec3() mgl32.Vec3 {
 	return mgl32.Vec3{float32(i.X) + 0.5, float32(i.Y), float32(i.Z) + 0.5}
 }
 
+func (i Int3) ToBlockCenterVec3D() mgl32.Vec3 {
+	return mgl32.Vec3{float32(i.X) + 0.5, float32(i.Y), float32(i.Z) + 0.5}
+}
+
 func (i Int3) ToString() string {
 	return fmt.Sprintf("(%d,%d,%d)", i.X, i.Y, i.Z)
 }
@@ -406,6 +410,10 @@ func (i Int3) ManhattanLength2() int {
 
 func (i Int3) IsBelow(grid Int3) bool {
 	return i.Y == grid.Y-1
+}
+
+func (i Int3) Length() int32 {
+	return int32(math.Sqrt(float64(i.X*i.X + i.Y*i.Y + i.Z*i.Z)))
 }
 
 func (c *Chunk) Draw(shader *glhf.Shader, camDirection mgl32.Vec3) {

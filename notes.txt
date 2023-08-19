@@ -17,15 +17,25 @@
  - Explosions & Blood
  - Melee
 
-
 # Overwatch - Reaction fire
  - Player can select dedicated block positions to watch
  - Watched positions must be in line of sight
  - high base penalty to hit accuracy (eg. 20%)
+ - but will deal extra damage if it hits (eg. 10%)
  - Each additional watched position costs more action points & will reduce the chance to hit
  - Units in overwatch being attacked from positions they don't watch, receive additional damage on hit
    - Only adjacent positions can be watched
  - Only usable once per unit per combat encounter
+
+# Mission Objectives
+ - Kill all enemies - DUH
+ - Kill specific enemy units/NPCs/VIPs
+ - Capture specific enemy units/NPCs/VIPs
+ - Destroy/Capture/Defend McGuffin
+ - Survive for X turns
+ - Reach specific location
+ - Transport specific item to specific location
+ - Capture the flag / King of the hill / Domination
 
 # Design goals
  - Tactical decision making
@@ -48,9 +58,11 @@
  - Create oil, throw cigarette, ignite oil
  - Add a "prod" action
  - Stances - eg. Crouching, Prone, etc.
+   -> Dodging mechanic, choose a dodge stance for a specific AP price (eg. Neo backwards dodge), that will be executed when attacked
  - Shields & Armor
  - Ammo Variants - eg. Armor Piercing, Hollow Point, etc.
  - Scout drones
+ - Heroes & Cowards - With instant in-game effects attached to them
 
 
 # Client - Server

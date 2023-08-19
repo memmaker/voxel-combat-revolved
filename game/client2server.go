@@ -36,16 +36,15 @@ type UnitActionMessage interface {
 }
 type TargetedUnitActionMessage struct {
 	UnitMessage
-	Action string
-	Target voxel.Int3
+	Action  string
+	Targets []voxel.Int3
 }
 
 type FreeAimActionMessage struct {
 	UnitMessage
-	Action  string
-	CamPos  mgl32.Vec3
-	CamRotX float32
-	CamRotY float32
+	Action       string
+	CamPos       mgl32.Vec3
+	TargetAngles [][2]float32
 }
 type MapLoadedMessage struct {
 }

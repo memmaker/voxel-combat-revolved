@@ -23,6 +23,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 		playersNeeded:  2,
 		voxelMap:       voxel.NewMapFromFile(mapFile, nil, nil),
 		mapMeta:        NewMapMetadataFromFile(mapFile + ".meta"),
+		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 	}
 }
 func NewGameInstance(gameID string) *GameInstance {
@@ -35,6 +36,7 @@ func NewGameInstance(gameID string) *GameInstance {
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
+		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 	}
 }
 
@@ -60,6 +62,9 @@ type GameInstance struct {
 	blockLibrary *BlockLibrary
 	// debug
 	environment string
+
+	// mechanics
+	overwatch map[voxel.Int3][]*UnitInstance
 }
 
 func (g *GameInstance) SetEnvironment(environment string) {
@@ -315,4 +320,55 @@ func (g *GameInstance) GetBlockDefAt(blockPos voxel.Int3) *BlockDefinition {
 		return VoidBlockDefinition
 	}
 	return g.blockLibrary.GetBlockDefinition(block.ID)
+}
+
+func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, rayHitInfo *FreeAimHit) (int, bool) {
+	hitUnit := rayHitInfo.UnitHit.(*UnitInstance)
+	direction := rayHitInfo.HitInfo3D.CollisionWorldPosition.Sub(rayHitInfo.Origin).Normalize()
+	distance := rayHitInfo.Distance
+	projectileBaseDamage := attacker.GetWeapon().Definition.BaseDamagePerBullet
+	// actual server side simulation
+	projectileBaseDamage = attacker.GetWeapon().AdjustDamageForDistance(float32(distance), projectileBaseDamage)
+
+	// state changes here
+	// 1. apply damage
+	lethal := g.ApplyDamage(attacker, hitUnit, projectileBaseDamage, rayHitInfo.BodyPart)
+	// 2. change unit orientation
+	hitUnit.Transform.SetForward2D(direction.Mul(-1.0))
+	return projectileBaseDamage, lethal
+}
+
+func (g *GameInstance) RegisterOverwatch(unit *UnitInstance, targets []voxel.Int3) {
+	println(fmt.Sprintf("[%s] Registering overwatch for %s(%d) on %v", g.environment, unit.GetName(), unit.UnitID(), targets))
+	for _, target := range targets {
+		g.overwatch[target] = append(g.overwatch[target], unit)
+	}
+}
+
+func (g *GameInstance) GetEnemiesWatchingPosition(playerID uint64, pos voxel.Int3) ([]*UnitInstance, bool) {
+	instances, overwatch := g.overwatch[pos]
+	if !overwatch {
+		return nil, false
+	}
+	var enemies []*UnitInstance
+	for _, instance := range instances {
+		if instance.ControlledBy() != playerID {
+			enemies = append(enemies, instance)
+		}
+	}
+	return enemies, len(enemies) > 0
+}
+
+func (g *GameInstance) RemoveOverwatch(id uint64, pos voxel.Int3) {
+	instances, overwatch := g.overwatch[pos]
+	if !overwatch {
+		return
+	}
+	for i := len(instances) - 1; i >= 0; i-- {
+		instance := instances[i]
+		if instance.UnitID() == id {
+			g.overwatch[pos] = append(instances[:i], instances[i+1:]...)
+			return
+		}
+	}
 }

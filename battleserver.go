@@ -11,7 +11,7 @@ func NewBattleServer() *server.BattleServer {
 	defaultCoreStats := game.UnitCoreStats{
 		Health:        10,
 		MovementPerAP: 3.5,
-		Accuracy:      0.75,
+		Accuracy:      0.80,
 	}
 
 	battleServer := server.NewBattleServer()
@@ -113,8 +113,8 @@ func NewBattleServer() *server.BattleServer {
 		WeaponType:          game.WeaponAutomatic,
 		AccuracyModifier:    0.75,
 		BulletsPerShot:      3,
-		EffectiveRange:      10,
-		MaxRange:            20,
+		EffectiveRange:      14,
+		MaxRange:            50,
 		MagazineSize:        5,
 		BaseDamagePerBullet: 3,
 		MinFOVForZoom:       40,
@@ -143,10 +143,10 @@ func NewBattleServer() *server.BattleServer {
 		WeaponType:          game.WeaponSniper,
 		AccuracyModifier:    1.1,
 		BulletsPerShot:      1,
-		EffectiveRange:      15,
-		MaxRange:            30,
+		EffectiveRange:      20,
+		MaxRange:            100,
 		MagazineSize:        3,
-		BaseDamagePerBullet: 4,
+		BaseDamagePerBullet: 5,
 		MinFOVForZoom:       20,
 		BaseAPForShot:       3,
 		BaseAPForReload:     3,

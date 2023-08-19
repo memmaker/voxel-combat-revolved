@@ -110,6 +110,7 @@ func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.Damage
 
 func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
 	// needs to be passed to the new state, we do indirectly via the unit
+	p.UnitInstance.Transform.SetForward2D(forceOfImpact.Mul(-1.0).Normalize())
 	p.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
 	// TODO: add the actual hit animation
 }

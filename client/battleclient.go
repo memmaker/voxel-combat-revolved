@@ -50,6 +50,7 @@ type BattleClient struct {
 	onSwitchToIsoCamera func()
 	bulletModel         *util.CompoundMesh
 	settings            ClientSettings
+	guiIcons            map[string]byte
 }
 
 func (a *BattleClient) state() GameState {
@@ -139,7 +140,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
 	myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
 	myApp.bulletModel.ConvertVertexData(myApp.modelShader)
-	guiAtlas, _ := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload"})
+	guiAtlas, guiIconIndices := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
+	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
 	myApp.SwitchToBlockSelector()
@@ -708,6 +710,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 		}
 		unit.SetBlockPosition(destination)
 		a.SwitchToUnitNoCameraMovement(unit)
+		a.isBusy = false
 	}
 	destinationReached := func() bool {
 		return unit.IsAtLocation(destination)
@@ -716,6 +719,8 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 
 	unit.UseMovement(msg.Cost)
 	unit.SetPath(msg.Path)
+
+	a.isBusy = true // don't process further server infos until we moved the unit
 }
 
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {

@@ -76,7 +76,7 @@ func LoadGLTF(filename string) *CompoundMesh {
 			nodeIndex := *channel.Target.Node
 			node := flatNodes[nodeIndex]
 			//println(fmt.Sprintf("\nNode for animation: %s", node.GameIdentifier))
-			//println(fmt.Sprintf("Property provided by sampler: %s", channel.Target.Path))
+			//println(fmt.Sprintf("Property provided by sampler: %s", channel.Targets.Path))
 			samplerIndex := *channel.Sampler
 			sampler := anim.Samplers[samplerIndex]
 			outputValues := outputKeyframesFromSampler(doc, sampler)

@@ -11,6 +11,7 @@ type MapMetadata struct {
 	Name                string
 	FloorCeilingHeights [][2]int
 	SpawnPositions      [][]voxel.Int3
+	PoIPlacements       []voxel.Int3
 }
 
 func (m *MapMetadata) SaveToDisk(mapfilename string) {

@@ -346,6 +346,26 @@ func (m *Map) IsUnitPlaceable(unit MapObject, blockPos Int3) (bool, string) {
 	return true, ""
 }
 
+func (m *Map) IsHumanoidPlaceable(blockPos Int3) (bool, string) {
+	offsets := []Int3{
+		{0, 0, 0},
+		{0, 1, 0},
+	}
+	for _, offset := range offsets {
+		occupiedBlockPos := blockPos.Add(offset)
+		outsideOfWorld := !m.ContainsGrid(occupiedBlockPos)
+		if outsideOfWorld {
+			return false, "Outside of world"
+		}
+		isWall := m.IsSolidBlockAt(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
+		if isWall {
+			return false, "Wall"
+		}
+	}
+	below := blockPos.Add(Int3{0, -1, 0})
+	return m.IsSolidBlockAt(below.X, below.Y, below.Z), "No floor"
+}
+
 func (m *Map) RemoveUnit(unit MapObject) {
 	currentPos, isOnMap := m.knownUnitPositions[unit.UnitID()]
 	if !isOnMap {
@@ -623,7 +643,8 @@ func (m *Map) IsOccupied(blockPos Int3) bool {
 
 func (m *Map) IsOccupiedExcept(blockPos Int3, unit MapObject) bool {
 	block := m.GetBlockFromVec(blockPos)
-	return block != nil && block.IsOccupied() && block.GetOccupant().UnitID() != unit.UnitID()
+	occupied := block.IsOccupied()
+	return block != nil && occupied && block.GetOccupant().UnitID() != unit.UnitID()
 }
 
 func (m *Map) GetMapObjectAt(target Int3) MapObject {

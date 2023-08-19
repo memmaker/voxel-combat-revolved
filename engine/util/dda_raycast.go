@@ -179,6 +179,11 @@ func (d HitInfo3D) WithCollisionWorldPosition(point mgl32.Vec3) HitInfo3D {
 	return d
 }
 
+func (d HitInfo3D) WithDistance(newDist float64) HitInfo3D {
+	d.Distance = newDist
+	return d
+}
+
 func DDARaycast(rayStart, rayEnd mgl32.Vec3, stopRay func(x, y, z int32) bool) HitInfo3D {
 	// adapted from: https://github.com/fenomas/fast-voxel-raycast/blob/master/index.js
 	t := 0.0

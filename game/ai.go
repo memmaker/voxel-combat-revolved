@@ -149,13 +149,13 @@ func (c *DummyClient) makeMove() {
 
 func (c *DummyClient) attackUnit(attacker, target *DummyClientUnit) {
 	shotAction := NewActionShot(c.GameInstance)
-	util.MustSend(c.connection.TargetedUnitAction(attacker.UnitID(), shotAction.GetName(), target.GetBlockPosition()))
+	util.MustSend(c.connection.TargetedUnitAction(attacker.UnitID(), shotAction.GetName(), []voxel.Int3{target.GetBlockPosition()}))
 	c.waitingForUnit = attacker.UnitID()
 }
 
 func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 	moveAction := NewActionMove(c.voxelMap)
-	validMoves := moveAction.GetValidTargets(unit)
+	validMoves := moveAction.GetValidTargets(unit.UnitInstance)
 	if len(validMoves) > 0 {
 		chosenDest := choseRandom(validMoves)
 		moves := int32(4)
@@ -164,7 +164,7 @@ func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 		}
 		chosenDest = unit.GetBlockPosition().Add(voxel.Int3{Z: moves})
 		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
-		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), chosenDest))
+		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), []voxel.Int3{chosenDest}))
 		// HACK: assume this works
 		unit.SetBlockPosition(chosenDest)
 		c.waitingForUnit = unit.UnitID()

@@ -23,7 +23,8 @@ func (b *Block) IsOccupied() bool {
 	if b == nil {
 		return false
 	}
-	return b.occupant != nil
+	var nilMapObject MapObject
+	return b.occupant != nil && b.occupant != nilMapObject
 }
 
 func (b *Block) GetOccupant() MapObject {

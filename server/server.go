@@ -389,7 +389,7 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 
 	action := GetServerActionForUnit(gameInstance, msg, unit)
 
-	// get action for this unit, check if the target is valid
+	// get action for this unit, check if the targets is valid
 	if isValid, reason := action.IsValid(); !isValid {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return

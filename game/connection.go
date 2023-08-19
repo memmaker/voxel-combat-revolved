@@ -117,13 +117,13 @@ func (c *ServerConnection) SelectUnits(choices []UnitChoice) error {
 	return c.send("SelectUnits", message)
 }
 
-func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, target voxel.Int3) error {
-	message := TargetedUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Target: target}
+func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, target []voxel.Int3) error {
+	message := TargetedUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Targets: target}
 	return c.send("UnitAction", message)
 }
 
-func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, camRotX, camRotY float32) error {
-	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, CamRotX: camRotX, CamRotY: camRotY}
+func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, targetAngles [][2]float32) error {
+	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, TargetAngles: targetAngles}
 	return c.send("FreeAimAction", message)
 }
 

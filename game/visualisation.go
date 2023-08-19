@@ -57,3 +57,13 @@ type VisualProjectile struct {
 func (v VisualRangedAttack) MessageType() string {
 	return "RangedAttack"
 }
+
+type VisualBeginOverwatch struct {
+	Watcher          uint64
+	WatchedLocations []voxel.Int3
+	APCost           int
+}
+
+func (v VisualBeginOverwatch) MessageType() string {
+	return "BeginOverwatch"
+}

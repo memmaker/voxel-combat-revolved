@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 )
@@ -20,4 +21,5 @@ func (h RayCastHit) HitUnit() bool {
 type FreeAimHit struct {
 	RayCastHit
 	BodyPart util.DamageZone
+	Origin   mgl32.Vec3
 }

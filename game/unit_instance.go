@@ -27,17 +27,6 @@ const (
 	AnimationDebug      MeshAnimation = "animation.debug"
 )
 
-type UnitCore interface {
-	GetName() string
-	MovesLeft() int
-	GetEyePosition() mgl32.Vec3
-	SetBlockPosition(pos voxel.Int3)
-	GetBlockPosition() voxel.Int3
-	UnitID() uint64
-	ControlledBy() uint64
-	GetOccupiedBlockOffsets() []voxel.Int3
-}
-
 type UnitClientDefinition struct {
 	TextureFile string
 }
@@ -132,8 +121,14 @@ func (u *UnitInstance) HasActionPointsLeft() bool {
 func (u *UnitInstance) CanAct() bool {
 	return u.HasActionPointsLeft() && u.IsActive()
 }
-func (u *UnitInstance) CanFire() bool {
+func (u *UnitInstance) CanSnapshot() bool {
 	apNeeded := u.Weapon.Definition.BaseAPForShot
+	enoughAP := u.GetIntegerAP() >= int(apNeeded)
+	return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
+}
+
+func (u *UnitInstance) CanFreeAim() bool {
+	apNeeded := u.Weapon.Definition.BaseAPForShot + 1
 	enoughAP := u.GetIntegerAP() >= int(apNeeded)
 	return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
 }

@@ -125,7 +125,7 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 		camPos := g.engine.fpsCamera.GetPosition()
 		camRotX, camRotY := g.engine.fpsCamera.GetRotation()
 		println(fmt.Sprintf("[GameStateFreeAim] Sending action %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
-		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
+		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, [][2]float32{{camRotX, camRotY}}))
 	} else {
 		println("[GameStateFreeAim] Unit cannot act")
 		g.engine.Print("Unit cannot act")

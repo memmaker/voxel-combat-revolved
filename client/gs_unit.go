@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
 
@@ -73,7 +74,7 @@ func (g *GameStateUnit) nextUnit() {
 func (g *GameStateUnit) Init(wasPopped bool) {
 	if !wasPopped {
 		if g.selectedUnit.CanMove() {
-			validTargets := g.moveAction.GetValidTargets(g.selectedUnit)
+			validTargets := g.moveAction.GetValidTargets(g.selectedUnit.UnitInstance)
 			if len(validTargets) > 0 {
 				g.engine.GetVoxelMap().SetHighlights(validTargets)
 			}
@@ -100,7 +101,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}
-	} else if g.moveAction.IsValidTarget(g.selectedUnit, groundBlockPos) && g.selectedUnit.CanAct() {
-		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.moveAction.GetName(), groundBlockPos))
+	} else if g.moveAction.IsValidTarget(g.selectedUnit.UnitInstance, groundBlockPos) && g.selectedUnit.CanAct() {
+		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
 	}
 }

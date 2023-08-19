@@ -9,35 +9,33 @@ import (
 
 func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 	var actions []gui.ActionItem
-	fireWeaponActions := []gui.ActionItem{
-		{
-			Name:         "Fire",
-			TextureIndex: 1,
-			Execute: func() {
-				if !unit.CanFire() {
-					println("[GameStateUnit] Unit cannot fire anymore.")
-					return
-				}
-				a.SwitchToAction(unit, game.NewActionShot(a.GameInstance))
-			},
-			Hotkey: glfw.KeyR,
+	snapshot := gui.ActionItem{
+		Name:         "Fire",
+		TextureIndex: a.guiIcons["ranged"],
+		Execute: func() {
+			if !unit.CanSnapshot() {
+				println("[GameStateUnit] Unit cannot snapshot anymore.")
+				return
+			}
+			a.SwitchToAction(unit, game.NewActionShot(a.GameInstance))
 		},
-		{
-			Name:         "Free Aim",
-			TextureIndex: 2,
-			Execute: func() {
-				if !unit.CanFire() {
-					println("[GameStateUnit] Unit cannot fire anymore.")
-					return
-				}
-				a.SwitchToFreeAim(unit, game.NewActionShot(a.GameInstance))
-			},
-			Hotkey: glfw.KeyF,
+		Hotkey: glfw.KeyR,
+	}
+	freeAim := gui.ActionItem{
+		Name:         "Free Aim",
+		TextureIndex: a.guiIcons["reticule"],
+		Execute: func() {
+			if !unit.CanFreeAim() {
+				println("[GameStateUnit] Unit cannot free aim anymore.")
+				return
+			}
+			a.SwitchToFreeAim(unit, game.NewActionShot(a.GameInstance))
 		},
+		Hotkey: glfw.KeyF,
 	}
 	reloadAction := gui.ActionItem{
 		Name:         "Reload",
-		TextureIndex: 4,
+		TextureIndex: a.guiIcons["reload"],
 		Execute: func() {
 			if !unit.CanAct() {
 				println("[GameStateUnit] Unit cannot act anymore.")
@@ -47,16 +45,31 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 		},
 		Hotkey: glfw.KeyR,
 	}
+	overwatch := gui.ActionItem{
+		Name:         "Overwatch",
+		TextureIndex: a.guiIcons["overwatch"],
+		Execute: func() {
+			if !unit.CanAct() {
+				println("[GameStateUnit] Unit cannot act anymore.")
+				return
+			}
+			a.SwitchToAction(unit, game.NewActionOverwatch(a.GameInstance))
+		},
+	}
 	if unit.CanReload() {
 		actions = append(actions, reloadAction)
 	}
-	if unit.CanFire() {
-		actions = append(actions, fireWeaponActions...)
+	if unit.CanSnapshot() {
+		actions = append(actions, snapshot)
+	}
+	if unit.CanFreeAim() {
+		actions = append(actions, freeAim)
+		actions = append(actions, overwatch)
 	}
 	always := []gui.ActionItem{
 		{
 			Name:         "End Turn",
-			TextureIndex: 3,
+			TextureIndex: a.guiIcons["next-turn"],
 			Execute:      a.EndTurn,
 			Hotkey:       glfw.KeyF8,
 		},

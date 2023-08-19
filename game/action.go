@@ -15,7 +15,7 @@ type TargetAction interface {
 	GetName() string
 	// GetValidTargets returns a list of valid targets for the given unit and action.
 	// It should work for both the server and the client
-	GetValidTargets(unit UnitCore) []voxel.Int3
-	IsValidTarget(unit UnitCore, target voxel.Int3) bool
+	GetValidTargets(unit *UnitInstance) []voxel.Int3
+	IsValidTarget(unit *UnitInstance, target voxel.Int3) bool
 	IsTurnEnding() bool
 }
