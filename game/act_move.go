@@ -10,43 +10,32 @@ type ActionMove struct {
 	selectedPath    []voxel.Int3
 	previousNodeMap map[voxel.Int3]voxel.Int3
 	distanceMap     map[voxel.Int3]int
+	unit            *UnitInstance
+	validTargets    []voxel.Int3
 }
 
-func (a *ActionMove) IsValidTarget(unit *UnitInstance, target voxel.Int3) bool {
-	if a.distanceMap == nil || a.previousNodeMap == nil || len(a.distanceMap) == 0 || len(a.previousNodeMap) == 0 {
-		a.GetValidTargets(unit)
-	}
+func (a *ActionMove) IsValidTarget(target voxel.Int3) bool {
 	distance, ok := a.distanceMap[target]
-	return ok && distance <= unit.MovesLeft()
+	return ok && distance <= a.unit.MovesLeft()
 }
 
-func NewActionMove(gameMap *voxel.Map) *ActionMove {
-	return &ActionMove{
+func NewActionMove(gameMap *voxel.Map, unit *UnitInstance) *ActionMove {
+	a := &ActionMove{
 		gameMap:         gameMap,
 		previousNodeMap: make(map[voxel.Int3]voxel.Int3),
 		distanceMap:     make(map[voxel.Int3]int),
+		unit:            unit,
 	}
+	a.updateTargetData()
+	return a
 }
 
 func (a *ActionMove) GetName() string {
 	return "Move"
 }
 
-func (a *ActionMove) GetValidTargets(unit *UnitInstance) []voxel.Int3 {
-	footPosInt := unit.GetBlockPosition()
-	var valid []voxel.Int3
-	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), unit.MovesLeft(), NewPather(a.gameMap, unit))
-	for node, distance := range dist {
-		if node == footPosInt {
-			continue
-		}
-		valid = append(valid, node)
-		a.distanceMap[node] = distance
-	}
-	for node, prevNode := range prevNodeMap {
-		a.previousNodeMap[node] = prevNode
-	}
-	return valid
+func (a *ActionMove) GetValidTargets() []voxel.Int3 {
+	return a.validTargets
 }
 
 func (a *ActionMove) GetPath(target voxel.Int3) []voxel.Int3 {
@@ -70,30 +59,19 @@ func (a *ActionMove) GetCost(target voxel.Int3) int {
 	return a.distanceMap[target]
 }
 
-type VoxelPather struct {
-	voxelMap *voxel.Map
-	unit     *UnitInstance
-}
-
-func (v *VoxelPather) GetNeighbors(node voxel.Int3) []voxel.Int3 {
-	currentBlock := node
-	neighbors := v.voxelMap.GetNeighborsForGroundMovement(currentBlock, v.isWalkable)
-	result := make([]voxel.Int3, len(neighbors))
-	for i, neighbor := range neighbors {
-		result[i] = neighbor
+func (a *ActionMove) updateTargetData() {
+	footPosInt := a.unit.GetBlockPosition()
+	var valid []voxel.Int3
+	dist, prevNodeMap := path.Dijkstra[voxel.Int3](path.NewNode(footPosInt), a.unit.MovesLeft(), NewPather(a.gameMap, a.unit))
+	for node, distance := range dist {
+		if node == footPosInt {
+			continue
+		}
+		valid = append(valid, node)
+		a.distanceMap[node] = distance
 	}
-	return result
-}
-
-func (v *VoxelPather) GetCost(currentNode, neighbor voxel.Int3) int {
-	return int(voxel.ManhattanDistance2(currentNode, neighbor))
-}
-
-func (v *VoxelPather) isWalkable(neighbor voxel.Int3) bool {
-	placeable, _ := v.voxelMap.IsUnitPlaceable(v.unit, neighbor)
-	return placeable
-}
-
-func NewPather(voxelMap *voxel.Map, unit *UnitInstance) *VoxelPather {
-	return &VoxelPather{voxelMap: voxelMap, unit: unit}
+	for node, prevNode := range prevNodeMap {
+		a.previousNodeMap[node] = prevNode
+	}
+	a.validTargets = valid
 }

@@ -1,10 +1,6 @@
-
-
-
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
  - Action Points seem to be out of sync / not correctly updated
- - Client & Server side actions should probably be combined into one action concept, especially the validation part
 
 # Design Guidelines
  - Turn based
@@ -20,6 +16,14 @@
  - Mission Objectives
  - Explosions & Blood
  - Melee
+
+# Where Phoenix Point failed
+ - Difficulty curve / Balance
+ - Too much happening at once / Too many systems
+ - Progression -> Tech Tree & Research (downgrades..)
+ - Ability design (mind control, invisibility, re-animation, war scream, quick aim, dash..)
+ - One best, winning strategy is available (OP soldiers)
+ - Too much micromanagement (no automation)
 
 # Overwatch - Reaction fire
  - Player can select dedicated block positions to watch
@@ -45,15 +49,31 @@
  - Tactical decision making
  - Art of war
  - Deception - Smoke & Mirrors
+   - Smoke grenades
+   - Create walls and remove them
+   - Feign death, retreat, etc.
  - Yomi - Reading the mind of the opponent
+   - Anticipate the opponents next move
+   -> Overwatch
+   -> Shield deployment
+   -> Dodge movement
+   -> Parry / deflect
 
 # Known issues
  - Model meshes are sometimes outside of the occupied blocks
    -> Visual glitches, clipping, etc.
    -> Raycasting will fail on these parts of the model
  - Snapshots are always fired from the center of a block at eye level
-   -> Free aim allows moving the origin withing the whole block
+   -> Free aim allows moving the origin within the whole block
    -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
+
+# Core Mechanics
+ - Bullets are ray-traced in 3D against environment and models
+ - Line of Sight is ray-traced in 3D against environment and center of cells
+ - Units have a body with multiple body parts, damage is applied to body parts individually
+ - Units that can see each other and are near put "pressure" on each other, some Weapons & Skills are affected by pressure
+ - Units have action points that can be used to move, attack, etc.
+ - Attacking usually ends the turn
 
 # Random Cool ideas
  - Asymmetric multiplayer - One player is the attacker, the other the defender
@@ -70,7 +90,7 @@
  - Ammo Variants - eg. Armor Piercing, Hollow Point, etc.
  - Scout drones
  - Heroes & Cowards - With instant in-game effects attached to them
-
+ - Blood God bonus - When a unit dies, a random bonus is given to a random unit of the same faction
 
 # Client - Server
  - Server & Clients share the same board and the same pieces, but with different states

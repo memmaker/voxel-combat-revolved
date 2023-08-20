@@ -26,7 +26,7 @@ func (a ServerActionMove) IsValid() (bool, string) {
 		return false, fmt.Sprintf("Expected 1 movement target for now, got %d", len(a.targets))
 	}
 	for _, target := range a.targets {
-		if !a.gameAction.IsValidTarget(a.unit, target) {
+		if !a.gameAction.IsValidTarget(target) {
 			return false, fmt.Sprintf("Targets %s is not valid", target.ToString())
 		}
 
@@ -43,7 +43,7 @@ func (a ServerActionMove) IsValid() (bool, string) {
 func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) *ServerActionMove {
 	return &ServerActionMove{
 		engine:     engine,
-		gameAction: game.NewActionMove(engine.GetVoxelMap()),
+		gameAction: game.NewActionMove(engine.GetVoxelMap(), unit),
 		unit:       unit,
 		targets:    targets,
 	}
@@ -94,9 +94,6 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 					break
 				}
 			}
-			if !atLeastOneUnitCanSee {
-				println(fmt.Sprintf(" --> can't be seen by any unit of %d", enemyUserID))
-			}
 			if !atLeastOneUnitCanSee && len(pathPartsPerUser[enemyUserID][currentPathIndex]) > 0 {
 				pathPartsPerUser[enemyUserID] = append(pathPartsPerUser[enemyUserID], make([]voxel.Int3, 0))
 			}
@@ -131,6 +128,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		}
 	}
 
+	// DO THE MOVEMENT
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
 	a.unit.SetForward2DCardinal(unitForward)
@@ -138,59 +136,62 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 
 	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
 
-	// PROBLEM: We actually need to send a partial path to the players who can't see the unit
-	// for the whole path. For every step on the path, we need to check if the unit is visible
-	// to the other players.
-	// PROBLEM #2: We would also need to send the current orientation of the unit, so that the
-	// client can display it correctly.
-	mb.AddMessageFor(controller, game.VisualOwnUnitMoved{
-		UnitID:      a.unit.UnitID(),
-		Path:        foundPath,
-		Cost:        moveCost,
-		EndPosition: destination,
-		Spotted:     visibles,
-		Lost:        getIDs(invisibles),
-		Forward:     unitForward,
-	})
-
-	var seenBy []uint64
-	var hiddenTo []uint64
-	for enemyUserID, allPaths := range pathPartsPerUser {
-		seenByUser, hiddenToUser := a.engine.GetReverseLOSChangesForUser(enemyUserID, a.unit)
-		if len(seenByUser) > 0 || len(hiddenToUser) > 0 || len(allPaths[0]) > 0 {
-			// Send only to the players who didn't move the unit
-			// NOTE: This client MUST only apply these changes, after the movement animation
-			// has finished.
-			for len(allPaths) > 0 && len(allPaths[len(allPaths)-1]) == 0 {
-				allPaths = allPaths[:len(allPaths)-1]
-			}
-			println(fmt.Sprintf(" --> sending path parts to %d: %v", enemyUserID, allPaths))
-			enemyUnitMoved := game.VisualEnemyUnitMoved{
-				MovingUnit:    a.unit.UnitID(),
-				LOSAcquiredBy: seenByUser,
-				LOSLostBy:     hiddenToUser,
-				PathParts:     allPaths,
-			}
-			if len(seenByUser) > 0 {
-				enemyUnitMoved.UpdatedUnit = a.unit
-			}
-			mb.AddMessageFor(enemyUserID, enemyUnitMoved)
-			seenBy = append(seenBy, seenByUser...)
-			hiddenTo = append(hiddenTo, hiddenToUser...)
-		}
-	}
-
+	// apply changes to LOS
 	for _, unit := range visibles {
 		a.engine.SetLOS(a.unit.UnitID(), unit.UnitID(), true)
 	}
 	for _, unit := range invisibles {
 		a.engine.SetLOS(a.unit.UnitID(), unit.UnitID(), false)
 	}
-	for _, unit := range seenBy {
-		a.engine.SetLOS(unit, a.unit.UnitID(), true)
+
+	for _, enemyUserID := range mb.UserIDs() {
+		if enemyUserID == a.unit.ControlledBy() {
+			continue
+		}
+		seenByUser, hiddenToUser := a.engine.GetReverseLOSChangesForUser(enemyUserID, a.unit)
+		// apply changes to LOS
+		for _, unit := range seenByUser {
+			a.engine.SetLOS(unit, a.unit.UnitID(), true)
+		}
+		for _, unit := range hiddenToUser {
+			a.engine.SetLOS(unit, a.unit.UnitID(), false)
+		}
 	}
-	for _, unit := range hiddenTo {
-		a.engine.SetLOS(unit, a.unit.UnitID(), false)
+
+	a.engine.UpdatePressureAfterMove(a.unit)
+
+	losMatrixForMovingPlayer, visibleEnemies := a.engine.GetLOSState(a.unit.ControlledBy())
+	newPressureState := a.engine.GetPressureMatrix()
+
+	mb.AddMessageFor(controller, game.VisualOwnUnitMoved{
+		UnitID:         a.unit.UnitID(),
+		Path:           foundPath,
+		Cost:           moveCost,
+		EndPosition:    destination,
+		Spotted:        visibleEnemies,
+		LOSMatrix:      losMatrixForMovingPlayer,
+		PressureMatrix: newPressureState,
+		Forward:        unitForward,
+	})
+
+	for enemyUserID, allPaths := range pathPartsPerUser {
+		if len(allPaths[0]) > 0 {
+			for len(allPaths) > 0 && len(allPaths[len(allPaths)-1]) == 0 {
+				allPaths = allPaths[:len(allPaths)-1]
+			}
+			losMatrixForNonMovingPlayer, _ := a.engine.GetLOSState(enemyUserID)
+			println(fmt.Sprintf(" --> sending path parts to %d: %v", enemyUserID, allPaths))
+			enemyUnitMoved := game.VisualEnemyUnitMoved{
+				MovingUnit:     a.unit.UnitID(),
+				LOSMatrix:      losMatrixForNonMovingPlayer,
+				PressureMatrix: a.engine.GetPressureMatrix(),
+				PathParts:      allPaths,
+			}
+			if a.engine.UnitIsVisibleToPlayer(enemyUserID, a.unit.UnitID()) {
+				enemyUnitMoved.UpdatedUnit = a.unit
+			}
+			mb.AddMessageFor(enemyUserID, enemyUnitMoved)
+		}
 	}
 
 	// handle overwatch
@@ -206,8 +207,8 @@ func (a ServerActionMove) handleOverwatch(mb *game.MessageBuffer, movingUnit *ga
 
 		shot.SetAPCost(0) // paid in the previous turn
 
-		shot.SetAccuracyModifier(0.8) // 20% penalty for overwatch
-		shot.SetDamageModifier(1.1)   // 10% bonus for overwatch
+		shot.SetAccuracyModifier(a.engine.GetRules().OverwatchAccuracyModifier)
+		shot.SetDamageModifier(a.engine.GetRules().OverwatchDamageModifier)
 
 		if valid, reason := shot.IsValid(); valid {
 			println(fmt.Sprintf(" --> %s(%d) triggered overwatch by %s(%d) at %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString()))

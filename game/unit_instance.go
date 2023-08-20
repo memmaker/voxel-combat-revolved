@@ -99,6 +99,7 @@ func (u *UnitInstance) GetFriendlyDescription() string {
 	return desc
 }
 func (u *UnitInstance) GetEnemyDescription() string {
+
 	desc := fmt.Sprintf("o> %s HP: %d/%d\n", u.Name, u.Health, u.Definition.CoreStats.Health)
 	if u.Weapon != nil {
 		desc += fmt.Sprintf("o> %s\n", u.Weapon.Definition.UniqueName)

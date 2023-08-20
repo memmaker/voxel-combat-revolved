@@ -2,7 +2,7 @@
 
 I really like X-Com and XCOM. I've played these games a lot.
 
-But I cannot stand the random chance to hit anymore.
+But I cannot stand the completely random chance to hit anymore.
 
 When Phoenix Point came along and introduced us to the combination
 of XCOM style combat with the ability to freely aim at anything from
@@ -24,7 +24,7 @@ has these characteristics:
 - a basic ballistics system against character models
 - built for classic client/server multiplayer
 - Destruction of terrain and objects
-- editing & modding support from the start
+- Easy editing & modding support from the start
 
 I felt that going with a minecraft style pseudo-voxel block engine would be a good fit.
 It has destruction by definition and allows for easy editing.

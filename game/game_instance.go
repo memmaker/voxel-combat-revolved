@@ -12,12 +12,13 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 	mapDir := "./assets/maps"
 	mapFile = path.Join(mapDir, mapFile)
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
-	return &GameInstance{
+	g := &GameInstance{
 		id:             gameID,
 		mapFile:        mapFile,
 		players:        make([]uint64, 0),
 		playerFactions: make(map[uint64]*Faction),
 		losMatrix:      make(map[uint64]map[uint64]bool),
+		pressureMatrix: make(map[uint64]map[uint64]float64),
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
@@ -25,19 +26,64 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 		mapMeta:        NewMapMetadataFromFile(mapFile + ".meta"),
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 	}
+	g.rules = NewDefaultRuleset(g)
+	return g
 }
 func NewGameInstance(gameID string) *GameInstance {
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
-	return &GameInstance{
+	g := &GameInstance{
 		id:             gameID,
 		players:        make([]uint64, 0),
 		playerFactions: make(map[uint64]*Faction),
 		losMatrix:      make(map[uint64]map[uint64]bool),
+		pressureMatrix: make(map[uint64]map[uint64]float64),
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 	}
+	g.rules = NewDefaultRuleset(g)
+	return g
+}
+
+type Ruleset struct {
+	engine                    *GameInstance
+	MaxPressureDistance       int32
+	MaxOverwatchRange         uint
+	OverwatchAccuracyModifier float64
+	OverwatchDamageModifier   float64
+}
+
+func NewDefaultRuleset(engine *GameInstance) *Ruleset {
+	return &Ruleset{
+		engine:                    engine,
+		MaxPressureDistance:       4,
+		MaxOverwatchRange:         20,
+		OverwatchAccuracyModifier: 0.8, // 20% penalty for overwatch shots
+		OverwatchDamageModifier:   1.1, // 10% bonus damage for overwatch shots
+	}
+}
+
+type ShotAction interface {
+	GetUnit() *UnitInstance
+	GetAccuracyModifier() float64
+}
+
+func (r *Ruleset) GetShotAccuracy(action ShotAction) float64 {
+	unit := action.GetUnit()
+	unitAndWeaponAccuracy := unit.GetFreeAimAccuracy() // factors penalties for the unit and the weapon
+	actionModifier := action.GetAccuracyModifier()     // currently only used by overwatch
+
+	// pressure rule for the sniper rifle
+	pressureModifier := 1.0
+	if unit.GetWeapon().Definition.WeaponType == WeaponSniper {
+		// add penalty for sniper shots under pressure
+		pressureOnUnit := r.engine.GetTotalPressure(unit.UnitID())
+		pressureOnUnit = util.Clamp(pressureOnUnit, 0.0, 1.0)
+		pressureModifier = 1.0 - pressureOnUnit
+	}
+
+	return unitAndWeaponAccuracy * actionModifier * pressureModifier
 }
 
 // GameInstance is the core game state. This data structure is shared by server and client albeit with different states.
@@ -47,6 +93,8 @@ type GameInstance struct {
 	owner   uint64
 	mapFile string
 	public  bool
+
+	rules *Ruleset
 
 	// game instance state
 	currentPlayerIndex int
@@ -64,7 +112,8 @@ type GameInstance struct {
 	environment string
 
 	// mechanics
-	overwatch map[voxel.Int3][]*UnitInstance
+	overwatch      map[voxel.Int3][]*UnitInstance
+	pressureMatrix map[uint64]map[uint64]float64
 }
 
 func (g *GameInstance) SetEnvironment(environment string) {
@@ -208,6 +257,10 @@ func (g *GameInstance) GetLOSState(playerID uint64) (map[uint64]map[uint64]bool,
 		whoCanSeeWho[unit.UnitID()] = g.losMatrix[unit.UnitID()]
 	}
 	return whoCanSeeWho, toList(g.GetAllVisibleEnemies(playerID))
+}
+
+func (g *GameInstance) GetPressureMatrix() map[uint64]map[uint64]float64 {
+	return g.pressureMatrix
 }
 
 func (g *GameInstance) GetAllVisibleEnemies(playerID uint64) map[*UnitInstance]bool {
@@ -372,4 +425,30 @@ func (g *GameInstance) RemoveOverwatch(id uint64, pos voxel.Int3) {
 			return
 		}
 	}
+}
+
+func (g *GameInstance) AreAllies(unit *UnitInstance, other *UnitInstance) bool {
+	return unit.ControlledBy() == other.ControlledBy()
+}
+
+// UpdatePressureAfterMove updates the pressure matrix after a unit has moved.
+// Should always be called after a unit has moved.
+// Assumes the losMatrix is up to date.
+func (g *GameInstance) UpdatePressureAfterMove(unit *UnitInstance) {
+	for _, otherUnit := range g.units {
+		if g.AreAllies(unit, otherUnit) {
+			continue
+		}
+		canSeeA := g.losMatrix[unit.UnitID()][otherUnit.UnitID()]
+		canSeeB := g.losMatrix[otherUnit.UnitID()][unit.UnitID()]
+		if canSeeA && canSeeB {
+			g.SetPressure(unit, otherUnit)
+		} else {
+			g.RemovePressure(unit.UnitID(), otherUnit.UnitID())
+		}
+	}
+}
+
+func (g *GameInstance) GetRules() *Ruleset {
+	return g.rules
 }
