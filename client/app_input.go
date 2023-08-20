@@ -60,19 +60,17 @@ func (a *BattleClient) pollInput(deltaTime float64) (bool, [2]int) {
 	cameraMoved := false
 	movementVector := [2]int{0, 0}
 	if a.Window.GetKey(glfw.KeyW) == glfw.Press {
-		movementVector[1]--
+		movementVector[1] = 1
 		cameraMoved = true
-	}
-	if a.Window.GetKey(glfw.KeyS) == glfw.Press {
-		movementVector[1]++
+	} else if a.Window.GetKey(glfw.KeyS) == glfw.Press {
+		movementVector[1] = -1
 		cameraMoved = true
 	}
 	if a.Window.GetKey(glfw.KeyA) == glfw.Press {
-		movementVector[0]--
+		movementVector[0] = -1
 		cameraMoved = true
-	}
-	if a.Window.GetKey(glfw.KeyD) == glfw.Press {
-		movementVector[0]++
+	} else if a.Window.GetKey(glfw.KeyD) == glfw.Press {
+		movementVector[0] = 1
 		cameraMoved = true
 	}
 
@@ -96,41 +94,12 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	if key == glfw.KeyQ && action == glfw.Press {
 		a.state().OnUpperLeftAction()
 	}
-
-	if key == glfw.KeyF1 && action == glfw.Press {
-		a.showDebugInfo = !a.showDebugInfo
-		if !a.showDebugInfo {
-			a.textLabel = nil
-		} else {
-			a.timer.Reset()
-		}
-	}
-	if key == glfw.KeyF2 && action == glfw.Press {
-		a.debugToggleWireFrame()
-	}
-	if key == glfw.KeyF3 && action == glfw.Press {
-		a.drawBoundingBoxes = !a.drawBoundingBoxes
-	}
-
-	if key == glfw.KeyF4 && action == glfw.Press {
-		/*for _, coord := range a.lastVisitedBlocks {
-		    a.PlaceBlock(coord, voxel.NewTestBlock())
-		}*/
-	}
-
-	if key == glfw.KeyF5 && action == glfw.Press {
-		//a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8000),, nil)
-	}
-	if key == glfw.KeyF6 && action == glfw.Press {
-		//a.SpawnProjectile(a.isoCamera.GetPosition().Add(a.isoCamera.GetFront()), a.isoCamera.GetFront().Mul(8),, nil)
-	}
-
-	if key == glfw.KeyF7 && action == glfw.Press {
+	if key == glfw.KeyF10 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
 		a.SwitchToEditMap()
 	}
 
-	if key == glfw.KeyF9 && action == glfw.Press {
+	if key == glfw.KeyF11 && action == glfw.Press {
 		pprof.StopCPUProfile()
 		f, err := os.Create("cpu_running.prof")
 		if err != nil {

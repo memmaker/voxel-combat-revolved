@@ -1,6 +1,10 @@
-# Annoying Bugs / Issues
+
+
+
+# Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
  - Action Points seem to be out of sync / not correctly updated
+ - Client & Server side actions should probably be combined into one action concept, especially the validation part
 
 # Design Guidelines
  - Turn based
@@ -47,6 +51,9 @@
  - Model meshes are sometimes outside of the occupied blocks
    -> Visual glitches, clipping, etc.
    -> Raycasting will fail on these parts of the model
+ - Snapshots are always fired from the center of a block at eye level
+   -> Free aim allows moving the origin withing the whole block
+   -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
 
 # Random Cool ideas
  - Asymmetric multiplayer - One player is the attacker, the other the defender

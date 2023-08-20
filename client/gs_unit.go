@@ -59,6 +59,17 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 			g.nextUnit()
 		}
 	}
+	if key == glfw.KeyF1 {
+		g.engine.showDebugInfo = !g.engine.showDebugInfo
+		if !g.engine.showDebugInfo {
+			g.engine.textLabel = nil
+		} else {
+			g.engine.timer.Reset()
+		}
+	}
+	if key == glfw.KeyF2 {
+		g.engine.debugToggleWireFrame()
+	}
 }
 
 func (g *GameStateUnit) nextUnit() {

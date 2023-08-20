@@ -229,7 +229,7 @@ func (u *UnitInstance) UpdateAnimation() {
 }
 
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
-	return u.Transform.GetPosition().Add(u.GetEyeOffset())
+	return u.Transform.GetBlockPosition().ToBlockCenterVec3().Add(u.GetEyeOffset())
 }
 
 func (u *UnitInstance) SetVoxelMap(voxelMap *voxel.Map) {
@@ -288,7 +288,10 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
 }
 
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
-	return u.Transform.GetPosition().Add(mgl32.Vec3{0, 1.3, 0})
+	if u.model == nil || !u.model.HasBone("Torso") {
+		return u.GetPosition().Add(mgl32.Vec3{0, 1.25, 0})
+	}
+	return u.GetModel().GetNodeByName("Torso").GetWorldPosition()
 }
 
 func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {

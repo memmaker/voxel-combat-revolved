@@ -133,7 +133,14 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateFreeAim) OnDirectionKeys(elapsed float64, movementVector [2]int) {
+	oldCamPos := g.engine.fpsCamera.GetPosition()
+	oldPos := voxel.PositionToGridInt3(oldCamPos)
+	g.engine.fpsCamera.ChangePosition(float32(elapsed), movementVector)
+	newPos := voxel.PositionToGridInt3(g.engine.fpsCamera.GetPosition())
 
+	if newPos != oldPos {
+		g.engine.fpsCamera.SetPosition(oldCamPos)
+	}
 }
 
 func (g *GameStateFreeAim) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {

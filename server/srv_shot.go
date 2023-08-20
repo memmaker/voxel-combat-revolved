@@ -8,14 +8,14 @@ import (
 	"github.com/memmaker/battleground/game"
 )
 
-// for snap
-
 type ServerActionShot struct {
-	engine       *game.GameInstance
-	unit         *game.UnitInstance
-	createRay    func() (mgl32.Vec3, mgl32.Vec3)
-	aimDirection mgl32.Vec3
-	totalAPCost  int
+	engine           *game.GameInstance
+	unit             *game.UnitInstance
+	createRay        func() (mgl32.Vec3, mgl32.Vec3)
+	aimDirection     mgl32.Vec3
+	totalAPCost      int
+	accuracyModifier float64
+	damageModifier   float64
 }
 
 func (a *ServerActionShot) SetAPCost(newCost int) {
@@ -43,10 +43,12 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 	rayCalls := 0
 
 	s := &ServerActionShot{
-		engine:       g,
-		unit:         unit,
-		totalAPCost:  int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
-		aimDirection: camera.GetFront(),
+		engine:           g,
+		unit:             unit,
+		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
+		aimDirection:     camera.GetFront(),
+		accuracyModifier: 1.0,
+		damageModifier:   1.0,
 	}
 	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
 		targetAngle := targetAngles[rayCalls]
@@ -54,7 +56,8 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
 		s.aimDirection = camera.GetFront()
 
-		startRay, endRay := camera.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+		accuracy := unit.GetFreeAimAccuracy() * s.accuracyModifier
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(accuracy)
 		direction := endRay.Sub(startRay).Normalize()
 
 		rayCalls = rayCalls + 1%len(targetAngles)
@@ -62,31 +65,34 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 	}
 	return s
 }
-func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) ServerAction {
+func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) *ServerActionShot {
 	camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
 	targetsInWorld := make([]mgl32.Vec3, len(targets))
 	for i, target := range targets {
-		if !g.GetVoxelMap().IsOccupied(target) {
-			return NewInvalidServerAction(fmt.Sprintf("SnapShot target %s is not occupied", target.ToString()))
-		} else {
+		if g.GetVoxelMap().IsOccupied(target) {
 			targetsInWorld[i] = g.GetVoxelMap().GetMapObjectAt(target).(*game.UnitInstance).GetCenterOfMassPosition()
+		} else {
+			targetsInWorld[i] = target.ToBlockCenterVec3D()
 		}
 	}
 
 	rayCalls := 0
 
 	s := &ServerActionShot{
-		engine:       g,
-		unit:         unit,
-		totalAPCost:  int(unit.GetWeapon().Definition.BaseAPForShot),
-		aimDirection: camera.GetFront(),
+		engine:           g,
+		unit:             unit,
+		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot),
+		aimDirection:     camera.GetFront(),
+		accuracyModifier: 1.0,
+		damageModifier:   1.0,
 	}
 	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
 		targetLocation := targetsInWorld[rayCalls]
 		camera.FPSLookAt(targetLocation)
 		s.aimDirection = camera.GetFront()
 
-		startRay, endRay := camera.GetRandomRayInCircleFrustum(unit.GetFreeAimAccuracy())
+		accuracy := unit.GetFreeAimAccuracy() * s.accuracyModifier
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(accuracy)
 		direction := endRay.Sub(startRay).Normalize()
 
 		rayCalls = rayCalls + 1%len(targets)
@@ -107,7 +113,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	}
 
 	ammoCost := uint(1)
-	costOfAPForShot := int(a.unit.Weapon.Definition.BaseAPForShot) + a.totalAPCost
+	costOfAPForShot := a.totalAPCost
 	a.unit.ConsumeAP(costOfAPForShot)
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
@@ -132,14 +138,14 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	endOfRay := origin.Add(direction.Mul(float32(a.unit.Weapon.Definition.MaxRange)))
 
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
-	unitHidID := int64(-1)
+	unitHitID := int64(-1)
 	var hitUnit *game.UnitInstance = nil
 	var hitBlocks []voxel.Int3
 	if rayHitInfo.UnitHit != nil && rayHitInfo.UnitHit != hitUnit {
-		unitHidID = int64(rayHitInfo.UnitHit.UnitID())
-		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHidID, rayHitInfo.BodyPart))
+		unitHitID = int64(rayHitInfo.UnitHit.UnitID())
+		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
 		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
-		projectileBaseDamage, lethal = a.engine.HandleUnitHitWithProjectile(a.unit, rayHitInfo)
+		projectileBaseDamage, lethal = a.engine.HandleUnitHitWithProjectile(a.unit, a.damageModifier, rayHitInfo)
 	} else {
 		if rayHitInfo.Hit {
 			blockPosHit := rayHitInfo.HitInfo3D.CollisionGridPosition
@@ -160,11 +166,19 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		Origin:      origin,
 		Velocity:    direction.Mul(10),
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
-		UnitHit:     unitHidID,
+		UnitHit:     unitHitID,
 		BodyPart:    rayHitInfo.BodyPart,
 		Damage:      projectileBaseDamage,
 		IsLethal:    lethal,
 		BlocksHit:   hitBlocks,
 	}
 	return projectile
+}
+
+func (a *ServerActionShot) SetAccuracyModifier(factor float64) {
+	a.accuracyModifier = factor
+}
+
+func (a *ServerActionShot) SetDamageModifier(factor float64) {
+	a.damageModifier = factor
 }

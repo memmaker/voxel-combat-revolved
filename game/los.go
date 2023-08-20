@@ -79,7 +79,7 @@ func (g *GameInstance) CanSeeTo(observer, another *UnitInstance, targetFootPosit
 	return g.CanSeeFromTo(observer, another, observer.GetEyePosition(), targetFootPosition)
 }
 
-func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEyePosition mgl32.Vec3, targetFootPosition mgl32.Vec3) bool {
+func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEye mgl32.Vec3, targetFootPosition mgl32.Vec3) bool {
 	if observer == another || observer.ControlledBy() == another.ControlledBy() {
 		return true
 	}
@@ -90,34 +90,29 @@ func (g *GameInstance) CanSeeFromTo(observer, another *UnitInstance, observerEye
 	targetTwo := targetFootPosition
 	targetOne := targetFootPosition.Add(another.GetEyeOffset())
 
-	//print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
+	originPositions := []mgl32.Vec3{observerEye.Add(mgl32.Vec3{-0.5, 0, -0.5}), observerEye.Add(mgl32.Vec3{0.5, 0, -0.5}), observerEye.Add(mgl32.Vec3{-0.5, 0, 0.5}), observerEye.Add(mgl32.Vec3{0.5, 0, 0.5})}
+	for _, observerEyePosition := range originPositions {
+		rayOne := g.RayCastLineOfSight(observerEyePosition, targetOne, another, voxel.PositionToGridInt3(targetFootPosition))
 
-	rayOne := g.RayCastLineOfSight(observerEyePosition, targetOne, another, voxel.PositionToGridInt3(targetFootPosition))
-	if rayOne.UnitHit == another { // fast exit
-		//println("Line of sight is CLEAR")
-		return true
+		if rayOne.UnitHit == another {
+			return true
+		} // fast exit
+
+		rayTwo := g.RayCastLineOfSight(observerEyePosition, targetTwo, another, voxel.PositionToGridInt3(targetFootPosition))
+
+		if rayTwo.UnitHit == another {
+			return true
+		}
 	}
-	rayTwo := g.RayCastLineOfSight(observerEyePosition, targetTwo, another, voxel.PositionToGridInt3(targetFootPosition))
-
-	hasLos := rayTwo.UnitHit == another
-	if hasLos {
-		//println("Line of sight is CLEAR")
-	} else {
-		//println("NO LINE OF SIGHT")
-	}
-
-	return hasLos
+	return false
 }
 
 func (g *GameInstance) CanSeePos(observer *UnitInstance, targetBlockPosition voxel.Int3) bool {
 	if !observer.IsActive() {
 		return false
 	}
-	targetOne := targetBlockPosition
 
-	//print(fmt.Sprintf("[GameInstance] Doing expensive LOS check %s -> %s: ", observer.GetName(), another.GetName()))
-
-	rayOne := g.RayCastToPos(observer.GetEyePosition(), targetOne)
+	rayOne := g.RayCastToPos(observer.GetEyePosition(), targetBlockPosition)
 	var wasLastBlock bool
 	if len(rayOne.VisitedBlocks) > 0 {
 		lastBlock := rayOne.VisitedBlocks[len(rayOne.VisitedBlocks)-1]
@@ -126,16 +121,13 @@ func (g *GameInstance) CanSeePos(observer *UnitInstance, targetBlockPosition vox
 	return wasLastBlock || rayOne.CollisionGridPosition == targetBlockPosition || rayOne.PreviousGridPosition == targetBlockPosition
 }
 
-func (g *GameInstance) GetReverseLOSChangesForUser(userID uint64, mover *UnitInstance, position voxel.Int3, visibles, invisibles []*UnitInstance) ([]uint64, []uint64) {
+func (g *GameInstance) GetReverseLOSChangesForUser(userID uint64, mover *UnitInstance) ([]uint64, []uint64) {
 	seenBy := make([]uint64, 0)
 	hiddenTo := make([]uint64, 0)
-	for _, observer := range append(visibles, invisibles...) {
-		if observer.ControlledBy() != userID {
-			continue
-		}
+	for _, observer := range g.GetPlayerUnits(userID) {
 		wasVisible, wasKnown := g.losMatrix[observer.UnitID()][mover.UnitID()]
 		wasVisible = wasKnown && wasVisible
-		isVisible := g.CanSeeTo(observer, mover, position.ToBlockCenterVec3())
+		isVisible := g.CanSee(observer, mover)
 		if isVisible && !wasVisible {
 			seenBy = append(seenBy, observer.UnitID())
 		} else if !isVisible && wasVisible {

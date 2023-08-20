@@ -5,6 +5,7 @@ assets/
 bg
 bgclient
 bgserve
+bg_local
 battleground
 debug_atlas.png
 *.prof

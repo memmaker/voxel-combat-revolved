@@ -31,7 +31,7 @@ func (i *IsoMovementState) OnUpperLeftAction() {
 }
 
 func (i *IsoMovementState) OnDirectionKeys(elapsed float64, movementVector [2]int) {
-	i.engine.isoCamera.ChangePosition(movementVector, float32(elapsed))
+	i.engine.isoCamera.ChangePosition(float32(elapsed), movementVector)
 	i.engine.UpdateMousePicking(i.lastMouseX, i.lastMouseY)
 }
 

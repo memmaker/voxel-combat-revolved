@@ -40,11 +40,11 @@ type ActionItem struct {
 	TextureIndex byte
 	Execute      func()
 	Hotkey       glfw.Key
-	Bounds       Rectangle
+	bounds       Rectangle
 }
 
 func (i ActionItem) WithBounds(rectangle Rectangle) ActionItem {
-	i.Bounds = rectangle
+	i.bounds = rectangle
 	return i
 }
 
@@ -123,7 +123,7 @@ func (a *ActionBar) IsMouseOver(screenX, screenY float64) bool {
 	}
 
 	for index, action := range a.actions {
-		if action.Bounds.Contains(screenX, screenY) {
+		if action.bounds.Contains(screenX, screenY) {
 			a.currentHoverIndex = index
 			return true
 		}

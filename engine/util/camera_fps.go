@@ -32,8 +32,16 @@ func (c *FPSCamera) GetNearPlaneDist() float32 {
 	return c.nearPlaneDist
 }
 
-func (c *FPSCamera) ChangePosition(dir [2]int, delta float32) {
-
+func (c *FPSCamera) ChangePosition(delta float32, dir [2]int) {
+	currentPos := c.cameraPos
+	moveVector := mgl32.Vec3{0, 0, 0}
+	if dir[0] != 0 {
+		moveVector = moveVector.Add(c.LeftRight(float32(dir[0]) * delta))
+	}
+	if dir[1] != 0 {
+		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[1]) * delta))
+	}
+	c.cameraPos = currentPos.Add(moveVector)
 }
 
 func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
@@ -171,12 +179,12 @@ func (c *FPSCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
 	mat := projection.Mul4(c.GetTransformMatrix())
 	c1, c2, c3, c4 := mat.Rows()
 	return []mgl32.Vec4{
-		c4.Add(c1),            // left
-		c4.Sub(c1),            // right
-		c4.Sub(c2),            // top
-		c4.Add(c2),            // bottom
-		c4.Mul(0.15).Add(c3),  // front
-		c4.Mul(512.0).Sub(c3), // back
+		c4.Add(c1),                      // left
+		c4.Sub(c1),                      // right
+		c4.Sub(c2),                      // top
+		c4.Add(c2),                      // bottom
+		c4.Mul(c.nearPlaneDist).Add(c3), // front
+		c4.Mul(512.0).Sub(c3),           // back
 	}
 }
 

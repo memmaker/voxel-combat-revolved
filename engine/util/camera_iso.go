@@ -69,7 +69,7 @@ func (c *ISOCamera) RotateLeft() { // rotate around y axis by -45 degrees
 	println(fmt.Sprintf("Relative look target: %v", c.relativeLookTarget))
 }
 
-func (c *ISOCamera) ChangePosition(dir [2]int, delta float32) {
+func (c *ISOCamera) ChangePosition(delta float32, dir [2]int) {
 	signX := 0
 	if c.relativeLookTarget.X() > 0 {
 		signX = 1
@@ -84,9 +84,9 @@ func (c *ISOCamera) ChangePosition(dir [2]int, delta float32) {
 	}
 	if signX == signZ { // side
 		dir[0] *= signX
-		dir[1] *= signZ
+		dir[1] *= -signZ
 	} else { // front
-		dir[0], dir[1] = dir[1]*signZ*-1, dir[0]*signX*-1
+		dir[0], dir[1] = dir[1]*signZ*1, dir[0]*signX*-1
 	}
 	if moveVec, ok := c.moveMap[dir]; ok {
 		speed := float32(10.0)

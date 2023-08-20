@@ -282,6 +282,10 @@ func (m *CompoundMesh) GetAnimationName() string {
 	return m.currentAnimation
 }
 
+func (m *CompoundMesh) HasBone(name string) bool {
+	return m.RootNode.HasBone(name)
+}
+
 func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
@@ -598,11 +602,27 @@ func (m *MeshNode) SetInitialScale(scale [3]float32) {
 }
 
 func (m *MeshNode) ResetToInitialTransform() {
-	if m.parent != nil { // workaround, because we fucked up and are moving the root node of the uniti models.. resetting it will cause havoc
-		m.translation = m.initialTranslation
-		m.quatRotation = m.initialRotation
-		m.scale = m.initialScale
+	m.translation = m.initialTranslation
+	m.quatRotation = m.initialRotation
+	m.scale = m.initialScale
+}
+
+func (m *MeshNode) GetWorldPosition() mgl32.Vec3 {
+	localPos := mgl32.Vec3{m.translation[0], m.translation[1], m.translation[2]}
+	worldPos := m.GetTransformMatrix().Mul4x1(localPos.Vec4(1.0)).Vec3()
+	return worldPos
+}
+
+func (m *MeshNode) HasBone(name string) bool {
+	if m.name == name {
+		return true
 	}
+	for _, child := range m.children {
+		if child.HasBone(name) {
+			return true
+		}
+	}
+	return false
 }
 
 type SubMesh struct {
@@ -613,7 +633,6 @@ type SubMesh struct {
 }
 
 func (m SubMesh) ToVertexSlice(shader *glhf.Shader) *glhf.VertexSlice[glhf.GlFloat] {
-
 	var slice *glhf.VertexSlice[glhf.GlFloat]
 	if len(m.Indices) > 0 {
 		slice = glhf.MakeIndexedVertexSlice(shader, m.VertexCount, m.VertexCount, m.Indices)

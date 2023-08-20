@@ -3,7 +3,9 @@ package client
 import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/gui"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
@@ -13,6 +15,8 @@ type GameStateEditMap struct {
 	blockTypeToPlace byte
 	pencil           BlockPlacer
 	blockPage        int
+	objectMenu       *gui.ActionBar
+	blockMenu        *gui.ActionBar
 }
 
 func (g *GameStateEditMap) OnServerMessage(msgType string, json string) {
@@ -22,30 +26,24 @@ func (g *GameStateEditMap) OnServerMessage(msgType string, json string) {
 func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyF {
 		g.PlaceBlockAtCurrentSelection()
-	}
-
-	if key == glfw.KeyR {
+	} else if key == glfw.KeyR {
 		g.engine.RemoveBlock()
-	}
-
-	if key == glfw.KeyO {
+	} else if key == glfw.KeyF5 {
 		g.engine.SaveMapToDisk()
-	}
-
-	if key == glfw.KeyP {
+	} else if key == glfw.KeyF9 {
 		g.engine.GetVoxelMap().LoadFromDisk("assets/maps/map.bin")
 		g.engine.GetVoxelMap().GenerateAllMeshes()
-	}
-
-	if key == glfw.Key1 {
+	} else if key == glfw.KeyF1 {
+		g.switchToBlocks()
+	} else if key == glfw.KeyF2 {
+		g.switchToObjects()
+	} else if key == glfw.Key1 {
 		// previous page
 		if g.blockPage > 0 {
 			g.blockPage--
 			g.setBlockPage(g.blockPage)
 		}
-	}
-
-	if key == glfw.Key2 {
+	} else if key == glfw.Key2 {
 		// next page
 		itemsPerPage := 10
 		lastPage := g.lastPage(itemsPerPage)
@@ -54,15 +52,11 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 			g.blockPage = lastPage
 		}
 		g.setBlockPage(g.blockPage)
-	}
-
-	if key == glfw.KeyComma {
+	} else if key == glfw.KeyComma {
 		fill := !g.pencil.GetFill()
 		g.pencil.SetFill(fill)
 		g.engine.Print(fmt.Sprintf("Fill: %v", fill))
-	}
-
-	if key == glfw.KeyDelete {
+	} else if key == glfw.KeyDelete {
 		g.ClearMap()
 	}
 }
@@ -89,15 +83,12 @@ func (g *GameStateEditMap) Init(bool) {
 	g.engine.SwitchToBlockSelector()
 	g.engine.GetVoxelMap().ClearHighlights()
 
-	g.changeActionBar()
+	g.objectMenu = g.createObjectMenu(util.CreateAtlasFromDirectory("./assets/gui", []string{"spawn", "poi"}))
+	g.blockMenu = gui.NewActionBar(g.engine.guiShader, g.engine.GetVoxelMap().GetTerrainTexture(), g.engine.WindowWidth, g.engine.WindowHeight, 16, 16)
+
+	g.switchToBlocks()
 	g.pencil = NewRectanglePlacer()
 	println(fmt.Sprintf("[GameStateEditMap] Entered"))
-}
-
-func (g *GameStateEditMap) changeActionBar() {
-	g.engine.actionbar = gui.NewActionBar(g.engine.guiShader, g.engine.GetVoxelMap().GetTerrainTexture(), g.engine.WindowWidth, g.engine.WindowHeight, 16, 16)
-	g.blockPage = 0
-	g.setBlockPage(g.blockPage)
 }
 
 func (g *GameStateEditMap) setBlockPage(page int) {
@@ -150,4 +141,34 @@ func (g *GameStateEditMap) ClearMap() {
 	loadedMap.ClearAllChunks()
 	loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
 	loadedMap.GenerateAllMeshes()
+}
+
+func (g *GameStateEditMap) switchToBlocks() {
+	g.engine.actionbar = g.blockMenu
+	g.blockPage = 0
+	g.setBlockPage(g.blockPage)
+	g.engine.Print("Block menu")
+}
+func (g *GameStateEditMap) switchToObjects() {
+	g.engine.actionbar = g.objectMenu
+	g.engine.Print("Object menu")
+}
+
+func (g *GameStateEditMap) createObjectMenu(textureAtlas *glhf.Texture, textureIndex map[string]byte) *gui.ActionBar {
+	objectMenu := gui.NewActionBar(g.engine.guiShader, textureAtlas, g.engine.WindowWidth, g.engine.WindowHeight, 64, 64)
+	objectMenu.SetActions([]gui.ActionItem{
+		gui.ActionItem{
+			Name:         "Spawn",
+			TextureIndex: textureIndex["spawn"],
+			Execute:      nil,
+			Hotkey:       0,
+		},
+		gui.ActionItem{
+			Name:         "POI",
+			TextureIndex: textureIndex["poi"],
+			Execute:      nil,
+			Hotkey:       0,
+		},
+	})
+	return objectMenu
 }

@@ -322,7 +322,7 @@ func (g *GameInstance) GetBlockDefAt(blockPos voxel.Int3) *BlockDefinition {
 	return g.blockLibrary.GetBlockDefinition(block.ID)
 }
 
-func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, rayHitInfo *FreeAimHit) (int, bool) {
+func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damageModifier float64, rayHitInfo *FreeAimHit) (int, bool) {
 	hitUnit := rayHitInfo.UnitHit.(*UnitInstance)
 	direction := rayHitInfo.HitInfo3D.CollisionWorldPosition.Sub(rayHitInfo.Origin).Normalize()
 	distance := rayHitInfo.Distance
@@ -330,6 +330,7 @@ func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, rayHi
 	// actual server side simulation
 	projectileBaseDamage = attacker.GetWeapon().AdjustDamageForDistance(float32(distance), projectileBaseDamage)
 
+	projectileBaseDamage = int(math.Ceil(float64(projectileBaseDamage) * damageModifier))
 	// state changes here
 	// 1. apply damage
 	lethal := g.ApplyDamage(attacker, hitUnit, projectileBaseDamage, rayHitInfo.BodyPart)

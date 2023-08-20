@@ -57,10 +57,12 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	foundPath := a.gameAction.GetPath(moveTarget)
 	destination := foundPath[len(foundPath)-1]
 	controller := a.unit.ControlledBy()
+
 	var triggeredOverwatchBy []*game.UnitInstance
 	var visibles []*game.UnitInstance
 	var invisibles []*game.UnitInstance
 	var unitForward voxel.Int3
+
 	if len(foundPath) > 1 {
 		unitForward = destination.Sub(foundPath[len(foundPath)-2])
 	} else {
@@ -75,7 +77,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		pathPartsPerUser[enemyUserID] = make([][]voxel.Int3, 0)
 		pathPartsPerUser[enemyUserID] = append(pathPartsPerUser[enemyUserID], make([]voxel.Int3, 0))
 	}
-	for index, pos := range foundPath {
+	for index, pos := range foundPath { // simulate movement step by step
 		println(fmt.Sprintf(" -> Checking position %s", pos.ToString()))
 		// for each player, that is not the controller
 		// check if any unit he controls could spot the moving unit from here
@@ -128,6 +130,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 			break
 		}
 	}
+
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
 	a.unit.SetForward2DCardinal(unitForward)
@@ -153,7 +156,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	var seenBy []uint64
 	var hiddenTo []uint64
 	for enemyUserID, allPaths := range pathPartsPerUser {
-		seenByUser, hiddenToUser := a.engine.GetReverseLOSChangesForUser(enemyUserID, a.unit, destination, visibles, invisibles)
+		seenByUser, hiddenToUser := a.engine.GetReverseLOSChangesForUser(enemyUserID, a.unit)
 		if len(seenByUser) > 0 || len(hiddenToUser) > 0 || len(allPaths[0]) > 0 {
 			// Send only to the players who didn't move the unit
 			// NOTE: This client MUST only apply these changes, after the movement animation
@@ -200,11 +203,18 @@ func (a ServerActionMove) handleOverwatch(mb *game.MessageBuffer, movingUnit *ga
 	targetPos := movingUnit.GetBlockPosition()
 	for _, watcher := range watchers {
 		shot := NewServerActionSnapShot(a.engine, watcher, []voxel.Int3{targetPos})
+
 		shot.SetAPCost(0) // paid in the previous turn
-		if valid, _ := shot.IsValid(); valid {
+
+		shot.SetAccuracyModifier(0.8) // 20% penalty for overwatch
+		shot.SetDamageModifier(1.1)   // 10% bonus for overwatch
+
+		if valid, reason := shot.IsValid(); valid {
 			println(fmt.Sprintf(" --> %s(%d) triggered overwatch by %s(%d) at %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString()))
 			shot.Execute(mb)
 			a.engine.RemoveOverwatch(watcher.UnitID(), targetPos)
+		} else {
+			println(fmt.Sprintf(" --> ERR: %s(%d) triggered overwatch by %s(%d) at %s, but shot is not valid: %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString(), reason))
 		}
 	}
 }

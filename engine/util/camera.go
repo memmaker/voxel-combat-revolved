@@ -10,7 +10,7 @@ type Camera interface {
 	GetFront() mgl32.Vec3
 	GetFrustumPlanes(matrix mgl32.Mat4) []mgl32.Vec4
 	GetPosition() mgl32.Vec3
-	ChangePosition(dir [2]int, delta float32)
+	ChangePosition(delta float32, dir [2]int)
 	GetNearPlaneDist() float32
 }
 
