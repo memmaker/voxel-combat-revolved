@@ -19,6 +19,14 @@ type GameStateFreeAim struct {
 	visibleEnemies []*game.UnitInstance
 }
 
+func (g *GameStateFreeAim) GetUnit() *game.UnitInstance {
+	return g.selectedUnit.UnitInstance
+}
+
+func (g *GameStateFreeAim) GetAccuracyModifier() float64 {
+	return 1.0
+}
+
 func (g *GameStateFreeAim) OnMouseReleased(x float64, y float64) {
 
 }
@@ -105,7 +113,9 @@ func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone ut
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
 
-	g.engine.SwitchToFirstPerson(g.selectedUnit)
+	accuracy := g.engine.GetRules().GetShotAccuracy(g) // TODO: needs to use the final shot accuracy from the server side action..
+
+	g.engine.SwitchToFirstPerson(g.selectedUnit, accuracy)
 
 	g.visibleEnemies = g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
 

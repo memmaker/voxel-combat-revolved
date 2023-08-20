@@ -363,7 +363,7 @@ func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
 	a.state().Init(false)
 }
 
-func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionShot) {
+func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionSnapShot) {
 	a.stateStack = []GameState{
 		NewGameStateUnit(a, unit),
 		&GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action, lockedTarget: -1},
@@ -403,10 +403,15 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 	hitInfo := a.RayCastGround(rayStart, rayEnd)
 	if hitInfo.HitUnit() {
 		unitHit, _ := a.GetClientUnit(hitInfo.UnitHit.UnitID())
+		pressureString := ""
+		pressure := a.GetTotalPressure(unitHit.UnitID())
+		if pressure > 0 {
+			pressureString = fmt.Sprintf("\nPressure: %0.2f", pressure)
+		}
 		if unitHit.IsUserControlled() {
-			a.Print(unitHit.GetFriendlyDescription())
+			a.Print(unitHit.GetFriendlyDescription() + pressureString)
 		} else {
-			a.Print(unitHit.GetEnemyDescription())
+			a.Print(unitHit.GetEnemyDescription() + pressureString)
 		}
 	}
 
@@ -447,9 +452,8 @@ func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleClient) SwitchToFirstPerson(unit *Unit) {
+func (a *BattleClient) SwitchToFirstPerson(unit *Unit, accuracy float64) {
 	position := unit.GetEyePosition()
-	accuracy := unit.GetFreeAimAccuracy()
 
 	a.GetVoxelMap().ClearHighlights()
 	a.groundSelector.Hide()
@@ -530,8 +534,21 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnGameOver(msg)
 		}
+	case "Reload":
+		var msg game.UnitMessage
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnReload(msg)
+		}
+
 	}
 	a.state().OnServerMessage(msgType, messageAsJson)
+}
+
+func (a *BattleClient) OnReload(msg game.UnitMessage) {
+	unit, _ := a.GetClientUnit(msg.UnitID())
+	unit.Reload()
+	a.Print(fmt.Sprintf("%s reloaded the %s.", unit.GetName(), unit.GetWeapon().Definition.UniqueName))
+	a.UpdateActionbarFor(unit)
 }
 
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
@@ -622,12 +639,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	*/
 	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
 	changeLOS := func() {
-		for _, unit := range msg.LOSLostBy {
-			a.SetLOSLost(unit, movingUnit.UnitID())
-		}
-		for _, unit := range msg.LOSAcquiredBy {
-			a.SetLOSAcquired(unit, movingUnit.UnitID())
-		}
+		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
 		}
@@ -701,12 +713,9 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	destination := msg.Path[len(msg.Path)-1]
 
 	changeLOS := func(deltaTime float64) {
-		for _, lostLOSUnit := range msg.Lost {
-			a.SetLOSLost(msg.UnitID, lostLOSUnit)
-		}
+		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		for _, acquiredLOSUnit := range msg.Spotted {
 			a.AddOrUpdateUnit(acquiredLOSUnit)
-			a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
 		}
 		unit.SetBlockPosition(destination)
 		a.SwitchToUnitNoCameraMovement(unit)

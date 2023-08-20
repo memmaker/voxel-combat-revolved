@@ -23,6 +23,7 @@ type GameStartedMessage struct {
 	PlayerNameMap    map[uint64]string
 	MapFile          string
 	LOSMatrix        map[uint64]map[uint64]bool
+	PressureMatrix   map[uint64]map[uint64]float64
 	VisibleUnits     []*UnitInstance
 }
 

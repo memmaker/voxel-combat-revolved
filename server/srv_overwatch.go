@@ -14,6 +14,7 @@ type ServerActionOverwatch struct {
 	aimDirection mgl32.Vec3
 	totalAPCost  int
 	targets      []voxel.Int3
+	gameAction   *game.ActionOverwatch
 }
 
 func (a *ServerActionOverwatch) SetAPCost(newCost int) {
@@ -34,6 +35,12 @@ func (a *ServerActionOverwatch) IsValid() (bool, string) {
 		return false, fmt.Sprintf("Not enough AP for overwatch. Need %d, have %d", a.totalAPCost, a.unit.GetIntegerAP())
 	}
 
+	for _, target := range a.targets {
+		if !a.gameAction.IsValidTarget(target) {
+			return false, fmt.Sprintf("Invalid target for overwatch: %v", target)
+		}
+	}
+
 	return true, ""
 }
 
@@ -43,6 +50,7 @@ func NewServerActionOverwatch(g *game.GameInstance, unit *game.UnitInstance, tar
 		engine:      g,
 		unit:        unit,
 		totalAPCost: int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
+		gameAction:  game.NewActionOverwatch(g, unit),
 	}
 }
 

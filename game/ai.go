@@ -73,7 +73,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 			c.AddUnit(unit)
 		}
 
-		c.SetLOSMatrix(gameInfo.LOSMatrix)
+		c.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
 
 		util.MustSend(c.connection.MapLoaded())
 	case "OwnUnitMoved":
@@ -148,14 +148,14 @@ func (c *DummyClient) makeMove() {
 }
 
 func (c *DummyClient) attackUnit(attacker, target *DummyClientUnit) {
-	shotAction := NewActionShot(c.GameInstance)
+	shotAction := NewActionShot(c.GameInstance, attacker.UnitInstance)
 	util.MustSend(c.connection.TargetedUnitAction(attacker.UnitID(), shotAction.GetName(), []voxel.Int3{target.GetBlockPosition()}))
 	c.waitingForUnit = attacker.UnitID()
 }
 
 func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
-	moveAction := NewActionMove(c.voxelMap)
-	validMoves := moveAction.GetValidTargets(unit.UnitInstance)
+	moveAction := NewActionMove(c.voxelMap, unit.UnitInstance)
+	validMoves := moveAction.GetValidTargets()
 	if len(validMoves) > 0 {
 		chosenDest := choseRandom(validMoves)
 		moves := int32(4)

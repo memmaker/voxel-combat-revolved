@@ -7,13 +7,14 @@ import (
 )
 
 type VisualOwnUnitMoved struct {
-	UnitID      uint64
-	Forward     voxel.Int3
-	Path        []voxel.Int3
-	EndPosition voxel.Int3
-	Spotted     []*UnitInstance
-	Lost        []uint64
-	Cost        int
+	UnitID         uint64
+	Forward        voxel.Int3
+	Path           []voxel.Int3
+	EndPosition    voxel.Int3
+	Spotted        []*UnitInstance
+	LOSMatrix      map[uint64]map[uint64]bool
+	PressureMatrix map[uint64]map[uint64]float64
+	Cost           int
 }
 
 func (v VisualOwnUnitMoved) MessageType() string {
@@ -24,9 +25,9 @@ type VisualEnemyUnitMoved struct {
 	MovingUnit uint64
 	PathParts  [][]voxel.Int3
 
-	LOSAcquiredBy []uint64
-	LOSLostBy     []uint64
-	UpdatedUnit   *UnitInstance // UpdatedUnit will be nil, except if the unit became visible to the player
+	LOSMatrix      map[uint64]map[uint64]bool
+	PressureMatrix map[uint64]map[uint64]float64
+	UpdatedUnit    *UnitInstance // UpdatedUnit will be nil, except if the unit became visible to the player
 
 }
 

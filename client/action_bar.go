@@ -17,7 +17,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 				println("[GameStateUnit] Unit cannot snapshot anymore.")
 				return
 			}
-			a.SwitchToAction(unit, game.NewActionShot(a.GameInstance))
+			a.SwitchToAction(unit, game.NewActionShot(a.GameInstance, unit.UnitInstance))
 		},
 		Hotkey: glfw.KeyR,
 	}
@@ -29,7 +29,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 				println("[GameStateUnit] Unit cannot free aim anymore.")
 				return
 			}
-			a.SwitchToFreeAim(unit, game.NewActionShot(a.GameInstance))
+			a.SwitchToFreeAim(unit, game.NewActionShot(a.GameInstance, unit.UnitInstance))
 		},
 		Hotkey: glfw.KeyF,
 	}
@@ -53,7 +53,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 				println("[GameStateUnit] Unit cannot act anymore.")
 				return
 			}
-			a.SwitchToAction(unit, game.NewActionOverwatch(a.GameInstance))
+			a.SwitchToAction(unit, game.NewActionOverwatch(a.GameInstance, unit.UnitInstance))
 		},
 	}
 	if unit.CanReload() {

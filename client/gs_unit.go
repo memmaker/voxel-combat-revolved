@@ -21,17 +21,7 @@ func (g *GameStateUnit) OnMouseReleased(x float64, y float64) {
 }
 
 func (g *GameStateUnit) OnServerMessage(msgType string, json string) {
-	switch msgType {
-	case "Reload":
-		var msg game.UnitMessage
-		if util.FromJson(json, &msg) {
-			if msg.UnitID() == g.selectedUnit.UnitID() {
-				g.selectedUnit.Reload()
-				g.engine.Print(fmt.Sprintf("%s reloaded the %s.", g.selectedUnit.GetName(), g.selectedUnit.GetWeapon().Definition.UniqueName))
-				g.engine.UpdateActionbarFor(g.selectedUnit)
-			}
-		}
-	}
+
 }
 
 func NewGameStateUnit(engine *BattleClient, unit *Unit) *GameStateUnit {
@@ -40,7 +30,7 @@ func NewGameStateUnit(engine *BattleClient, unit *Unit) *GameStateUnit {
 			engine: engine,
 		},
 		selectedUnit: unit,
-		moveAction:   game.NewActionMove(engine.GetVoxelMap()),
+		moveAction:   game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
 	}
 }
 func NewGameStateUnitNoCamMove(engine *BattleClient, unit *Unit) *GameStateUnit {
@@ -49,7 +39,7 @@ func NewGameStateUnitNoCamMove(engine *BattleClient, unit *Unit) *GameStateUnit 
 			engine: engine,
 		},
 		selectedUnit:     unit,
-		moveAction:       game.NewActionMove(engine.GetVoxelMap()),
+		moveAction:       game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
 		noCameraMovement: true,
 	}
 }
@@ -85,7 +75,7 @@ func (g *GameStateUnit) nextUnit() {
 func (g *GameStateUnit) Init(wasPopped bool) {
 	if !wasPopped {
 		if g.selectedUnit.CanMove() {
-			validTargets := g.moveAction.GetValidTargets(g.selectedUnit.UnitInstance)
+			validTargets := g.moveAction.GetValidTargets()
 			if len(validTargets) > 0 {
 				g.engine.GetVoxelMap().SetHighlights(validTargets)
 			}
@@ -112,7 +102,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}
-	} else if g.moveAction.IsValidTarget(g.selectedUnit.UnitInstance, groundBlockPos) && g.selectedUnit.CanAct() {
+	} else if g.moveAction.IsValidTarget(groundBlockPos) && g.selectedUnit.CanAct() {
 		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
 	}
 }

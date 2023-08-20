@@ -157,12 +157,10 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 
 	unit.UseMovement(msg.Cost)
 
-	for _, lostLOSUnit := range msg.Lost {
-		a.SetLOSLost(msg.UnitID, lostLOSUnit)
-	}
+	a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
+
 	for _, acquiredLOSUnit := range msg.Spotted {
 		a.AddOrUpdateUnit(acquiredLOSUnit)
-		a.SetLOSAcquired(msg.UnitID, acquiredLOSUnit.UnitID())
 	}
 
 	unit.SetBlockPosition(destination)
@@ -227,12 +225,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	}
 	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
 	changeLOS := func() {
-		for _, unit := range msg.LOSLostBy {
-			a.SetLOSLost(unit, movingUnit.UnitID())
-		}
-		for _, unit := range msg.LOSAcquiredBy {
-			a.SetLOSAcquired(unit, movingUnit.UnitID())
-		}
+		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
 			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
 		}

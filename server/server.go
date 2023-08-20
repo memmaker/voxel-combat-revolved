@@ -286,7 +286,7 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 	}
 
 	// also send the initial LOS state
-	battleGame.InitLOS()
+	battleGame.InitLOSAndPressure()
 
 	for _, playerID := range battleGame.GetPlayerIDs() {
 		user := b.connectedClients[playerID]
@@ -294,6 +294,7 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 		// broadcast game started event to all players, tell everyone who's turn it is
 		units := battleGame.GetPlayerUnits(playerID)
 		whoCanSeeWho, visibleUnits := battleGame.GetLOSState(playerID)
+		pressure := battleGame.GetPressureMatrix()
 
 		b.respond(user, "GameStarted", game.GameStartedMessage{
 			GameID:           battleGame.GetID(),
@@ -303,6 +304,7 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 			OwnUnits:         units,
 			MapFile:          battleGame.GetMapFile(),
 			LOSMatrix:        whoCanSeeWho,
+			PressureMatrix:   pressure,
 			VisibleUnits:     visibleUnits,
 		})
 	}

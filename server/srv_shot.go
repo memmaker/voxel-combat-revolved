@@ -18,6 +18,14 @@ type ServerActionShot struct {
 	damageModifier   float64
 }
 
+func (a *ServerActionShot) GetUnit() *game.UnitInstance {
+	return a.unit
+}
+
+func (a *ServerActionShot) GetAccuracyModifier() float64 {
+	return a.accuracyModifier
+}
+
 func (a *ServerActionShot) SetAPCost(newCost int) {
 	a.totalAPCost = newCost
 }
@@ -41,7 +49,7 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camPos mgl32.Vec3, targetAngles [][2]float32) *ServerActionShot {
 	camera := util.NewFPSCamera(camPos, 100, 100)
 	rayCalls := 0
-
+	// todo: add anti-cheat validation to camPos and angles here..
 	s := &ServerActionShot{
 		engine:           g,
 		unit:             unit,
@@ -56,8 +64,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
 		s.aimDirection = camera.GetFront()
 
-		accuracy := unit.GetFreeAimAccuracy() * s.accuracyModifier
-		startRay, endRay := camera.GetRandomRayInCircleFrustum(accuracy)
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()
 
 		rayCalls = rayCalls + 1%len(targetAngles)
@@ -91,14 +98,17 @@ func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targ
 		camera.FPSLookAt(targetLocation)
 		s.aimDirection = camera.GetFront()
 
-		accuracy := unit.GetFreeAimAccuracy() * s.accuracyModifier
-		startRay, endRay := camera.GetRandomRayInCircleFrustum(accuracy)
+		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()
 
 		rayCalls = rayCalls + 1%len(targets)
 		return startRay, direction
 	}
 	return s
+}
+
+func (a *ServerActionShot) finalShotAccuracy() float64 {
+	return a.engine.GetRules().GetShotAccuracy(a)
 }
 
 func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {

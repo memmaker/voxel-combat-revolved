@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
@@ -8,19 +9,57 @@ import (
 	"sort"
 )
 
-func (g *GameInstance) SetLOSMatrix(matrix map[uint64]map[uint64]bool) {
-	g.losMatrix = matrix
+func (g *GameInstance) SetLOSAndPressure(los map[uint64]map[uint64]bool, pressure map[uint64]map[uint64]float64) {
+	g.losMatrix = los
+	g.pressureMatrix = pressure
 }
 
-func (g *GameInstance) InitLOS() {
+func (g *GameInstance) InitLOSAndPressure() {
 	for _, unit := range g.units {
 		g.losMatrix[unit.UnitID()] = make(map[uint64]bool)
 		for _, other := range g.units {
-			if unit.ControlledBy() != other.ControlledBy() {
-				g.losMatrix[unit.UnitID()][other.UnitID()] = g.CanSee(unit, other)
+			allies := g.AreAllies(unit, other)
+			canSeeA := allies || g.CanSee(unit, other)
+			g.losMatrix[unit.UnitID()][other.UnitID()] = canSeeA
+			if canSeeA {
+				g.SetPressure(unit, other)
 			}
 		}
 	}
+}
+
+func (g *GameInstance) SetPressure(one, two *UnitInstance) {
+	if g.AreAllies(one, two) {
+		return
+	}
+	distance := voxel.ManhattanDistance3(one.GetBlockPosition(), two.GetBlockPosition())
+	if _, ok := g.pressureMatrix[one.UnitID()]; !ok {
+		g.pressureMatrix[one.UnitID()] = make(map[uint64]float64)
+	}
+	if _, ok := g.pressureMatrix[two.UnitID()]; !ok {
+		g.pressureMatrix[two.UnitID()] = make(map[uint64]float64)
+	}
+	pressureValue := 0.0
+	if distance <= g.rules.MaxPressureDistance {
+		pressureValue = (float64(g.rules.MaxPressureDistance - (distance - 1))) / float64(g.rules.MaxPressureDistance)
+	}
+
+	g.pressureMatrix[one.UnitID()][two.UnitID()] = pressureValue
+	g.pressureMatrix[two.UnitID()][one.UnitID()] = pressureValue
+	println(fmt.Sprintf("Pressure from %d to %d: %f", two.UnitID(), one.UnitID(), pressureValue))
+}
+
+func (g *GameInstance) RemovePressure(one, two uint64) {
+	delete(g.pressureMatrix[one], two)
+	delete(g.pressureMatrix[two], one)
+}
+
+func (g *GameInstance) GetTotalPressure(unitID uint64) float64 {
+	result := 0.0
+	for _, pressure := range g.pressureMatrix[unitID] {
+		result += pressure
+	}
+	return result
 }
 func (g *GameInstance) GetVisibleUnits(unitID uint64) []*UnitInstance {
 	result := make([]*UnitInstance, 0)

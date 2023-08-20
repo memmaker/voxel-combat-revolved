@@ -60,7 +60,7 @@ func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedM
 		gameClient.AddUnit(unit)
 	}
 
-	gameClient.SetLOSMatrix(gameInfo.LOSMatrix)
+	gameClient.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
 
 	gameClient.SwitchToWaitForEvents()
 
