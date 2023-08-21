@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libx11-dev libxcursor-dev libxrandr-dev libgl1-mesa-dev
+          sudo apt install -y build-essential libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
 
       - name: Build
         run: go build -tags server -v ./...
