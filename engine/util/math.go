@@ -133,3 +133,38 @@ func ExtractPosition(viewMatrix mgl32.Mat4) mgl32.Vec3 {
 func ExtractUniformScale(viewMatrix mgl32.Mat4) mgl32.Vec3 {
 	return mgl32.Vec3{viewMatrix.Col(0).Len(), viewMatrix.Col(1).Len(), viewMatrix.Col(2).Len()}
 }
+
+/* TS
+function easeInOutQuad(x: number): number {
+return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+}
+
+*/
+
+func EaseInOutQuad(x float64) float64 {
+	if x < 0.5 {
+		return 2 * x * x
+	} else {
+		return 1 - math.Pow(-2*x+2, 2)/2
+	}
+}
+
+/* TS
+function easeOutQuart(x: number): number {
+return 1 - Math.pow(1 - x, 4);
+}
+*/
+
+func EaseOutQuart(x float64) float64 {
+	return 1 - math.Pow(1-x, 4)
+}
+
+/*
+function easeOutSine(x: number): number {
+  return Math.sin((x * Math.PI) / 2);
+}
+*/
+
+func EaseOutSine(x float64) float64 {
+	return math.Sin((x * math.Pi) / 2)
+}

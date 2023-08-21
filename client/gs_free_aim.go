@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
@@ -55,20 +56,22 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 	} else if key == glfw.KeyJ {
 		g.engine.fpsCamera.ResetFOV()
 	} else if key == glfw.KeyTab {
-		g.aimAtNextTarget()
+		startCam := g.engine.fpsCamera.GetTransform()
+		g.engine.fpsCamera.FPSLookAt(g.aimAtNextTarget())
+		endCam := g.engine.fpsCamera.GetTransform()
+		g.engine.StartCameraAnimation(startCam, endCam, 0.5)
 	}
 }
-func (g *GameStateFreeAim) aimAtNextTarget() {
+func (g *GameStateFreeAim) aimAtNextTarget() mgl32.Vec3 {
 	if len(g.visibleEnemies) == 0 {
-		g.engine.fpsCamera.FPSLookAt(g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward()))
-		return
+		lookAtPos := g.selectedUnit.GetEyePosition().Add(g.selectedUnit.GetForward())
+		return lookAtPos
 	}
 	g.lockedTarget = (g.lockedTarget + 1) % len(g.visibleEnemies)
 	targetUnit := g.visibleEnemies[g.lockedTarget]
 
-	g.engine.fpsCamera.FPSLookAt(targetUnit.GetEyePosition())
-
 	g.showTargetInfo(targetUnit, util.ZoneNone)
+	return targetUnit.GetEyePosition()
 }
 
 func (g *GameStateFreeAim) updateTargetInfo() {
@@ -112,14 +115,13 @@ func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone ut
 }
 func (g *GameStateFreeAim) Init(bool) {
 	println(fmt.Sprintf("[GameStateFreeAim] Entered for %s", g.selectedUnit.GetName()))
-
-	accuracy := g.engine.GetRules().GetShotAccuracy(g) // TODO: needs to use the final shot accuracy from the server side action..
-
-	g.engine.SwitchToFirstPerson(g.selectedUnit, accuracy)
-
 	g.visibleEnemies = g.engine.GetVisibleEnemyUnits(g.selectedUnit.UnitID())
 
-	g.aimAtNextTarget()
+	accuracy := g.engine.GetRules().GetShotAccuracy(g)
+	lookAtPos := g.aimAtNextTarget()
+
+	g.engine.SwitchToFirstPerson(g.selectedUnit, lookAtPos, accuracy)
+
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction() {
@@ -145,7 +147,7 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 func (g *GameStateFreeAim) OnDirectionKeys(elapsed float64, movementVector [2]int) {
 	oldCamPos := g.engine.fpsCamera.GetPosition()
 	oldPos := voxel.PositionToGridInt3(oldCamPos)
-	g.engine.fpsCamera.ChangePosition(float32(elapsed), movementVector)
+	g.engine.fpsCamera.MoveInDirection(float32(elapsed), movementVector)
 	newPos := voxel.PositionToGridInt3(g.engine.fpsCamera.GetPosition())
 
 	if newPos != oldPos {

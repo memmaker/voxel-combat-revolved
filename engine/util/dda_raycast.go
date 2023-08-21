@@ -48,7 +48,7 @@ func Raycast2D(startX, startY, directionX, directionY float64, shouldStopRay fun
 
 	// 3. Anhand der Richtung des Strahls folgende Werte berechnen
 	//     - Die Schrittrichtung auf der Karte (je Quadrant)
-	//     - Die position innerhalb der aktuellen Zelle
+	//     - Die translation innerhalb der aktuellen Zelle
 	//     - Die anteiligen Startteile der beiden Strahlen für CollisionX und CollisionY Schritte
 	if directionX < 0 {
 		mapStepX = -1
@@ -119,7 +119,7 @@ func Raycast2D(startX, startY, directionX, directionY float64, shouldStopRay fun
 	}
 
 	// 6.1 Die original Distanz zur Wand für das Texture Mapping verwenden
-	var wallX float64 // CollisionX position an der wir die Wand getroffen haben
+	var wallX float64 // CollisionX translation an der wir die Wand getroffen haben
 	// Komponentenweise Vektoraddition und Skalierung
 	if eastWestSide {
 		wallX = startY + (perpWallDist * directionY)

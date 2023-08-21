@@ -12,7 +12,7 @@ type ServerActionShot struct {
 	engine           *game.GameInstance
 	unit             *game.UnitInstance
 	createRay        func() (mgl32.Vec3, mgl32.Vec3)
-	aimDirection     mgl32.Vec3
+	lastAimDirection mgl32.Vec3
 	totalAPCost      int
 	accuracyModifier float64
 	damageModifier   float64
@@ -54,7 +54,6 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		engine:           g,
 		unit:             unit,
 		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
-		aimDirection:     camera.GetForward(),
 		accuracyModifier: 1.0,
 		damageModifier:   1.0,
 	}
@@ -62,7 +61,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		targetAngle := targetAngles[rayCalls]
 
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
-		s.aimDirection = camera.GetForward()
+		s.lastAimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()
@@ -89,14 +88,13 @@ func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targ
 		engine:           g,
 		unit:             unit,
 		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot),
-		aimDirection:     camera.GetForward(),
 		accuracyModifier: 1.0,
 		damageModifier:   1.0,
 	}
 	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
 		targetLocation := targetsInWorld[rayCalls]
 		camera.FPSLookAt(targetLocation)
-		s.aimDirection = camera.GetForward()
+		s.lastAimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()
@@ -127,8 +125,8 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	a.unit.ConsumeAP(costOfAPForShot)
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
-	newForward := util.DirectionToCardinalAim(a.aimDirection)
-	a.unit.SetForward2DCardinal(newForward)
+	lastAimDir := util.DirectionToCardinalAim(a.lastAimDirection)
+	a.unit.SetForward2DCardinal(lastAimDir)
 
 	mb.AddMessageForAll(game.VisualRangedAttack{
 		Projectiles:       projectiles,
@@ -136,7 +134,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 		AmmoCost:          ammoCost,
 		Attacker:          a.unit.UnitID(),
 		APCostForAttacker: costOfAPForShot,
-		AimDirection:      newForward,
+		AimDirection:      lastAimDir,
 		IsTurnEnding:      a.IsTurnEnding(),
 	})
 }

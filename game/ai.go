@@ -235,12 +235,13 @@ func (c *DummyClient) CreateGameSequence() {
 			Name:       "Jimmy",
 			Weapon:     "Mossberg 500",
 		},
+
+		{
+			UnitTypeID: 0,
+			Name:       "Bimmy",
+			Weapon:     "Steyr SSG 69",
+		},
 		/*
-			{
-				UnitTypeID: 0,
-				name:       "Bimmy",
-				Weapon:     "Steyr SSG 69",
-			},
 			{
 				UnitTypeID: 0,
 				name:       "Timmy",

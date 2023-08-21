@@ -270,7 +270,7 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 		result = append(result, currentSubmesh)
 	}
 	currentMesh := &SimpleMesh{
-		// Vertex Format (position, Normal, UV)
+		// Vertex Format (translation, Normal, UV)
 		// X0,Y0,Z0, NX0,NY0,NZ0, U0,V0
 		SubMeshes: result,
 	}

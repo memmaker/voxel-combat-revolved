@@ -87,7 +87,10 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		g.engine.unitSelector.SetPosition(footPos)
 
 		if !g.noCameraMovement {
+			startCam := g.engine.isoCamera.GetTransform()
 			g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+			endCam := g.engine.isoCamera.GetTransform()
+			g.engine.StartCameraAnimation(startCam, endCam, 0.5)
 		}
 
 		g.engine.UpdateActionbarFor(g.selectedUnit)

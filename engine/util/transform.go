@@ -8,7 +8,7 @@ import (
 )
 
 type Transform struct {
-	position    mgl32.Vec3
+	translation mgl32.Vec3
 	rotation    mgl32.Quat
 	scale       mgl32.Vec3
 	nameOfOwner string
@@ -22,7 +22,7 @@ func (t *Transform) SetName(name string) {
 }
 func NewDefaultTransform(name string) *Transform {
 	return &Transform{
-		position:    mgl32.Vec3{0, 0, 0},
+		translation: mgl32.Vec3{0, 0, 0},
 		rotation:    mgl32.QuatIdent(),
 		scale:       mgl32.Vec3{1, 1, 1},
 		nameOfOwner: name,
@@ -31,47 +31,47 @@ func NewDefaultTransform(name string) *Transform {
 
 func NewTransform(position mgl32.Vec3, rotation mgl32.Quat, scale mgl32.Vec3) *Transform {
 	return &Transform{
-		position: position,
-		rotation: rotation,
-		scale:    scale,
+		translation: position,
+		rotation:    rotation,
+		scale:       scale,
 	}
 }
 func NewTransformFromTopDown(position mgl32.Vec3, viewingAngle, rotationAngle float32) *Transform {
 	t := &Transform{
-		position: position,
-		rotation: mgl32.QuatIdent(),
-		scale:    mgl32.Vec3{1, 1, 1},
+		translation: position,
+		rotation:    mgl32.QuatIdent(),
+		scale:       mgl32.Vec3{1, 1, 1},
 	}
 	t.SetTopdownRotation(viewingAngle, rotationAngle)
 	return t
 }
 func NewTransformFromForward(position mgl32.Vec3, forward mgl32.Vec3) *Transform {
 	t := &Transform{
-		position: position,
-		rotation: mgl32.QuatIdent(),
-		scale:    mgl32.Vec3{1, 1, 1},
+		translation: position,
+		rotation:    mgl32.QuatIdent(),
+		scale:       mgl32.Vec3{1, 1, 1},
 	}
 	t.SetForward(forward)
 	return t
 }
 
-func NewTransformFromLookAt(position, target mgl32.Vec3) *Transform {
+func NewTransformFromLookAt(position, target, up mgl32.Vec3) *Transform {
 	t := &Transform{
-		position: position,
-		rotation: mgl32.QuatIdent(),
-		scale:    mgl32.Vec3{1, 1, 1},
+		translation: position,
+		rotation:    mgl32.QuatIdent(),
+		scale:       mgl32.Vec3{1, 1, 1},
 	}
-	t.SetLookAt(target)
+	t.SetLookAt(target, up)
 	return t
 }
 
 func (t *Transform) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Position mgl32.Vec3 `json:"position"`
+		Position mgl32.Vec3 `json:"translation"`
 		Rotation mgl32.Quat `json:"rotation"`
 		Scale    mgl32.Vec3 `json:"scale"`
 	}{
-		Position: t.position,
+		Position: t.translation,
 		Rotation: t.rotation,
 		Scale:    t.scale,
 	})
@@ -79,7 +79,7 @@ func (t *Transform) MarshalJSON() ([]byte, error) {
 
 func (t *Transform) UnmarshalJSON(data []byte) error {
 	var tmp struct {
-		Position mgl32.Vec3 `json:"position"`
+		Position mgl32.Vec3 `json:"translation"`
 		Rotation mgl32.Quat `json:"rotation"`
 		Scale    mgl32.Vec3 `json:"scale"`
 	}
@@ -87,7 +87,7 @@ func (t *Transform) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.position = tmp.Position
+	t.translation = tmp.Position
 	t.rotation = tmp.Rotation
 	t.scale = tmp.Scale
 	return nil
@@ -108,10 +108,10 @@ func (t *Transform) GetRotationMatrix() mgl32.Mat4 {
 }
 
 func (t *Transform) GetTranslationMatrix() mgl32.Mat4 {
-	return mgl32.Translate3D(t.position.X(), t.position.Y(), t.position.Z())
+	return mgl32.Translate3D(t.translation.X(), t.translation.Y(), t.translation.Z())
 }
 func (t *Transform) GetPosition() mgl32.Vec3 {
-	return t.position
+	return t.translation
 }
 
 func (t *Transform) GetBlockPosition() voxel.Int3 {
@@ -159,28 +159,21 @@ func (t *Transform) SetBlockPosition(position voxel.Int3) {
 	t.SetPosition(position.ToBlockCenterVec3())
 }
 func (t *Transform) SetPosition(position mgl32.Vec3) {
-	t.position = position
+	t.translation = position
 }
 
 func (t *Transform) SetTopdownRotation(viewingAngle, rotationAngle float32) {
 	t.rotation = mgl32.AnglesToQuat(mgl32.DegToRad(viewingAngle), mgl32.DegToRad(rotationAngle), 0, mgl32.XYZ)
 }
-func (t *Transform) SetLookAt(target mgl32.Vec3) {
-	t.rotation = t.getLookAt(target)
+func (t *Transform) SetLookAt(target, up mgl32.Vec3) {
+	t.rotation = t.getLookAt(target, up)
 }
 
-func (t *Transform) getLookAt(target mgl32.Vec3) mgl32.Quat {
-	origin := t.position
-	upAxis := mgl32.Vec3{0, 1, 0}
-	lookDirection := target.Sub(origin).Normalize()
-	right := lookDirection.Cross(upAxis)
-	up := right.Cross(lookDirection)
-	lookAtMatrix := mgl32.QuatLookAtV(origin, target, up)
+func (t *Transform) SetLookAt2D(target mgl32.Vec3) {
+	t.rotation = t.getLookAt(target, mgl32.Vec3{0, 1, 0})
+}
+
+func (t *Transform) getLookAt(target, up mgl32.Vec3) mgl32.Quat {
+	lookAtMatrix := mgl32.QuatLookAtV(t.translation, target, up)
 	return lookAtMatrix
-}
-
-func (t *Transform) SetOrbit(target mgl32.Vec3, angle float32) {
-	lookAt := t.getLookAt(target)
-	rotation := mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0})
-	t.rotation = rotation.Mul(lookAt)
 }

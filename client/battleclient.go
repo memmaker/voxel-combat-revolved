@@ -51,6 +51,7 @@ type BattleClient struct {
 	bulletModel         *util.CompoundMesh
 	settings            ClientSettings
 	guiIcons            map[string]byte
+	cameraAnimation     *util.CameraAnimation
 }
 
 func (a *BattleClient) state() GameState {
@@ -196,11 +197,8 @@ func (a *BattleClient) Print(text string) {
 
 func (a *BattleClient) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
-	waitForCameraAnimation := false
-	if a.cameraIsFirstPerson { // TODO: animation stuff
-		a.fpsCamera.Update(elapsed)
-		waitForCameraAnimation = a.fpsCamera.IsCurrentlyAnimating()
-	}
+
+	waitForCameraAnimation := a.handleCameraAnimation(elapsed)
 
 	if !a.isBusy && !waitForCameraAnimation {
 		a.pollNetwork()
@@ -252,7 +250,9 @@ func (a *BattleClient) Draw(elapsed float64) {
 	if a.cameraIsFirstPerson {
 		camera = a.fpsCamera
 	}
-
+	if a.cameraAnimation != nil {
+		camera = a.cameraAnimation
+	}
 	a.drawWorld(camera)
 
 	a.drawModels(camera)
@@ -270,7 +270,7 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 
 	a.chunkShader.SetUniformAttr(1, cam.GetTransformMatrix())
 
-	a.GetVoxelMap().Draw(cam.GetForward(), cam.GetFrustumPlanes(cam.GetProjectionMatrix()))
+	a.GetVoxelMap().Draw(cam.GetForward(), cam.GetFrustumPlanes())
 
 	a.chunkShader.End()
 }
@@ -457,17 +457,25 @@ func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleClient) SwitchToFirstPerson(unit *Unit, accuracy float64) {
+func (a *BattleClient) SwitchToFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, accuracy float64) {
 	position := unit.GetEyePosition()
 
 	a.GetVoxelMap().ClearHighlights()
 	a.groundSelector.Hide()
 	a.actionbar.Hide()
-	a.fpsCamera.ResetFOV()
 
 	a.captureMouse()
+
+	a.fpsCamera.ResetFOV()
 	a.fpsCamera.SetPosition(position)
+	a.fpsCamera.FPSLookAt(lookAtTarget)
+
 	a.crosshair.SetSize(1.0 - accuracy)
+
+	startCam := a.isoCamera.GetTransform()
+	endCam := a.fpsCamera.GetTransform()
+	a.StartCameraAnimation(startCam, endCam, 0.5)
+
 	a.cameraIsFirstPerson = true
 	a.freezeIdleAnimations()
 
