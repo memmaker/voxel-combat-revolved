@@ -16,6 +16,8 @@ type ClientUnit interface {
 	SetBlockPosition(voxel.Int3)
 	SetForward2DCardinal(voxel.Int3)
 	UseMovement(cost int)
+	ConsumeAP(cost int)
+	EndTurn()
 }
 type GameClient[U ClientUnit] struct {
 	*GameInstance
@@ -202,6 +204,16 @@ func (a *GameClient[U]) ResetUnitsForNextTurn() {
 	for _, unit := range a.GetMyUnits() {
 		unit.NextTurn()
 	}
+}
+
+func (a *GameClient[U]) OnBeginOverwatch(msg VisualBeginOverwatch) {
+	unit, exists := a.GetClientUnit(msg.Watcher)
+	if !exists {
+		println(fmt.Sprintf("[%s] Unknown unit %d", a.environment, msg.Watcher))
+		return
+	}
+	unit.ConsumeAP(msg.APCost)
+	unit.EndTurn()
 }
 
 func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {

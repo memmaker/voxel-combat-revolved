@@ -73,7 +73,7 @@ func (g *GameStateFreeAim) aimAtNextTarget() {
 
 func (g *GameStateFreeAim) updateTargetInfo() {
 	rayStart := g.engine.fpsCamera.GetPosition()
-	rayEnd := g.engine.fpsCamera.GetPosition().Add(g.engine.fpsCamera.GetFront().Mul(100))
+	rayEnd := g.engine.fpsCamera.GetPosition().Add(g.engine.fpsCamera.GetForward().Mul(100))
 	hitInfo := g.engine.RayCastFreeAim(rayStart, rayEnd, g.selectedUnit.UnitInstance)
 	if hitInfo.HitUnit() {
 		hitUnit := hitInfo.UnitHit.(*game.UnitInstance)

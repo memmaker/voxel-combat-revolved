@@ -54,7 +54,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		engine:           g,
 		unit:             unit,
 		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
-		aimDirection:     camera.GetFront(),
+		aimDirection:     camera.GetForward(),
 		accuracyModifier: 1.0,
 		damageModifier:   1.0,
 	}
@@ -62,7 +62,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		targetAngle := targetAngles[rayCalls]
 
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
-		s.aimDirection = camera.GetFront()
+		s.aimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()
@@ -89,14 +89,14 @@ func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targ
 		engine:           g,
 		unit:             unit,
 		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot),
-		aimDirection:     camera.GetFront(),
+		aimDirection:     camera.GetForward(),
 		accuracyModifier: 1.0,
 		damageModifier:   1.0,
 	}
 	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
 		targetLocation := targetsInWorld[rayCalls]
 		camera.FPSLookAt(targetLocation)
-		s.aimDirection = camera.GetFront()
+		s.aimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
 		direction := endRay.Sub(startRay).Normalize()

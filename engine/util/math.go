@@ -120,3 +120,16 @@ func DirectionToCardinalAim(direction mgl32.Vec3) voxel.Int3 {
 		return voxel.Int3{X: 1}
 	}
 }
+
+func ExtractRotation(viewMatrix mgl32.Mat4) mgl32.Quat {
+	return mgl32.Mat4ToQuat(viewMatrix.Mat3().Mat4())
+}
+
+func ExtractPosition(viewMatrix mgl32.Mat4) mgl32.Vec3 {
+	return viewMatrix.Col(3).Vec3()
+}
+
+// ExtractUniformScale only works if the matrix is uniformly scaled. Does not work with non-uniform scaling and shearing.
+func ExtractUniformScale(viewMatrix mgl32.Mat4) mgl32.Vec3 {
+	return mgl32.Vec3{viewMatrix.Col(0).Len(), viewMatrix.Col(1).Len(), viewMatrix.Col(2).Len()}
+}

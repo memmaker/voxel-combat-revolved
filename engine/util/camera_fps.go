@@ -8,6 +8,7 @@ import (
 )
 
 type FPSCamera struct {
+	*CamAnimator
 	cameraPos        mgl32.Vec3
 	cameraFront      mgl32.Vec3
 	cameraRight      mgl32.Vec3
@@ -22,6 +23,30 @@ type FPSCamera struct {
 	nearPlaneDist    float32
 	fov              float32
 	defaultFOV       float32
+}
+
+func (c *FPSCamera) GetTransform() Transform {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *FPSCamera) StartAnimation(start, end Transform, duration float64) {
+	c.currentAnimation = NewCameraAnimation(c, start, end, duration)
+}
+
+func (c *FPSCamera) SetRotation(rotation mgl32.Quat) {
+	// we need to calculate the rotation angles from the quaternion
+	camFront := mgl32.Vec3{0, 0, -1}
+	camUp := mgl32.Vec3{0, 1, 0}
+	camRight := mgl32.Vec3{1, 0, 0}
+
+	// calculate rotation matrix from quaternion
+	rotationMatrix := rotation.Mat4()
+
+	// calculate camera front vector
+	c.cameraFront = rotationMatrix.Mul4x1(camFront.Vec4(1)).Vec3()
+	c.cameraUp = rotationMatrix.Mul4x1(camUp.Vec4(1)).Vec3()
+	c.cameraRight = rotationMatrix.Mul4x1(camRight.Vec4(1)).Vec3()
 }
 
 func (c *FPSCamera) GetName() string {
@@ -46,6 +71,7 @@ func (c *FPSCamera) ChangePosition(delta float32, dir [2]int) {
 
 func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 	return &FPSCamera{
+		CamAnimator:     &CamAnimator{},
 		cameraPos:       pos,
 		cameraFront:     mgl32.Vec3{0, 0, -1},
 		cameraUp:        mgl32.Vec3{0, 1, 0},
@@ -107,6 +133,9 @@ func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, m
 // ChangeAngles changes the camera's angles by dx and dy.
 // Used for mouse look in FPS look mode.
 func (c *FPSCamera) ChangeAngles(dx, dy float32) {
+	if c.currentAnimation != nil {
+		return
+	}
 	if mgl32.Abs(dx) > 200 || mgl32.Abs(dy) > 200 {
 		return
 	}
@@ -158,7 +187,7 @@ func (c *FPSCamera) GetPosition() mgl32.Vec3 {
 	return c.cameraPos
 }
 
-func (c *FPSCamera) GetFront() mgl32.Vec3 {
+func (c *FPSCamera) GetForward() mgl32.Vec3 {
 	return c.cameraFront
 }
 
@@ -167,6 +196,9 @@ func (c *FPSCamera) SetPosition(pos mgl32.Vec3) {
 }
 
 func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
+	if c.currentAnimation != nil {
+		return
+	}
 	front := position.Sub(c.cameraPos).Normalize()
 	//dist := front.Len()
 
@@ -193,6 +225,9 @@ func (c *FPSCamera) GetRotation() (float32, float32) {
 }
 
 func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
+	if c.currentAnimation != nil {
+		return
+	}
 	c.cameraPos = pos
 	c.rotatex = rotX
 	c.rotatey = rotY
@@ -220,6 +255,9 @@ func (c *FPSCamera) GetScreenHeight() int {
 }
 
 func (c *FPSCamera) ChangeFOV(change int, minimum uint) {
+	if c.currentAnimation != nil {
+		return
+	}
 	minFOV := float32(minimum)
 	maxFOV := c.defaultFOV
 	newFOV := c.fov + float32(change)
@@ -233,5 +271,8 @@ func (c *FPSCamera) ChangeFOV(change int, minimum uint) {
 }
 
 func (c *FPSCamera) ResetFOV() {
+	if c.currentAnimation != nil {
+		return
+	}
 	c.fov = c.defaultFOV
 }

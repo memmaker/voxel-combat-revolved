@@ -46,7 +46,7 @@ func NewProjectile(shader *glhf.Shader, model *util.CompoundMesh, pos, velocity 
 		shader:    shader,
 		model:     model,
 	}
-	p.SetForward2D(velocity.Normalize())
+	p.Transform.SetForward(velocity.Normalize())
 	model.RootNode.SetParent(p)
 	return p
 }

@@ -6,106 +6,78 @@ import (
 )
 
 type ISOCamera struct {
-	cameraPos          mgl32.Vec3
-	cameraUp           mgl32.Vec3
-	windowWidth        int
-	windowHeight       int
-	relativeLookTarget mgl32.Vec3
-	moveMap            map[[2]int]mgl32.Vec3
-	nearPlaneDist      float32
+	*Transform
+	windowWidth     int
+	windowHeight    int
+	nearPlaneDist   float32
+	fov             float32
+	defaultFOV      float32
+	rotationAngle   float32
+	camDirection    mgl32.Vec3
+	lookTarget      mgl32.Vec3
+	transformMatrix mgl32.Mat4
+	camDistance     float32
+}
+
+func (c *ISOCamera) GetTransform() Transform {
+	return *c.Transform
 }
 
 func NewISOCamera(windowWidth, windowHeight int) *ISOCamera {
-	camPos := mgl32.Vec3{-5, 7, -5}
-	lookTarget := mgl32.Vec3{0, 0, 0}
-	relativeLookTarget := lookTarget.Sub(camPos)
-	return &ISOCamera{
-		cameraPos:          camPos,
-		cameraUp:           mgl32.Vec3{0, 1, 0},
-		relativeLookTarget: relativeLookTarget,
-		windowWidth:        windowWidth,
-		windowHeight:       windowHeight,
-		nearPlaneDist:      0.15,
-		moveMap: map[[2]int]mgl32.Vec3{
-			[2]int{0, -1}:  mgl32.Vec3{1, 0, 1},   // up
-			[2]int{0, 1}:   mgl32.Vec3{-1, 0, -1}, // down
-			[2]int{-1, 0}:  mgl32.Vec3{1, 0, -1},  // left
-			[2]int{1, 0}:   mgl32.Vec3{-1, 0, 1},  // right
-			[2]int{1, -1}:  mgl32.Vec3{0, 0, 1},   // up-right
-			[2]int{-1, -1}: mgl32.Vec3{1, 0, 0},   // up-left
-			[2]int{1, 1}:   mgl32.Vec3{-1, 0, 0},  // down-right
-			[2]int{-1, 1}:  mgl32.Vec3{0, 0, -1},  // down-left
-		},
+	i := &ISOCamera{
+		Transform:     NewDefaultTransform("ISO Camera"),
+		camDirection:  mgl32.Vec3{-1, 1, 0}.Normalize(),
+		camDistance:   float32(10),
+		lookTarget:    mgl32.Vec3{0, 0, 0},
+		windowWidth:   windowWidth,
+		windowHeight:  windowHeight,
+		nearPlaneDist: 0.15,
+		rotationAngle: 45,
+		fov:           float32(45.0),
+		defaultFOV:    float32(45.0),
 	}
-}
-
-// GetViewMatrix returns the view matrix for the camera.
-// A view matrix will transform a point from world space to camera space.
-func (c *ISOCamera) GetTransformMatrix() mgl32.Mat4 {
-	camera := mgl32.LookAtV(c.cameraPos, c.cameraPos.Add(c.relativeLookTarget), c.cameraUp)
-	return camera
+	i.Transform.SetName("ISO Camera")
+	i.updateMatrix()
+	return i
 }
 
 // GetProjectionMatrix returns the projection matrix for the camera.
 // A projection matrix will transform a point from camera space to screen space. (3D -> 2D)
 func (c *ISOCamera) GetProjectionMatrix() mgl32.Mat4 {
-	fov := float32(45.0)
-	return mgl32.Perspective(mgl32.DegToRad(fov), float32(c.windowWidth)/float32(c.windowHeight), c.nearPlaneDist, 512.0)
+	return mgl32.Perspective(mgl32.DegToRad(c.fov), float32(c.windowWidth)/float32(c.windowHeight), c.nearPlaneDist, 512.0)
+}
+func (c *ISOCamera) getLookAt(camPos, target mgl32.Vec3) mgl32.Mat4 {
+	lookDirection := target.Sub(camPos).Normalize()
+	right := lookDirection.Cross(mgl32.Vec3{0, 1, 0})
+	up := right.Cross(lookDirection)
+	lookAtMatrix := mgl32.QuatLookAtV(camPos, target, up).Mat4()
+	return lookAtMatrix
 }
 
-func (c *ISOCamera) RotateRight() { // rotate around y axis by 45 degrees
-	lt := c.relativeLookTarget
-	absoluteLookTarget := c.cameraPos.Add(lt)
-	c.relativeLookTarget = mgl32.Vec3{lt.Z(), lt.Y(), -lt.X()}
-	c.cameraPos = absoluteLookTarget.Sub(c.relativeLookTarget)
-	println(fmt.Sprintf("Relative look target: %v", c.relativeLookTarget))
+func (c *ISOCamera) RotateRight(delta float64) { // rotate around y axis by 45 degrees
+	rotationSpeed := 70
+	c.rotationAngle += float32(delta) * float32(rotationSpeed)
+	c.updateMatrix()
 }
 
-func (c *ISOCamera) RotateLeft() { // rotate around y axis by -45 degrees
-	lt := c.relativeLookTarget
-	absoluteLookTarget := c.cameraPos.Add(lt)
-	c.relativeLookTarget = mgl32.Vec3{-lt.Z(), lt.Y(), lt.X()}
-	c.cameraPos = absoluteLookTarget.Sub(c.relativeLookTarget)
-	println(fmt.Sprintf("Relative look target: %v", c.relativeLookTarget))
+func (c *ISOCamera) RotateLeft(delta float64) { // rotate around y axis by -45 degrees
+	rotationSpeed := 70
+	c.rotationAngle -= float32(delta) * float32(rotationSpeed)
+	c.updateMatrix()
 }
 
 func (c *ISOCamera) ChangePosition(delta float32, dir [2]int) {
-	signX := 0
-	if c.relativeLookTarget.X() > 0 {
-		signX = 1
-	} else if c.relativeLookTarget.X() < 0 {
-		signX = -1
-	}
-	signZ := 0
-	if c.relativeLookTarget.Z() > 0 {
-		signZ = 1
-	} else if c.relativeLookTarget.Z() < 0 {
-		signZ = -1
-	}
-	if signX == signZ { // side
-		dir[0] *= signX
-		dir[1] *= -signZ
-	} else { // front
-		dir[0], dir[1] = dir[1]*signZ*1, dir[0]*signX*-1
-	}
-	if moveVec, ok := c.moveMap[dir]; ok {
-		speed := float32(10.0)
-		moveVec = moveVec.Normalize().Mul(delta * speed)
-		c.cameraPos = c.cameraPos.Add(moveVec)
-	}
-}
-func (c *ISOCamera) GetPosition() mgl32.Vec3 {
-	return c.cameraPos
-}
+	scrollSpeed := float32(10.0)
+	right := mgl32.Vec3{1, 0, 0}.Vec4(0)
+	forwardOnPlane := mgl32.Vec3{0, 0, -1}.Vec4(0)
+	rotationMatrix := mgl32.QuatRotate(mgl32.DegToRad(c.rotationAngle), mgl32.Vec3{0, 1, 0}).Mat4().Inv()
+	right = rotationMatrix.Mul4x1(right).Normalize()
+	forwardOnPlane = rotationMatrix.Mul4x1(forwardOnPlane).Normalize()
 
-func (c *ISOCamera) GetFront() mgl32.Vec3 {
-	view := c.GetTransformMatrix()
-	_, _, z, _ := view.Rows()
-	return z.Vec3()
-}
+	moveBy := right.Mul(float32(dir[0]) * delta * scrollSpeed).Add(forwardOnPlane.Mul(float32(dir[1]) * delta * -scrollSpeed))
 
-func (c *ISOCamera) SetPosition(pos mgl32.Vec3) {
-	c.cameraPos = pos
+	c.lookTarget = c.lookTarget.Add(moveBy.Vec3())
+	c.updateMatrix()
 }
 
 func (c *ISOCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
@@ -134,17 +106,48 @@ func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32
 }
 
 func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
-	speed := float32(amount) * 7
-	offset := speed * float32(deltaTime)
-	c.cameraPos = mgl32.Vec3{c.cameraPos.X(), c.cameraPos.Y() - offset, c.cameraPos.Z()}
+	c.camDistance -= float32(amount) * float32(deltaTime) * 3
+	c.updateMatrix()
 }
 
 func (c *ISOCamera) ZoomOut(deltaTime float64, amount float64) {
-	speed := float32(amount) * 7
-	offset := speed * float32(deltaTime)
-	c.cameraPos = mgl32.Vec3{c.cameraPos.X(), c.cameraPos.Y() + offset, c.cameraPos.Z()}
+	c.camDistance += float32(amount) * float32(deltaTime) * 3
+	c.updateMatrix()
 }
 
 func (c *ISOCamera) CenterOn(targetPos mgl32.Vec3) {
-	c.cameraPos = targetPos.Sub(c.relativeLookTarget)
+	//end := NewTransform(targetPos.Sub(c.relativeLookTarget), c.GetRotation(), mgl32.Vec3{1, 1, 1})
+	//c.StartAnimation(*c.Transform, *end, 0.5)
+	// TESTCASE #1
+	//c.cameraPos = targetPos.Sub(c.relativeLookTarget)
+	c.lookTarget = targetPos
+	c.updateMatrix()
+}
+
+func (c *ISOCamera) updateMatrix() {
+	// rotate around to face the object
+	// translate to our camera offset
+	// rotate around y to face the object again
+	// translate everything to the lookTarget position
+	camOffset := c.camDirection.Mul(-c.camDistance)
+	target := c.lookTarget.Mul(-1)
+	camPosFromTarget := target.Sub(camOffset)
+	camOffsetInverted := camOffset
+
+	translation := mgl32.Translate3D(camOffsetInverted.X(), camOffsetInverted.Y(), camOffsetInverted.Z())
+	translateToLookTarget := mgl32.Translate3D(target.X(), target.Y(), target.Z())
+
+	rotationAround := mgl32.QuatRotate(mgl32.DegToRad(c.rotationAngle), mgl32.Vec3{0, 1, 0}).Mat4()
+	lookAtMatrix := c.getLookAt(camPosFromTarget, target)
+	viewMatrix := lookAtMatrix.Mul4(translation).Mul4(rotationAround).Mul4(translateToLookTarget)
+
+	camPos := ExtractPosition(viewMatrix)
+	camRot := ExtractRotation(viewMatrix)
+
+	c.Transform.SetPosition(camPos)
+	c.Transform.SetRotation(camRot)
+}
+
+func (c *ISOCamera) DebugString() string {
+	return fmt.Sprintf("CameraPos: %v\nLookTarget: %v\nCamDir: %v\nCamDist: %0.2f\nRotationAngle: %0.2f\n", c.Transform.GetPosition(), c.lookTarget, c.camDirection, c.camDistance, c.rotationAngle)
 }

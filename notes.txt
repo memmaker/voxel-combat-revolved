@@ -15,6 +15,7 @@
  - Overwatch
  - Mission Objectives
  - Explosions & Blood
+ - Smooth camera movement
  - Melee
 
 # Where Phoenix Point failed
@@ -175,7 +176,6 @@ You can level up your characters
 2. use jMC2Obj to convert Minecraft build to OBJ (Hack it to also export the collision array?)
 3. Load it in Blender
 4. Merge textures (bake) & create collision mesh
-
 
 # OpenGL Performance Checks
 
