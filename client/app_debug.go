@@ -29,14 +29,16 @@ func (a *BattleClient) updateDebugInfo() {
 	//animString := a.allUnits[0].model.GetAnimationDebugString()
 
 	//timerString := a.timer.String()
-	debugInfo := fmt.Sprintf("%s\n%s", selectedBlockString, unitPosString)
+	camString := a.isoCamera.DebugString()
+	debugInfo := fmt.Sprintf("%s\n%s\n%s", selectedBlockString, unitPosString, camString)
+
 	//debugInfo := fmt.Sprintf("\n%s\n%s", unitPosString, animString)
 	a.Print(debugInfo)
 }
 
 func (a *BattleClient) placeDebugLine(startEnd [2]mgl32.Vec3) {
 	a.debugObjects = a.debugObjects[:0]
-	//camDirection := a.player.cam.GetFront()
+	//camDirection := a.player.cam.GetForward()
 	var lines [][2]mgl32.Vec3
 	lines = [][2]mgl32.Vec3{
 		startEnd,

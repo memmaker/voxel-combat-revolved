@@ -196,8 +196,13 @@ func (a *BattleClient) Print(text string) {
 
 func (a *BattleClient) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
+	waitForCameraAnimation := false
+	if a.cameraIsFirstPerson { // TODO: animation stuff
+		a.fpsCamera.Update(elapsed)
+		waitForCameraAnimation = a.fpsCamera.IsCurrentlyAnimating()
+	}
 
-	if !a.isBusy {
+	if !a.isBusy && !waitForCameraAnimation {
 		a.pollNetwork()
 	}
 
@@ -265,7 +270,7 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 
 	a.chunkShader.SetUniformAttr(1, cam.GetTransformMatrix())
 
-	a.GetVoxelMap().Draw(cam.GetFront(), cam.GetFrustumPlanes(cam.GetProjectionMatrix()))
+	a.GetVoxelMap().Draw(cam.GetForward(), cam.GetFrustumPlanes(cam.GetProjectionMatrix()))
 
 	a.chunkShader.End()
 }
@@ -504,6 +509,11 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 
 func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 	switch msgType {
+	case "BeginOverwatch":
+		var msg game.VisualBeginOverwatch
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnBeginOverwatch(msg)
+		}
 	case "OwnUnitMoved":
 		var msg game.VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
@@ -542,6 +552,14 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 
 	}
 	a.state().OnServerMessage(msgType, messageAsJson)
+}
+
+func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
+	a.GameClient.OnBeginOverwatch(msg)
+	unit, known := a.GetClientUnit(msg.Watcher)
+	if known && a.IsMyUnit(msg.Watcher) {
+		a.SwitchToNextUnit(unit)
+	}
 }
 
 func (a *BattleClient) OnReload(msg game.UnitMessage) {

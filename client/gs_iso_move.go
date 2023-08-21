@@ -23,11 +23,11 @@ func (i *IsoMovementState) OnZoomOut(deltaTime float64) {
 }
 
 func (i *IsoMovementState) OnUpperRightAction() {
-	i.engine.isoCamera.RotateRight()
+
 }
 
 func (i *IsoMovementState) OnUpperLeftAction() {
-	i.engine.isoCamera.RotateLeft()
+
 }
 
 func (i *IsoMovementState) OnDirectionKeys(elapsed float64, movementVector [2]int) {

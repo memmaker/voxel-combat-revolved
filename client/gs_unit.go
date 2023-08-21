@@ -40,7 +40,7 @@ func NewGameStateUnitNoCamMove(engine *BattleClient, unit *Unit) *GameStateUnit 
 		},
 		selectedUnit:     unit,
 		moveAction:       game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
-		noCameraMovement: true,
+		noCameraMovement: false,
 	}
 }
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
@@ -75,6 +75,7 @@ func (g *GameStateUnit) nextUnit() {
 func (g *GameStateUnit) Init(wasPopped bool) {
 	if !wasPopped {
 		if g.selectedUnit.CanMove() {
+			g.moveAction = game.NewActionMove(g.engine.GetVoxelMap(), g.selectedUnit.UnitInstance)
 			validTargets := g.moveAction.GetValidTargets()
 			if len(validTargets) > 0 {
 				g.engine.GetVoxelMap().SetHighlights(validTargets)
