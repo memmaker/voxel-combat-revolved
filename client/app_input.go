@@ -27,7 +27,7 @@ func (a *BattleClient) handleMousePosEvents(xpos float64, ypos float64) {
 		return
 	}
 	overActionBar := a.actionbar.IsMouseOver(xpos, ypos)
-	if !overActionBar && a.state().OnMouseMoved != nil {
+	if !overActionBar {
 		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, xpos, ypos)
 	} else if overActionBar {
 		toolTip := a.actionbar.HoverText()

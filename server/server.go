@@ -324,7 +324,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 	}
 	for _, unitRequest := range msg.Units {
 		if unitRequest.UnitTypeID >= uint64(len(b.availableUnits)) {
-			b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: false, Message: fmt.Sprintf("Unit %d does not exist", unitRequest)})
+			b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: false, Message: fmt.Sprintf("Unit %d does not exist", unitRequest.UnitTypeID)})
 			return
 		}
 	}
