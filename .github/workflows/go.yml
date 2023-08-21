@@ -14,15 +14,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
 
-    - name: Build
-      run: go build -tags server -v ./...
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y build-essential libx11-dev libgl1-mesa-dev
 
-    - name: Test
-      run: go test -v ./...
+      - name: Build
+        run: go build -tags server -v ./...
+
+      - name: Test
+        run: go test -v ./...
