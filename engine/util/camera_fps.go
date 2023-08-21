@@ -8,7 +8,7 @@ import (
 )
 
 type FPSCamera struct {
-	*CamAnimator
+	*PerspectiveTransform
 	cameraPos        mgl32.Vec3
 	cameraFront      mgl32.Vec3
 	cameraRight      mgl32.Vec3
@@ -18,22 +18,11 @@ type FPSCamera struct {
 	rotatey          float32
 	lookSensitivity  float32
 	invertedY        bool
-	windowWidth      int
-	windowHeight     int
-	nearPlaneDist    float32
-	fov              float32
-	defaultFOV       float32
 }
 
 func (c *FPSCamera) GetTransform() Transform {
-	//TODO implement me
-	panic("implement me")
+	return *c.Transform
 }
-
-func (c *FPSCamera) StartAnimation(start, end Transform, duration float64) {
-	c.currentAnimation = NewCameraAnimation(c, start, end, duration)
-}
-
 func (c *FPSCamera) SetRotation(rotation mgl32.Quat) {
 	// we need to calculate the rotation angles from the quaternion
 	camFront := mgl32.Vec3{0, 0, -1}
@@ -47,63 +36,45 @@ func (c *FPSCamera) SetRotation(rotation mgl32.Quat) {
 	c.cameraFront = rotationMatrix.Mul4x1(camFront.Vec4(1)).Vec3()
 	c.cameraUp = rotationMatrix.Mul4x1(camUp.Vec4(1)).Vec3()
 	c.cameraRight = rotationMatrix.Mul4x1(camRight.Vec4(1)).Vec3()
+	c.updateTransform()
 }
-
-func (c *FPSCamera) GetName() string {
-	return "FPS Camera"
+func (c *FPSCamera) GetUp() mgl32.Vec3 {
+	return c.cameraUp
 }
-
-func (c *FPSCamera) GetNearPlaneDist() float32 {
-	return c.nearPlaneDist
-}
-
-func (c *FPSCamera) ChangePosition(delta float32, dir [2]int) {
+func (c *FPSCamera) MoveInDirection(delta float32, dir [2]int) {
 	currentPos := c.cameraPos
 	moveVector := mgl32.Vec3{0, 0, 0}
-	if dir[0] != 0 {
-		moveVector = moveVector.Add(c.LeftRight(float32(dir[0]) * delta))
-	}
 	if dir[1] != 0 {
-		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[1]) * delta))
+		moveVector = moveVector.Add(c.LeftRight(float32(dir[1]) * delta))
+	}
+	if dir[0] != 0 {
+		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[0]) * delta))
 	}
 	c.cameraPos = currentPos.Add(moveVector)
+	c.updateTransform()
 }
 
 func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
-	return &FPSCamera{
-		CamAnimator:     &CamAnimator{},
-		cameraPos:       pos,
-		cameraFront:     mgl32.Vec3{0, 0, -1},
-		cameraUp:        mgl32.Vec3{0, 1, 0},
-		lookSensitivity: 0.08,
-		rotatey:         0,
-		rotatex:         -90,
-		nearPlaneDist:   0.15,
-		invertedY:       true,
-		windowWidth:     windowWidth,
-		windowHeight:    windowHeight,
-		fov:             float32(45.0),
-		defaultFOV:      float32(45.0),
+	f := &FPSCamera{
+		PerspectiveTransform: NewDefaultPerspectiveTransform("ISO Camera", windowWidth, windowHeight),
+		cameraPos:            pos,
+		cameraFront:          mgl32.Vec3{0, 0, -1},
+		cameraUp:             mgl32.Vec3{0, 1, 0},
+		lookSensitivity:      0.08,
+		rotatey:              0,
+		rotatex:              -90,
+		invertedY:            true,
 	}
+	f.updateTransform()
+	return f
 }
-
+func (c *FPSCamera) GetPosition() mgl32.Vec3 {
+	return c.cameraPos
+}
 func (c *FPSCamera) SetInvertedY(inverted bool) {
 	c.invertedY = inverted
 }
 
-// GetViewMatrix returns the view matrix for the camera.
-// A view matrix will transform a point from world space to camera space.
-func (c *FPSCamera) GetTransformMatrix() mgl32.Mat4 {
-	camera := mgl32.LookAtV(c.cameraPos, c.cameraPos.Add(c.cameraFront), c.cameraUp)
-	return camera
-}
-
-// GetProjectionMatrix returns the projection matrix for the camera.
-// A projection matrix will transform a point from camera space to screen space. (3D -> 2D)
-func (c *FPSCamera) GetProjectionMatrix() mgl32.Mat4 {
-	aspect := float32(c.windowWidth) / float32(c.windowHeight)
-	return mgl32.Perspective(mgl32.DegToRad(c.fov), aspect, c.nearPlaneDist, 100.0)
-}
 func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
 	accuracy = Clamp(accuracy, 0.0, 0.99)
 	accFactor := 1.0 - accuracy // 0.01..1.0
@@ -133,9 +104,6 @@ func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, m
 // ChangeAngles changes the camera's angles by dx and dy.
 // Used for mouse look in FPS look mode.
 func (c *FPSCamera) ChangeAngles(dx, dy float32) {
-	if c.currentAnimation != nil {
-		return
-	}
 	if mgl32.Abs(dx) > 200 || mgl32.Abs(dy) > 200 {
 		return
 	}
@@ -147,7 +115,7 @@ func (c *FPSCamera) ChangeAngles(dx, dy float32) {
 		c.rotatey += yChange
 	}
 
-	c.updateAngles()
+	c.updateTransform()
 }
 func (c *FPSCamera) ForwardBackward(delta float32) mgl32.Vec3 {
 	return c.cameraFront.Mul(delta)
@@ -165,7 +133,38 @@ func (c *FPSCamera) UpDown(delta float32) mgl32.Vec3 {
 	return mgl32.Vec3{0, 1, 0}.Mul(delta)
 }
 
-func (c *FPSCamera) updateAngles() {
+func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
+	front := position.Sub(c.cameraPos).Normalize()
+	//dist := front.Len()
+
+	c.rotatex = mgl32.RadToDeg(float32(math.Atan2(float64(front.Z()), float64(front.X()))))
+	c.rotatey = mgl32.RadToDeg(float32(math.Asin(float64(front.Y()))))
+	c.updateTransform()
+}
+
+func (c *FPSCamera) GetRotation() (float32, float32) {
+	return c.rotatex, c.rotatey
+}
+
+func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
+	c.cameraPos = pos
+	c.rotatex = rotX
+	c.rotatey = rotY
+	c.updateTransform()
+}
+
+func (c *FPSCamera) SetFOV(fov float32) {
+	c.fov = fov
+}
+
+func (c *FPSCamera) GetFOV() float32 {
+	return c.fov
+}
+func (c *FPSCamera) SetPosition(pos mgl32.Vec3) {
+	c.cameraPos = pos
+	c.updateTransform()
+}
+func (c *FPSCamera) updateTransform() {
 	if c.rotatey > 89 {
 		c.rotatey = 89
 	}
@@ -181,98 +180,13 @@ func (c *FPSCamera) updateAngles() {
 	c.cameraRight = c.cameraFront.Cross(mgl32.Vec3{0, 1, 0}).Normalize()
 	c.cameraUp = c.cameraRight.Cross(c.cameraFront).Normalize()
 	c.fpsWalkDirection = mgl32.Vec3{0, 1, 0}.Cross(c.cameraRight).Normalize()
-}
 
-func (c *FPSCamera) GetPosition() mgl32.Vec3 {
-	return c.cameraPos
-}
+	cameraPosition := c.cameraPos
+	viewMatrix := mgl32.LookAtV(cameraPosition, cameraPosition.Add(c.cameraFront), c.cameraUp)
 
-func (c *FPSCamera) GetForward() mgl32.Vec3 {
-	return c.cameraFront
-}
+	camPos := ExtractPosition(viewMatrix)
+	camRot := ExtractRotation(viewMatrix)
 
-func (c *FPSCamera) SetPosition(pos mgl32.Vec3) {
-	c.cameraPos = pos
-}
-
-func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
-	if c.currentAnimation != nil {
-		return
-	}
-	front := position.Sub(c.cameraPos).Normalize()
-	//dist := front.Len()
-
-	c.rotatex = mgl32.RadToDeg(float32(math.Atan2(float64(front.Z()), float64(front.X()))))
-	c.rotatey = mgl32.RadToDeg(float32(math.Asin(float64(front.Y()))))
-	c.updateAngles()
-}
-
-func (c *FPSCamera) GetFrustumPlanes(projection mgl32.Mat4) []mgl32.Vec4 {
-	mat := projection.Mul4(c.GetTransformMatrix())
-	c1, c2, c3, c4 := mat.Rows()
-	return []mgl32.Vec4{
-		c4.Add(c1),                      // left
-		c4.Sub(c1),                      // right
-		c4.Sub(c2),                      // top
-		c4.Add(c2),                      // bottom
-		c4.Mul(c.nearPlaneDist).Add(c3), // front
-		c4.Mul(512.0).Sub(c3),           // back
-	}
-}
-
-func (c *FPSCamera) GetRotation() (float32, float32) {
-	return c.rotatex, c.rotatey
-}
-
-func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
-	if c.currentAnimation != nil {
-		return
-	}
-	c.cameraPos = pos
-	c.rotatex = rotX
-	c.rotatey = rotY
-	c.updateAngles()
-}
-
-func (c *FPSCamera) SetFOV(fov float32) {
-	c.fov = fov
-}
-
-func (c *FPSCamera) GetFOV() float32 {
-	return c.fov
-}
-
-func (c *FPSCamera) GetAspectRatio() float32 {
-	return float32(c.windowWidth) / float32(c.windowHeight)
-}
-
-func (c *FPSCamera) GetScreenWidth() int {
-	return c.windowWidth
-}
-
-func (c *FPSCamera) GetScreenHeight() int {
-	return c.windowHeight
-}
-
-func (c *FPSCamera) ChangeFOV(change int, minimum uint) {
-	if c.currentAnimation != nil {
-		return
-	}
-	minFOV := float32(minimum)
-	maxFOV := c.defaultFOV
-	newFOV := c.fov + float32(change)
-	if newFOV < minFOV {
-		newFOV = minFOV
-	}
-	if newFOV > maxFOV {
-		newFOV = maxFOV
-	}
-	c.fov = newFOV
-}
-
-func (c *FPSCamera) ResetFOV() {
-	if c.currentAnimation != nil {
-		return
-	}
-	c.fov = c.defaultFOV
+	c.Transform.SetPosition(camPos)
+	c.Transform.SetRotation(camRot)
 }
