@@ -9,7 +9,6 @@ import (
 
 type FPSCamera struct {
 	*PerspectiveTransform
-	cameraPos        mgl32.Vec3
 	cameraFront      mgl32.Vec3
 	cameraRight      mgl32.Vec3
 	cameraUp         mgl32.Vec3
@@ -24,11 +23,8 @@ type FPSCamera struct {
 func (c *FPSCamera) GetTransform() Transform {
 	return *c.Transform
 }
-func (c *FPSCamera) GetUp() mgl32.Vec3 {
-	return c.cameraUp
-}
 func (c *FPSCamera) MoveInDirection(delta float32, dir [2]int) {
-	currentPos := c.cameraPos
+	currentPos := c.GetPosition()
 	moveVector := mgl32.Vec3{0, 0, 0}
 	if dir[1] != 0 {
 		moveVector = moveVector.Add(c.LeftRight(float32(dir[0]) * delta))
@@ -36,14 +32,13 @@ func (c *FPSCamera) MoveInDirection(delta float32, dir [2]int) {
 	if dir[0] != 0 {
 		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[1]) * delta))
 	}
-	c.cameraPos = currentPos.Add(moveVector)
+	c.SetPosition(currentPos.Add(moveVector))
 	c.updateTransform()
 }
 
 func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 	f := &FPSCamera{
 		PerspectiveTransform: NewDefaultPerspectiveTransform("ISO Camera", windowWidth, windowHeight),
-		cameraPos:            pos,
 		cameraFront:          mgl32.Vec3{0, 0, -1},
 		cameraUp:             mgl32.Vec3{0, 1, 0},
 		lookSensitivity:      0.08,
@@ -51,6 +46,7 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 		rotatex:              -90,
 		invertedY:            true,
 	}
+	f.SetPosition(pos)
 	f.updateTransform()
 	return f
 }
@@ -128,9 +124,7 @@ func (c *FPSCamera) UpDown(delta float32) mgl32.Vec3 {
 }
 
 func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
-	front := position.Sub(c.cameraPos).Normalize()
-	//dist := front.Len()
-
+	front := position.Sub(c.GetPosition()).Normalize()
 	c.rotatex = mgl32.RadToDeg(float32(math.Atan2(float64(front.Z()), float64(front.X()))))
 	c.rotatey = mgl32.RadToDeg(float32(math.Asin(float64(front.Y()))))
 	c.updateTransform()
@@ -141,14 +135,13 @@ func (c *FPSCamera) GetRotation() (float32, float32) {
 }
 
 func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
-	c.cameraPos = pos
+	c.SetPosition(pos)
 	c.rotatex = rotX
 	c.rotatey = rotY
 	c.updateTransform()
 }
 func (c *FPSCamera) AttachTo(t Transformer) {
 	c.parent = t
-	c.updateTransform()
 }
 func (c *FPSCamera) SetFOV(fov float32) {
 	c.fov = fov
@@ -156,10 +149,6 @@ func (c *FPSCamera) SetFOV(fov float32) {
 
 func (c *FPSCamera) GetFOV() float32 {
 	return c.fov
-}
-func (c *FPSCamera) SetPosition(pos mgl32.Vec3) {
-	c.cameraPos = pos
-	c.updateTransform()
 }
 func (c *FPSCamera) updateTransform() {
 	if c.rotatey > 89 {
@@ -178,17 +167,14 @@ func (c *FPSCamera) updateTransform() {
 	c.cameraUp = c.cameraRight.Cross(c.cameraFront).Normalize()
 	c.fpsWalkDirection = mgl32.Vec3{0, 1, 0}.Cross(c.cameraRight).Normalize()
 
-	cameraPosition := c.cameraPos
+	cameraPosition := c.GetPosition()
 	transformationMatrix := mgl32.LookAtV(cameraPosition, cameraPosition.Add(c.cameraFront), c.cameraUp).Inv()
 
-	camPos := ExtractPosition(transformationMatrix)
 	camRot := ExtractRotation(transformationMatrix)
 
-	c.Transform.SetPosition(camPos)
 	c.Transform.SetRotation(camRot)
 }
 
 func (c *FPSCamera) Detach() {
 	c.parent = nil
-	c.updateTransform()
 }
