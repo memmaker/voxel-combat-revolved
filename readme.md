@@ -2,19 +2,27 @@
 
 I really like X-Com and XCOM. I've played these games a lot.
 
-But I cannot stand the completely random chance to hit anymore.
+While the original is cool, the balancing is lacking.
+
+The Firaxis reboot is great, but I don't like the "hit chance" system.
 
 When Phoenix Point came along and introduced us to the combination
 of XCOM style combat with the ability to freely aim at anything from
 a first person perspective, I was hooked. To me this, idea is really genius:
 Adding even a basic ballistics system seems like an ideal fit.
 
-Funny enough, the original X-Com from the 90s was more realistic in this regard.
+Funny enough, the original X-Com from the 90s was more realistic in this regard, than
+the Firaxis ones:
+-> https://www.ufopaedia.org/index.php/LOFTEMPS.DAT
+
+Phoenix Point is a great game, but it has some flaws. It's again the balancing.
 
 I am also missing a good multiplayer mode. Phoenix Point has none, and the one
 in XCOM is more an afterthought. So I wrote this game engine as client/server
 architecture from the start. When running a standalone singleplayer game,
 it will actually spawn a server instance and a headless client in separate threads.
+
+We already had most of this: https://ufo2000.sourceforge.net/
 
 So, basically I started out with this project because I wanted to have a game that
 has these characteristics:
