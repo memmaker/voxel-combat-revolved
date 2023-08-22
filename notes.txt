@@ -202,6 +202,10 @@ https://www.minetest.net/
 GUNS
 -> https://github.com/pWn3d1337/Techguns2/tree/master/src/main/resources/assets/techguns/models/item
 
+
+## Nice Stuff and Inspiration
+UUhh: https://github.com/johanhenriksson/goworld
+
 ## Current Obstacles
 
 ### Broad-phase collision detection using spatial partitioning

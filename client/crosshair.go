@@ -22,6 +22,8 @@ type Crosshair struct {
 	currentThickness  float32
 	originalThickness float32
 	camera            *util.FPSCamera
+
+	isHidden bool
 }
 
 func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
@@ -47,6 +49,14 @@ func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
 	c.Init(shader)
 	//c.SetSize(0.75)
 	return c
+}
+
+func (c *Crosshair) SetHidden(hidden bool) {
+	c.isHidden = hidden
+}
+
+func (c *Crosshair) IsHidden() bool {
+	return c.isHidden
 }
 
 func (c *Crosshair) SetPosition(pos mgl32.Vec3) {

@@ -180,11 +180,12 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
 	return unit
 }
 
-func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, onArrival func()) {
+func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, onArrival func()) *Projectile {
 	projectile := NewProjectile(a.modelShader, a.bulletModel, pos, velocity)
 	projectile.SetDestination(destination)
 	projectile.SetOnArrival(onArrival)
 	a.projectiles = append(a.projectiles, projectile)
+	return projectile
 }
 
 func (a *BattleClient) SetCrosshair(crosshair *Crosshair) {
@@ -333,11 +334,9 @@ func (a *BattleClient) drawGUI() {
 
 	a.guiShader.End()
 
-	if a.cameraIsFirstPerson {
+	if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
 		a.circleShader.Begin()
-		if a.crosshair != nil {
-			a.crosshair.Draw()
-		}
+		a.crosshair.Draw()
 		a.circleShader.End()
 	}
 }
@@ -470,6 +469,7 @@ func (a *BattleClient) SwitchToFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, 
 	a.fpsCamera.SetPosition(position)
 	a.fpsCamera.FPSLookAt(lookAtTarget)
 
+	a.crosshair.SetHidden(false)
 	a.crosshair.SetSize(1.0 - accuracy)
 
 	startCam := a.isoCamera.GetTransform()
@@ -496,6 +496,10 @@ func (a *BattleClient) SwitchToIsoCamera() {
 	a.freeMouse()
 	a.cameraIsFirstPerson = false
 	a.resumeIdleAnimations()
+	a.onSwitchToISO()
+}
+
+func (a *BattleClient) onSwitchToISO() {
 	if a.onSwitchToIsoCamera != nil {
 		a.onSwitchToIsoCamera()
 		a.onSwitchToIsoCamera = nil
@@ -596,7 +600,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
 		projectile := p
-		a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
+		firedProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
 			// on arrival
 			projectileArrivalCounter++
 			if projectile.UnitHit >= 0 {
@@ -624,8 +628,19 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 
 			if projectileArrivalCounter == len(msg.Projectiles) {
 				a.Print(damageReport)
+				a.fpsCamera.Detach()
+				a.PopState()
+				a.SwitchToIsoCamera()
 			}
 		})
+
+		if len(msg.Projectiles) == 1 {
+			//only for single projectiles..
+			a.fpsCamera.SetForward(firedProjectile.GetForward())
+			a.fpsCamera.AttachTo(firedProjectile)
+			a.crosshair.SetHidden(true)
+			a.onSwitchToISO()
+		}
 		projectileNumber := index + 1
 		if projectile.UnitHit >= 0 {
 			hitUnit, _ := a.GetClientUnit(uint64(projectile.UnitHit))

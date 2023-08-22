@@ -100,8 +100,7 @@ func (t *Transform) GetTransformMatrix() mgl32.Mat4 {
 	translation := t.GetTranslationMatrix()
 	rotation := t.GetRotationMatrix()
 	scale := t.GetScaleMatrix()
-	return translation.Mul4(rotation).Mul4(scale) // we have this right now.. and it seems to work.. mostly..
-	//return scale.Mul4(rotation).Mul4(translation) // but shouldn't it be this?
+	return translation.Mul4(rotation).Mul4(scale) // This actually represents S * R * T.. order is reversed because of how matrices work
 }
 
 func (t *Transform) GetScaleMatrix() mgl32.Mat4 {
@@ -180,5 +179,5 @@ func (t *Transform) SetLookAt2D(target mgl32.Vec3) {
 
 func (t *Transform) getLookAt(target, up mgl32.Vec3) mgl32.Quat {
 	lookAtMatrix := mgl32.QuatLookAtV(t.translation, target, up)
-	return lookAtMatrix
+	return lookAtMatrix.Inverse()
 }
