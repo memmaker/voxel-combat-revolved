@@ -269,7 +269,7 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 
 	a.chunkShader.SetUniformAttr(0, cam.GetProjectionMatrix())
 
-	a.chunkShader.SetUniformAttr(1, cam.GetTransformMatrix())
+	a.chunkShader.SetUniformAttr(1, cam.GetViewMatrix())
 
 	a.GetVoxelMap().Draw(cam.GetForward(), cam.GetFrustumPlanes())
 
@@ -280,7 +280,7 @@ func (a *BattleClient) drawModels(cam util.Camera) {
 	a.modelShader.Begin()
 
 	a.modelShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-	a.modelShader.SetUniformAttr(1, cam.GetTransformMatrix())
+	a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
 		a.selector.Draw()
@@ -312,7 +312,7 @@ func (a *BattleClient) drawLines(cam util.Camera) {
 	a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
 	if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
 		a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-		a.lineShader.SetUniformAttr(1, cam.GetTransformMatrix())
+		a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
 		a.selector.Draw()
 	}
 	for _, drawable := range a.debugObjects {
@@ -597,6 +597,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 			attackerUnit.EndTurn()
 		}
 	}
+	attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
 		projectile := p
@@ -629,12 +630,15 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 			if projectileArrivalCounter == len(msg.Projectiles) {
 				a.Print(damageReport)
 				a.fpsCamera.Detach()
-				a.PopState()
-				a.SwitchToIsoCamera()
+				// this is probably not the best place to do this, but it works for now
+				if attackerIsOwnUnit {
+					a.PopState() // THIS IS NOT WORKING.. TODO
+					a.SwitchToIsoCamera()
+				}
 			}
 		})
 
-		if len(msg.Projectiles) == 1 {
+		if len(msg.Projectiles) == 1 && attackerIsOwnUnit {
 			//only for single projectiles..
 			a.fpsCamera.SetForward(firedProjectile.GetForward())
 			a.fpsCamera.AttachTo(firedProjectile)

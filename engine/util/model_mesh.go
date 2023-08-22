@@ -210,12 +210,9 @@ func (m *MeshNode) DrawWithoutTransform(shader *glhf.Shader, textures []*glhf.Te
 func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 	if m.temporaryParent != nil {
 		externalParent := m.temporaryParent.GetTransformMatrix()
-		// for the weapon, we needed this..this obviously won't work for parenting anything else..
-		// also, we did attach part of the model to the cam
-		camInversed := externalParent.Inv()
 		offset := mgl32.Translate3D(0.2, -0.7, 0) // TODO: make this a parameter?
-		camInversed = camInversed.Mul4(offset)
-		return camInversed.Mul4(m.GetLocalMatrix())
+		externalParent = externalParent.Mul4(offset)
+		return externalParent.Mul4(m.GetLocalMatrix())
 	}
 	if m.parent == nil {
 		return m.GetLocalMatrix()
@@ -224,9 +221,9 @@ func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 }
 func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	translation := mgl32.Translate3D(m.translation[0], m.translation[1], m.translation[2])
-	quaternion := m.quatRotation.Mat4()
+	rotation := m.quatRotation.Mat4()
 	scale := mgl32.Scale3D(m.scale[0], m.scale[1], m.scale[2])
-	return translation.Mul4(quaternion).Mul4(scale) // This actually represents S * R * T.. order is reversed because of how matrices work
+	return translation.Mul4(rotation).Mul4(scale) // This actually represents S * R * T.. order is reversed because of how matrices work
 }
 
 func (m *CompoundMesh) ResetAnimations() {

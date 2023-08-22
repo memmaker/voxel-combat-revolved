@@ -113,7 +113,7 @@ func (a *BattleClient) loadLineShader() *glhf.Shader {
 
 	shader.Begin()
 	shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
-	shader.SetUniformAttr(1, a.isoCamera.GetTransformMatrix())
+	shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 	model := mgl32.Ident4()
 	shader.SetUniformAttr(2, model)
 	shader.End()
@@ -145,7 +145,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	shader.Begin()
 	shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
 
-	shader.SetUniformAttr(1, a.isoCamera.GetTransformMatrix())
+	shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 
 	model := mgl32.Ident4()
 	shader.SetUniformAttr(2, model)
@@ -187,7 +187,7 @@ func (a *BattleClient) loadModelShader() *glhf.Shader {
 	shader.Begin()
 	shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
 
-	shader.SetUniformAttr(1, a.isoCamera.GetTransformMatrix())
+	shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
 
 	model := mgl32.Ident4()
 	shader.SetUniformAttr(2, model)

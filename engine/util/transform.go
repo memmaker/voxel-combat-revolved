@@ -96,11 +96,19 @@ func (t *Transform) UnmarshalJSON(data []byte) error {
 	t.scale = tmp.Scale
 	return nil
 }
+
+// GetTransformMatrix uses the translation, rotation, and scale to create a matrix that represents the transformation of the object.
 func (t *Transform) GetTransformMatrix() mgl32.Mat4 {
 	translation := t.GetTranslationMatrix()
 	rotation := t.GetRotationMatrix()
 	scale := t.GetScaleMatrix()
 	return translation.Mul4(rotation).Mul4(scale) // This actually represents S * R * T.. order is reversed because of how matrices work
+}
+
+// GetViewMatrix returns the inverse of the transform matrix. Use this for cameras.
+func (t *Transform) GetViewMatrix() mgl32.Mat4 {
+	transformMatrix := t.GetTransformMatrix()
+	return transformMatrix.Inv()
 }
 
 func (t *Transform) GetScaleMatrix() mgl32.Mat4 {

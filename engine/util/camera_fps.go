@@ -18,26 +18,11 @@ type FPSCamera struct {
 	rotatey          float32
 	lookSensitivity  float32
 	invertedY        bool
-	parent           TransRotator
+	parent           Transformer
 }
 
 func (c *FPSCamera) GetTransform() Transform {
 	return *c.Transform
-}
-func (c *FPSCamera) SetRotation(rotation mgl32.Quat) {
-	// we need to calculate the rotation angles from the quaternion
-	camFront := mgl32.Vec3{0, 0, -1}
-	camUp := mgl32.Vec3{0, 1, 0}
-	camRight := mgl32.Vec3{1, 0, 0}
-
-	// calculate rotation matrix from quaternion
-	rotationMatrix := rotation.Mat4()
-
-	// calculate camera front vector
-	c.cameraFront = rotationMatrix.Mul4x1(camFront.Vec4(1)).Vec3()
-	c.cameraUp = rotationMatrix.Mul4x1(camUp.Vec4(1)).Vec3()
-	c.cameraRight = rotationMatrix.Mul4x1(camRight.Vec4(1)).Vec3()
-	c.updateTransform()
 }
 func (c *FPSCamera) GetUp() mgl32.Vec3 {
 	return c.cameraUp
@@ -46,10 +31,10 @@ func (c *FPSCamera) MoveInDirection(delta float32, dir [2]int) {
 	currentPos := c.cameraPos
 	moveVector := mgl32.Vec3{0, 0, 0}
 	if dir[1] != 0 {
-		moveVector = moveVector.Add(c.LeftRight(float32(dir[1]) * delta))
+		moveVector = moveVector.Add(c.LeftRight(float32(dir[0]) * delta))
 	}
 	if dir[0] != 0 {
-		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[0]) * delta))
+		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[1]) * delta))
 	}
 	c.cameraPos = currentPos.Add(moveVector)
 	c.updateTransform()
@@ -70,20 +55,15 @@ func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
 	return f
 }
 
-func (c *FPSCamera) GetTransformMatrix() mgl32.Mat4 {
+func (c *FPSCamera) GetViewMatrix() mgl32.Mat4 {
 	if c.parent != nil {
-		parentPos := c.parent.GetPosition().Mul(-1)
-		parentTransMat := mgl32.Translate3D(parentPos.X(), parentPos.Y(), parentPos.Z())
-		parentRotMat := c.parent.GetRotation().Mat4().Inv()
-		parentTrans := parentRotMat.Mul4(parentTransMat)
-		offsetTrans := mgl32.Translate3D(0, -0.1, -0.2)
-		return offsetTrans.Mul4(parentTrans)
+		parentTransform := c.parent.GetTransformMatrix()
+		offsetTrans := mgl32.Translate3D(0, 0.15, 0.2) // right behind our parent
+		transformationMatrix := parentTransform.Mul4(offsetTrans)
+		return transformationMatrix.Inv()
 	}
 
-	return c.Transform.GetTransformMatrix()
-}
-func (c *FPSCamera) GetPosition() mgl32.Vec3 {
-	return c.cameraPos
+	return c.Transform.GetViewMatrix()
 }
 func (c *FPSCamera) SetInvertedY(inverted bool) {
 	c.invertedY = inverted
@@ -166,7 +146,7 @@ func (c *FPSCamera) Reposition(pos mgl32.Vec3, rotX float32, rotY float32) {
 	c.rotatey = rotY
 	c.updateTransform()
 }
-func (c *FPSCamera) AttachTo(t TransRotator) {
+func (c *FPSCamera) AttachTo(t Transformer) {
 	c.parent = t
 	c.updateTransform()
 }
@@ -199,10 +179,10 @@ func (c *FPSCamera) updateTransform() {
 	c.fpsWalkDirection = mgl32.Vec3{0, 1, 0}.Cross(c.cameraRight).Normalize()
 
 	cameraPosition := c.cameraPos
-	viewMatrix := mgl32.LookAtV(cameraPosition, cameraPosition.Add(c.cameraFront), c.cameraUp)
+	transformationMatrix := mgl32.LookAtV(cameraPosition, cameraPosition.Add(c.cameraFront), c.cameraUp).Inv()
 
-	camPos := ExtractPosition(viewMatrix)
-	camRot := ExtractRotation(viewMatrix)
+	camPos := ExtractPosition(transformationMatrix)
+	camRot := ExtractRotation(transformationMatrix)
 
 	c.Transform.SetPosition(camPos)
 	c.Transform.SetRotation(camRot)
