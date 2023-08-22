@@ -456,28 +456,15 @@ func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
 	}
 	return nil, false
 }
-func (a *BattleClient) SwitchToFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, accuracy float64) {
+func (a *BattleClient) SwitchToUnitFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, accuracy float64) {
 	position := unit.GetEyePosition()
-
-	a.GetVoxelMap().ClearHighlights()
-	a.groundSelector.Hide()
-	a.actionbar.Hide()
-
-	a.captureMouse()
-
-	a.fpsCamera.ResetFOV()
 	a.fpsCamera.SetPosition(position)
 	a.fpsCamera.FPSLookAt(lookAtTarget)
 
+	a.SwitchToFirstPerson()
+
 	a.crosshair.SetHidden(false)
 	a.crosshair.SetSize(1.0 - accuracy)
-
-	startCam := a.isoCamera.GetTransform()
-	endCam := a.fpsCamera.GetTransform()
-	a.StartCameraAnimation(startCam, endCam, 0.5)
-
-	a.cameraIsFirstPerson = true
-	a.freezeIdleAnimations()
 
 	// attach arms of selected unit to camera
 	arms := unit.GetModel().GetNodeByName("Arms")
@@ -490,6 +477,23 @@ func (a *BattleClient) SwitchToFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, 
 			unit.GetModel().SetAnimation(previousAnimation, 1.0)
 		}
 	}
+}
+
+func (a *BattleClient) SwitchToFirstPerson() {
+	a.GetVoxelMap().ClearHighlights()
+	a.groundSelector.Hide()
+	a.actionbar.Hide()
+
+	a.captureMouse()
+
+	a.fpsCamera.ResetFOV()
+
+	startCam := a.isoCamera.GetTransform()
+	endCam := a.fpsCamera.GetTransform()
+	a.StartCameraAnimation(startCam, endCam, 0.5)
+
+	a.cameraIsFirstPerson = true
+	a.freezeIdleAnimations()
 }
 
 func (a *BattleClient) SwitchToIsoCamera() {
@@ -598,6 +602,8 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 		}
 	}
 	attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
+	activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit //only for single projectiles and own units
+
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
 		projectile := p
@@ -629,21 +635,14 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 
 			if projectileArrivalCounter == len(msg.Projectiles) {
 				a.Print(damageReport)
-				a.fpsCamera.Detach()
-				// this is probably not the best place to do this, but it works for now
-				if attackerIsOwnUnit {
-					a.PopState() // THIS IS NOT WORKING.. TODO
-					a.SwitchToIsoCamera()
+				if activateBulletCam {
+					a.stopBulletCamAndSwitchTo(attacker)
 				}
 			}
 		})
 
-		if len(msg.Projectiles) == 1 && attackerIsOwnUnit {
-			//only for single projectiles..
-			a.fpsCamera.SetForward(firedProjectile.GetForward())
-			a.fpsCamera.AttachTo(firedProjectile)
-			a.crosshair.SetHidden(true)
-			a.onSwitchToISO()
+		if activateBulletCam {
+			a.startBulletCamFor(firedProjectile)
 		}
 		projectileNumber := index + 1
 		if projectile.UnitHit >= 0 {
@@ -657,6 +656,22 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 			damageReport += fmt.Sprintf("%d. missed\n", projectileNumber)
 		}
 	}
+}
+
+func (a *BattleClient) startBulletCamFor(firedProjectile *Projectile) {
+	if !a.cameraIsFirstPerson {
+		a.SwitchToFirstPerson()
+	} else {
+		a.onSwitchToISO()
+	}
+	a.fpsCamera.SetForward(firedProjectile.GetForward())
+	a.fpsCamera.AttachTo(firedProjectile)
+	a.crosshair.SetHidden(true)
+}
+
+func (a *BattleClient) stopBulletCamAndSwitchTo(unit *Unit) {
+	a.fpsCamera.Detach()
+	a.SwitchToUnit(unit)
 }
 
 func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {

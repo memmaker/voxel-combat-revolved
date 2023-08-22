@@ -23,7 +23,7 @@ func (g *GameStateAction) OnServerMessage(msgType string, json string) {
 	case "RangedAttack":
 		var msg game.VisualRangedAttack
 		if util.FromJson(json, &msg) {
-			if msg.Attacker == g.selectedUnit.UnitID() {
+			if msg.Attacker == g.selectedUnit.UnitID() && !g.engine.cameraIsFirstPerson {
 				g.engine.SwitchToUnitNoCameraMovement(g.selectedUnit)
 			}
 		}

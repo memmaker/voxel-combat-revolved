@@ -120,7 +120,7 @@ func (g *GameStateFreeAim) Init(bool) {
 	accuracy := g.engine.GetRules().GetShotAccuracy(g)
 	lookAtPos := g.aimAtNextTarget()
 
-	g.engine.SwitchToFirstPerson(g.selectedUnit, lookAtPos, accuracy)
+	g.engine.SwitchToUnitFirstPerson(g.selectedUnit, lookAtPos, accuracy)
 
 }
 

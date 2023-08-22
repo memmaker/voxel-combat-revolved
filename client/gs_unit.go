@@ -84,6 +84,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
 		footPos := util.ToGrid(g.selectedUnit.GetPosition())
 		g.engine.SwitchToGroundSelector()
+		g.engine.SwitchToIsoCamera()
 		g.engine.unitSelector.SetPosition(footPos)
 
 		if !g.noCameraMovement {
