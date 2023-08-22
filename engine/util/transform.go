@@ -8,6 +8,7 @@ import (
 )
 
 type Transform struct {
+	parent      Transformer
 	translation mgl32.Vec3
 	rotation    mgl32.Quat
 	scale       mgl32.Vec3
@@ -19,6 +20,9 @@ func (t *Transform) GetName() string {
 }
 func (t *Transform) SetName(name string) {
 	t.nameOfOwner = name
+}
+func (t *Transform) SetParent(parent Transformer) {
+	t.parent = parent
 }
 func NewDefaultTransform(name string) *Transform {
 	return &Transform{
@@ -96,7 +100,8 @@ func (t *Transform) GetTransformMatrix() mgl32.Mat4 {
 	translation := t.GetTranslationMatrix()
 	rotation := t.GetRotationMatrix()
 	scale := t.GetScaleMatrix()
-	return translation.Mul4(rotation).Mul4(scale)
+	return translation.Mul4(rotation).Mul4(scale) // we have this right now.. and it seems to work.. mostly..
+	//return scale.Mul4(rotation).Mul4(translation) // but shouldn't it be this?
 }
 
 func (t *Transform) GetScaleMatrix() mgl32.Mat4 {

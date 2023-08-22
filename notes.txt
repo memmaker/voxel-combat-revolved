@@ -15,7 +15,6 @@
  - Overwatch
  - Mission Objectives
  - Explosions & Blood
- - Smooth camera movement
  - Melee
 
 # Where Phoenix Point failed
@@ -77,6 +76,7 @@
  - Attacking usually ends the turn
 
 # Random Cool ideas
+ - Bullet Cam for Sniper Shots (Slow Motion?)
  - Asymmetric multiplayer - One player is the attacker, the other the defender
  - Multiple Win & Loose Conditions, different ones for each player
  - Random limitations - eg. No grenades, no overwatch, etc.
@@ -191,6 +191,16 @@ Switch to Godot?
 https://github.com/Zylann/godot_voxel
 Or Minetest?
 https://www.minetest.net/
+
+# On Balance
+ - Tradeoffs & Power Budgets
+ - No First Order Optimal Strategies
+ - Counter play (Rock, Paper, Scissors) for everything
+ - Don't balance into mediocrity, make everything OP
+ - Hands vs. Throws (What you pick before vs. what you use during the fight)
+
+GUNS
+-> https://github.com/pWn3d1337/Techguns2/tree/master/src/main/resources/assets/techguns/models/item
 
 ## Current Obstacles
 
