@@ -226,7 +226,7 @@ func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	translation := mgl32.Translate3D(m.translation[0], m.translation[1], m.translation[2])
 	quaternion := m.quatRotation.Mat4()
 	scale := mgl32.Scale3D(m.scale[0], m.scale[1], m.scale[2])
-	return translation.Mul4(quaternion).Mul4(scale)
+	return translation.Mul4(quaternion).Mul4(scale) // This actually represents S * R * T.. order is reversed because of how matrices work
 }
 
 func (m *CompoundMesh) ResetAnimations() {
@@ -567,6 +567,11 @@ func (m *MeshNode) HideChildrenOfBoneExcept(isChild bool, name string, exception
 type Transformer interface {
 	GetTransformMatrix() mgl32.Mat4
 	GetName() string
+}
+
+type TransRotator interface {
+	GetPosition() mgl32.Vec3
+	GetRotation() mgl32.Quat
 }
 
 func (m *MeshNode) SetTempParent(transform Transformer) {

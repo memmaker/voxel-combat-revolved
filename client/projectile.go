@@ -46,7 +46,10 @@ func NewProjectile(shader *glhf.Shader, model *util.CompoundMesh, pos, velocity 
 		shader:    shader,
 		model:     model,
 	}
-	p.Transform.SetForward(velocity.Normalize())
+	forward := velocity.Normalize()
+	right := forward.Cross(mgl32.Vec3{0, 1, 0})
+	up := right.Cross(forward)
+	p.Transform.SetLookAt(pos.Add(velocity.Normalize().Mul(10)), up)
 	model.RootNode.SetParent(p)
 	return p
 }

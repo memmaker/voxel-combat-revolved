@@ -172,7 +172,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 
 	projectile := game.VisualProjectile{
 		Origin:      origin,
-		Velocity:    direction.Mul(10),
+		Velocity:    direction.Mul(2),
 		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
 		UnitHit:     unitHitID,
 		BodyPart:    rayHitInfo.BodyPart,
