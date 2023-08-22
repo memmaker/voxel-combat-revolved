@@ -60,17 +60,17 @@ func (a *BattleClient) pollInput(deltaTime float64) (bool, [2]int) {
 	cameraMoved := false
 	movementVector := [2]int{0, 0}
 	if a.Window.GetKey(glfw.KeyW) == glfw.Press {
-		movementVector[0] = 1
+		movementVector[1] = 1
 		cameraMoved = true
 	} else if a.Window.GetKey(glfw.KeyS) == glfw.Press {
-		movementVector[0] = -1
+		movementVector[1] = -1
 		cameraMoved = true
 	}
 	if a.Window.GetKey(glfw.KeyA) == glfw.Press {
-		movementVector[1] = -1
+		movementVector[0] = -1
 		cameraMoved = true
 	} else if a.Window.GetKey(glfw.KeyD) == glfw.Press {
-		movementVector[1] = 1
+		movementVector[0] = 1
 		cameraMoved = true
 	}
 
