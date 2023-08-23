@@ -70,25 +70,28 @@ func (g *GameStateFreeAim) aimAtNextTarget() mgl32.Vec3 {
 	g.lockedTarget = (g.lockedTarget + 1) % len(g.visibleEnemies)
 	targetUnit := g.visibleEnemies[g.lockedTarget]
 
-	g.showTargetInfo(targetUnit, util.ZoneNone)
+	g.showTargetInfo(targetUnit, util.ZoneNone, "")
 	return targetUnit.GetEyePosition()
 }
 
 func (g *GameStateFreeAim) updateTargetInfo() {
-	rayStart := g.engine.fpsCamera.GetPosition()
-	rayEnd := g.engine.fpsCamera.GetPosition().Add(g.engine.fpsCamera.GetForward().Mul(100))
+	//rayStart := g.engine.fpsCamera.GetPosition()
+	//rayEnd := g.engine.fpsCamera.GetPosition().Add(g.engine.fpsCamera.GetForward().Mul(100))
+
+	rayStart, rayEnd := g.engine.fpsCamera.GetRandomRayInCircleFrustum(1.0)
 	hitInfo := g.engine.RayCastFreeAim(rayStart, rayEnd, g.selectedUnit.UnitInstance)
+	aimString := g.engine.fpsCamera.DebugAim()
 	if hitInfo.HitUnit() {
 		hitUnit := hitInfo.UnitHit.(*game.UnitInstance)
 		zone := hitInfo.BodyPart
-		g.showTargetInfo(hitUnit, zone)
+		g.showTargetInfo(hitUnit, zone, aimString)
 	} else {
 		distanceToTarget := hitInfo.CollisionWorldPosition.Sub(rayStart).Len()
-		g.engine.Print(fmt.Sprintf("Distance to target: %0.2f", distanceToTarget))
+		g.engine.Print(fmt.Sprintf("Distance to target: %0.2f\n%s", distanceToTarget, aimString))
 	}
 }
 
-func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone util.DamageZone) {
+func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone util.DamageZone, aimString string) {
 	weaponMaxRange := float32(g.selectedUnit.GetWeapon().Definition.MaxRange)
 	weaponEffectiveRange := float32(g.selectedUnit.GetWeapon().Definition.EffectiveRange)
 	distanceToTarget := g.selectedUnit.GetEyePosition().Sub(targetUnit.GetCenterOfMassPosition()).Len()
@@ -110,6 +113,8 @@ func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone ut
 	bestCaseHealth := health - projectedMaxDamage
 
 	description += fmt.Sprintf("\nMax Damage: %d > Enemy HP: %d", projectedMaxDamage, bestCaseHealth)
+
+	description += fmt.Sprintf("\n%s", aimString)
 
 	g.engine.Print(description)
 }
@@ -136,8 +141,8 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 	if g.selectedUnit.CanAct() {
 		camPos := g.engine.fpsCamera.GetPosition()
 		camRotX, camRotY := g.engine.fpsCamera.GetRotation()
-		println(fmt.Sprintf("[GameStateFreeAim] Sending action %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
-		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, [][2]float32{{camRotX, camRotY}}))
+		println(fmt.Sprintf("[GameStateFreeAim] Client Aim was %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
+		util.MustSend(g.engine.server.FreeAimAction(g.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
 	} else {
 		println("[GameStateFreeAim] Unit cannot act")
 		g.engine.Print("Unit cannot act")

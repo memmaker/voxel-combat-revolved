@@ -266,7 +266,7 @@ func (g *GameInstance) RayCastToPos(rayStart mgl32.Vec3, targetBlockPos voxel.In
 	return &RayCastHit{HitInfo3D: hitInfo, VisitedBlocks: visitedBlocks, UnitHit: unitHit, InsideMap: insideMap}
 }
 
-func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *UnitInstance) *FreeAimHit {
+func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *UnitInstance) FreeAimHit {
 	rayHitObject := false
 	var hitPart util.Collider
 	var hitPoint mgl32.Vec3
@@ -291,10 +291,10 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 				return false
 			}
 			minDistance := float32(math.MaxFloat32)
-			//println(fmt.Sprintf("Checking %s against %s", obj.GetName(), collidingObject.GetName()))
 			for _, meshPartCollider := range collidingObject.GetColliders() {
 				//meshsCollided, _ = util.GJK(projectile.GetCollider(), meshPartCollider) // we made this sweeping for the projectiles only for now
-				rayHit, rayPoint = meshPartCollider.IntersectsRay(rayStart, rayEnd)
+				rayHit, rayPoint = meshPartCollider.IntersectsRay(rayStart, rayEnd) // why don't we hit the weapon on the server side?
+
 				if rayHit {
 					rayHitObject = true
 					dist := rayPoint.Sub(rayStart).Len()
@@ -326,6 +326,7 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 		} else {
 			partName = util.DamageZone(colliderName)
 		}
+		//println(fmt.Sprintf("Checked ray %v -> %v against %s. Hit Zone: %s", rayStart, rayEnd, hitUnit.GetName(), partName))
 	}
-	return &FreeAimHit{RayCastHit: RayCastHit{HitInfo3D: rayHitInfo, VisitedBlocks: visitedBlocks, UnitHit: hitUnit, InsideMap: insideMap}, BodyPart: partName, Origin: rayStart}
+	return FreeAimHit{RayCastHit: RayCastHit{HitInfo3D: rayHitInfo, VisitedBlocks: visitedBlocks, UnitHit: hitUnit, InsideMap: insideMap}, BodyPart: partName, Origin: rayStart}
 }

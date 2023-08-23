@@ -64,6 +64,7 @@ func GetFreeAimAction(g *game.GameInstance, msg game.FreeAimActionMessage, unit 
 	switch msg.Action {
 	case "Shot":
 		return NewServerActionFreeShot(g, unit, msg.CamPos, msg.TargetAngles)
+		//return NewServerActionPerfectShot(g, unit, msg.RayStart, msg.RayEnd)
 	}
 	println(fmt.Sprintf("[GameInstance] ERR -> Unknown action %s", msg.Action))
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", msg.Action))

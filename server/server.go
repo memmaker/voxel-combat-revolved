@@ -342,7 +342,10 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
 		unit.SetForward2DCardinal(voxel.Int3{X: 0, Y: 0, Z: 1})
+
 		unitID := gameInstance.ServerSpawnUnit(userID, unit) // sets the instance userID
+		unit.UpdateAnimation()
+		println(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
 		println(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
 	}
 

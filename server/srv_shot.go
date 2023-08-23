@@ -61,6 +61,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		targetAngle := targetAngles[rayCalls]
 
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
+		println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from (%0.2f, %0.2f, %0.2f) in direction %0.2f, %0.2f", unit.GetName(), unit.UnitID(), camPos.X(), camPos.Y(), camPos.Z(), targetAngle[0], targetAngle[1]))
 		s.lastAimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
@@ -68,6 +69,25 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 
 		rayCalls = rayCalls + 1%len(targetAngles)
 		return startRay, direction
+	}
+	return s
+}
+
+func NewServerActionPerfectShot(g *game.GameInstance, unit *game.UnitInstance, rayStart, rayEnd mgl32.Vec3) *ServerActionShot {
+	//camera := util.NewFPSCamera(camPos, 100, 100, 0)
+	println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a PERFECT shot from (%0.2f, %0.2f, %0.2f) to (%0.2f, %0.2f, %0.2f)", unit.GetName(), unit.UnitID(), rayStart.X(), rayStart.Y(), rayStart.Z(), rayEnd.X(), rayEnd.Y(), rayEnd.Z()))
+	// todo: add anti-cheat validation to camPos and angles here..
+	s := &ServerActionShot{
+		engine:           g,
+		unit:             unit,
+		totalAPCost:      int(unit.GetWeapon().Definition.BaseAPForShot) + 1,
+		accuracyModifier: 1.0,
+		damageModifier:   1.0,
+	}
+	aimDirection := rayEnd.Sub(rayStart).Normalize()
+	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
+		s.lastAimDirection = aimDirection
+		return rayStart, aimDirection
 	}
 	return s
 }
@@ -147,14 +167,12 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHitID := int64(-1)
-	var hitUnit *game.UnitInstance = nil
 	var hitBlocks []voxel.Int3
 	projectileDestination := rayHitInfo.HitInfo3D.CollisionWorldPosition
 
-	if rayHitInfo.UnitHit != nil && rayHitInfo.UnitHit != hitUnit {
+	if rayHitInfo.HitUnit() {
 		unitHitID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
-		hitUnit = rayHitInfo.UnitHit.(*game.UnitInstance)
 		projectileBaseDamage, lethal = a.engine.HandleUnitHitWithProjectile(a.unit, a.damageModifier, rayHitInfo)
 	} else {
 		if rayHitInfo.Hit {

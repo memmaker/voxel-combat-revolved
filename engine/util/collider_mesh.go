@@ -54,10 +54,13 @@ func (m *MeshCollider) IterateTrianglesTransformed(callback func(triangle [3]mgl
 	}
 }
 func (m *MeshCollider) IntersectsRay(rayStart, rayEnd mgl32.Vec3) (bool, mgl32.Vec3) {
+	//partName := m.name
+	//println(fmt.Sprintf("[IntersectsRay] %s", m.name))
 	minDist := float32(math.MaxFloat32)
 	doesIntersect := false
 	nearestIntersection := mgl32.Vec3{0, 0, 0}
 	m.IterateTrianglesTransformed(func(triangle [3]mgl32.Vec3) {
+		//println(fmt.Sprintf("[IntersectsRay] --> Tri. %v", triangle))
 		intersection, atPoint := intersectLineSegmentTriangle(rayStart, rayEnd, triangle[0], triangle[1], triangle[2])
 		if intersection {
 			doesIntersect = true

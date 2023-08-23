@@ -53,7 +53,8 @@ func (p *Unit) Update(deltaTime float64) {
 	}
 
 	p.applyVelocity(deltaTime)
-	p.GetModel().UpdateAnimations(deltaTime)
+
+	// debug // p.GetModel().UpdateAnimations(deltaTime) // TODO enable again
 
 	currentState := p.state.GetName()
 	currentEvent := p.state.Execute(deltaTime)
@@ -206,7 +207,7 @@ func (p *Unit) Description() string {
 func (p *Unit) StartIdleAnimationLoop() {
 	ownPos := p.GetBlockPosition()
 	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.GetForward2DCardinal())
-	println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
+	//println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
 	p.UnitInstance.GetModel().SetAnimationLoop(animation.Str(), 1.0)
 	p.SetForward2DCardinal(front)
 	//println(p.model.GetAnimationDebugString())
