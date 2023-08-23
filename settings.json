@@ -1,5 +1,8 @@
 {
   "Width": 800,
   "Height": 600,
-  "FPSCameraInvertedMouse": true
+  "FPSCameraInvertedMouse": true,
+  "FPSCameraMouseSensitivity": 0.08,
+  "EnableBulletCam": true,
+  "EnableCameraAnimations": true
 }

@@ -154,13 +154,13 @@ func (m *Map) SetChunk(x, y, z int32, c *Chunk) {
 	m.chunks[x+y*m.width+z*m.width*m.height] = c
 }
 
-func (m *Map) Draw(camDirection mgl32.Vec3, frustum []mgl32.Vec4) {
+func (m *Map) Draw(modelUniformIndex int, frustum []mgl32.Vec4) {
 	m.terrainTexture.Begin()
 	for _, chunk := range m.chunks {
 		if chunk == nil || !isChunkVisibleInFrustum(frustum, chunk.Position()) {
 			continue
 		}
-		chunk.Draw(m.chunkShader, camDirection)
+		chunk.Draw(m.chunkShader, modelUniformIndex)
 	}
 	m.terrainTexture.End()
 }

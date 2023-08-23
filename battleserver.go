@@ -9,9 +9,10 @@ import (
 
 func NewBattleServer() *server.BattleServer {
 	defaultCoreStats := game.UnitCoreStats{
-		Health:        10,
-		MovementPerAP: 3.5,
-		Accuracy:      0.80,
+		Health:          10,
+		MovementPerAP:   3.5,
+		Accuracy:        1.00,
+		MaxActionPoints: 4,
 	}
 
 	battleServer := server.NewBattleServer()
@@ -141,15 +142,15 @@ func NewBattleServer() *server.BattleServer {
 		UniqueName:          "Steyr SSG 69",
 		Model:               "Sniper",
 		WeaponType:          game.WeaponSniper,
-		AccuracyModifier:    1.1,
+		AccuracyModifier:    1.0,
 		BulletsPerShot:      1,
 		EffectiveRange:      20,
 		MaxRange:            100,
 		MagazineSize:        3,
 		BaseDamagePerBullet: 5,
 		MinFOVForZoom:       20,
-		BaseAPForShot:       3,
-		BaseAPForReload:     3,
+		BaseAPForShot:       1,
+		BaseAPForReload:     1,
 	})
 	return battleServer
 }

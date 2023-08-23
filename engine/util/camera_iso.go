@@ -14,6 +14,10 @@ type ISOCamera struct {
 	camDistance   float32
 }
 
+func (c *ISOCamera) GetProjectionViewMatrix() mgl32.Mat4 {
+	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
+}
+
 func (c *ISOCamera) GetTransform() Transform {
 	return *c.Transform
 }

@@ -16,5 +16,7 @@ func (a *BattleClient) handleCameraAnimation(elapsed float64) bool {
 }
 
 func (a *BattleClient) StartCameraAnimation(start, end util.Transform, duration float64) {
-	a.cameraAnimation = util.NewCameraAnimation(start, end, duration, a.WindowWidth, a.WindowHeight)
+	if a.settings.EnableCameraAnimations {
+		a.cameraAnimation = util.NewCameraAnimation(start, end, duration, a.WindowWidth, a.WindowHeight)
+	}
 }

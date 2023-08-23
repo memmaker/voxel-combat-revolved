@@ -31,7 +31,7 @@ func (a *ServerActionShot) SetAPCost(newCost int) {
 }
 
 func (a *ServerActionShot) IsTurnEnding() bool {
-	return true
+	return a.engine.GetRules().IsRangedAttackTurnEnding
 }
 
 func (a *ServerActionShot) IsValid() (bool, string) {
@@ -47,7 +47,7 @@ func (a *ServerActionShot) IsValid() (bool, string) {
 	return true, ""
 }
 func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camPos mgl32.Vec3, targetAngles [][2]float32) *ServerActionShot {
-	camera := util.NewFPSCamera(camPos, 100, 100)
+	camera := util.NewFPSCamera(camPos, 100, 100, 0)
 	rayCalls := 0
 	// todo: add anti-cheat validation to camPos and angles here..
 	s := &ServerActionShot{
@@ -72,7 +72,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 	return s
 }
 func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targets []voxel.Int3) *ServerActionShot {
-	camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100)
+	camera := util.NewFPSCamera(unit.GetEyePosition(), 100, 100, 0)
 	targetsInWorld := make([]mgl32.Vec3, len(targets))
 	for i, target := range targets {
 		if g.GetVoxelMap().IsOccupied(target) {
@@ -149,6 +149,8 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	unitHitID := int64(-1)
 	var hitUnit *game.UnitInstance = nil
 	var hitBlocks []voxel.Int3
+	projectileDestination := rayHitInfo.HitInfo3D.CollisionWorldPosition
+
 	if rayHitInfo.UnitHit != nil && rayHitInfo.UnitHit != hitUnit {
 		unitHitID = int64(rayHitInfo.UnitHit.UnitID())
 		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
@@ -166,14 +168,15 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 				println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s hit %s", rayHitInfo.HitInfo3D.CollisionGridPosition.ToString(), blockDef.UniqueName))
 			}
 		} else {
-			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision"))
+			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision, out of weapon range"))
+			projectileDestination = endOfRay
 		}
 	}
 
 	projectile := game.VisualProjectile{
 		Origin:      origin,
 		Velocity:    direction.Mul(2),
-		Destination: rayHitInfo.HitInfo3D.CollisionWorldPosition,
+		Destination: projectileDestination,
 		UnitHit:     unitHitID,
 		BodyPart:    rayHitInfo.BodyPart,
 		Damage:      projectileBaseDamage,

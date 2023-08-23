@@ -44,9 +44,8 @@ invariant out vec3 VertPos;
 flat out int VertTexIndex;
 // set uniform locations
 
-uniform mat4 projection;
-uniform mat4 camera;
-uniform mat4 model;
+uniform mat4 camProjectionView;
+uniform mat4 modelTransform;
 /*
 type FaceType int32
 
@@ -103,5 +102,5 @@ void main() {
     // pass-through for fragment shader
     VertNormal = normalLookup[normalDir];
 
-    gl_Position = projection * camera * model * vec4(VertPos, 1.0);
+    gl_Position = camProjectionView * modelTransform * vec4(VertPos, 1.0);
 }

@@ -1,6 +1,6 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
- - Action Points seem to be out of sync / not correctly updated
+ - Something is wrong with the raycasting on units
 
 # Design Guidelines
  - Turn based
@@ -10,12 +10,22 @@
  - Animations
  - Data driven
 
-# Basics we need
- - Grenades
- - Overwatch
+# Next Steps
  - Mission Objectives
- - Explosions & Blood
  - Melee
+ - Line Drawing (Paths & Line Of Sight)
+ - Grenades: Arc drawing (Grenade throwing)
+ - Explosions & Blood: Particle effects (Explosions & blood)
+ - Lighting (Shadows?)
+ - Outlines for Bodyparts & Units (Targeting)
+
+# Known issues
+ - Model meshes are sometimes outside of the occupied blocks
+   -> Visual glitches, clipping, etc.
+   -> Raycasting will fail on these parts of the model
+ - Snapshots are always fired from the center of a block at eye level
+   -> Free aim allows moving the origin within the whole block
+   -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
 
 # Where Phoenix Point failed
  - Difficulty curve / Balance
@@ -34,6 +44,7 @@
  - Units in overwatch being attacked from positions they don't watch, receive additional damage on hit
    - Only adjacent positions can be watched
  - Only usable once per unit per combat encounter
+
 
 # Mission Objectives
  - Kill all enemies - DUH
@@ -58,14 +69,6 @@
    -> Shield deployment
    -> Dodge movement
    -> Parry / deflect
-
-# Known issues
- - Model meshes are sometimes outside of the occupied blocks
-   -> Visual glitches, clipping, etc.
-   -> Raycasting will fail on these parts of the model
- - Snapshots are always fired from the center of a block at eye level
-   -> Free aim allows moving the origin within the whole block
-   -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
 
 # Core Mechanics
  - Bullets are ray-traced in 3D against environment and models
@@ -124,7 +127,7 @@
  - Particle effects (Explosions & blood)
  - Lighting (Shadows?)
  - Outlines for Bodyparts & Units (Targeting)
- - Smooth camera movement (Zooming & Panning)
+ - Smooth camera movement (Zooming & Panning) - DONE
  - Data driven (Units, Items, Maps)
 
 # Sliders style setting / story

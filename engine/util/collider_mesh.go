@@ -8,12 +8,13 @@ import (
 )
 
 type MeshCollider struct {
-	VertexData    []glhf.GlFloat // vertex data format: posX, posY, posZ, normalX, normalY, normalZ, texU, texV
-	TransformFunc func() mgl32.Mat4
-	name          string
-	velocity      mgl32.Vec3
-	VertexCount   int
-	VertexIndices []uint32
+	VertexData       []glhf.GlFloat // vertex data format: posX, posY, posZ, normalX, normalY, normalZ, texU, texV
+	TransformFunc    func() mgl32.Mat4
+	name             string
+	velocity         mgl32.Vec3
+	VertexCount      int
+	VertexIndices    []uint32
+	VertexFormatSize uint32
 }
 
 func (m *MeshCollider) SetName(name string) {
@@ -28,7 +29,14 @@ func (m *MeshCollider) IterateTrianglesTransformed(callback func(triangle [3]mgl
 	transformVertex := func(x, y, z glhf.GlFloat) mgl32.Vec3 {
 		return transformMatrix.Mul4x1(mgl32.Vec4{float32(x), float32(y), float32(z), 1}).Vec3()
 	}
-	stride := uint32(8)
+	/*
+		{Name: "position", Type: glhf.Vec3},
+		{Name: "texCoord", Type: glhf.Vec2},
+		{Name: "vertexColor", Type: glhf.Vec3},
+		{Name: "normal", Type: glhf.Vec3},
+	*/
+
+	stride := uint32(m.VertexFormatSize)
 	if m.VertexIndices != nil {
 		for i := 0; i < len(m.VertexIndices); i += 3 {
 			a := transformVertex(m.VertexData[m.VertexIndices[i]*stride+0], m.VertexData[m.VertexIndices[i]*stride+1], m.VertexData[m.VertexIndices[i]*stride+2])

@@ -12,7 +12,7 @@ uniform vec3 global_light_color;
 uniform vec3 light_position;
 uniform vec3 light_color;
 
-uniform mat4 model;
+uniform mat4 modelTransform;
 
 out vec4 color;
 
@@ -36,7 +36,7 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
     //calculate final color of the pixel, based on:
     // 1. The angle of incidence: brightness
 
-    vec3 worldPosition = vec3(model * vec4(VertPos, 1));
+    vec3 worldPosition = vec3(modelTransform * vec4(VertPos, 1));
 
     //calculate the vector from this pixels surface to the light source
     vec3 surfaceToLight = light_position - worldPosition;
@@ -49,7 +49,7 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
 }
 void main() {
     //calculate normal in world coordinates
-    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
     vec3 worldNormal = normalize(normalMatrix * VertNormal);
 
     //calculate the location of this fragment (pixel) in world coordinates

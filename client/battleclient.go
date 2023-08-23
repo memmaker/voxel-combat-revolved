@@ -20,11 +20,10 @@ type BattleClient struct {
 	wireFrame           bool
 	selector            PositionDrawable
 	crosshair           *Crosshair
-	modelShader         *glhf.Shader
 	chunkShader         *glhf.Shader
 	lineShader          *glhf.Shader
 	guiShader           *glhf.Shader
-	circleShader        *glhf.Shader
+	defaultShader       *glhf.Shader
 	textLabel           *etxt.TextMesh
 	textRenderer        *etxt.OpenGLTextRenderer
 	lastHitInfo         *game.RayCastHit
@@ -66,9 +65,12 @@ func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
 }
 
 type ClientSettings struct {
-	Width                  int
-	Height                 int
-	FPSCameraInvertedMouse bool
+	Width                     int
+	Height                    int
+	FPSCameraInvertedMouse    bool
+	EnableBulletCam           bool
+	FPSCameraMouseSensitivity float32
+	EnableCameraAnimations    bool
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
@@ -107,7 +109,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	window.SetMouseButtonCallback(glApp.MouseButtonCallback)
 	window.SetScrollCallback(glApp.ScrollCallback)
 
-	fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, settings.Width, settings.Height)
+	fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, settings.Width, settings.Height, settings.FPSCameraMouseSensitivity)
 	fpsCamera.SetInvertedY(settings.FPSCameraInvertedMouse)
 
 	myApp := &BattleClient{
@@ -119,11 +121,10 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	}
 	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, myApp.CreateClientUnit)
 	myApp.GameClient.SetEnvironment("GL-Client")
-	myApp.modelShader = myApp.loadModelShader()
 	myApp.chunkShader = myApp.loadChunkShader()
 	myApp.lineShader = myApp.loadLineShader()
 	myApp.guiShader = myApp.loadGuiShader()
-	myApp.circleShader = myApp.loadCircleShader()
+	myApp.defaultShader = myApp.loadDefaultShader()
 	myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
 	myApp.textRenderer = etxt.NewOpenGLTextRenderer(myApp.guiShader)
 	myApp.DrawFunc = myApp.Draw
@@ -133,14 +134,14 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
 	myApp.ScrollHandler = myApp.handleScrollEvents
 
-	myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.modelShader)
+	myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.defaultShader)
 
 	selectorMesh := util.LoadGLTFWithTextures("./assets/models/selector.glb")
 	selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
-	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.modelShader)
+	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.defaultShader)
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
 	myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
-	myApp.bulletModel.ConvertVertexData(myApp.modelShader)
+	myApp.bulletModel.ConvertVertexData(myApp.defaultShader)
 	guiAtlas, guiIconIndices := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
@@ -152,7 +153,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	   crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
 	   myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
 	*/
-	crosshair := NewCrosshair(myApp.circleShader, myApp.fpsCamera)
+	crosshair := NewCrosshair(myApp.defaultShader, myApp.fpsCamera)
 	myApp.SetCrosshair(crosshair)
 	myApp.SetConnection(con)
 
@@ -161,7 +162,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 
 func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
 	compoundMesh := util.LoadGLTFWithTextures(filename)
-	compoundMesh.ConvertVertexData(a.modelShader)
+	compoundMesh.ConvertVertexData(a.defaultShader)
 	return compoundMesh
 }
 
@@ -181,10 +182,11 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
 }
 
 func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, onArrival func()) *Projectile {
-	projectile := NewProjectile(a.modelShader, a.bulletModel, pos, velocity)
+	projectile := NewProjectile(a.defaultShader, a.bulletModel, pos, velocity)
 	projectile.SetDestination(destination)
 	projectile.SetOnArrival(onArrival)
 	a.projectiles = append(a.projectiles, projectile)
+	println(fmt.Sprintf("\n>> Projectile spawned at %v with destination %v", pos, destination))
 	return projectile
 }
 
@@ -256,31 +258,29 @@ func (a *BattleClient) Draw(elapsed float64) {
 	}
 	a.drawWorld(camera)
 
-	a.drawModels(camera)
+	a.drawDefaultShader(camera)
 
 	a.drawLines(camera)
 
-	a.drawGUI()
+	a.draw2D()
 	stopDrawTimer()
 }
 
 func (a *BattleClient) drawWorld(cam util.Camera) {
 	a.chunkShader.Begin()
 
-	a.chunkShader.SetUniformAttr(0, cam.GetProjectionMatrix())
+	a.chunkShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
 
-	a.chunkShader.SetUniformAttr(1, cam.GetViewMatrix())
-
-	a.GetVoxelMap().Draw(cam.GetForward(), cam.GetFrustumPlanes())
+	a.GetVoxelMap().Draw(ShaderModelMatrix, cam.GetFrustumPlanes())
 
 	a.chunkShader.End()
 }
 
-func (a *BattleClient) drawModels(cam util.Camera) {
-	a.modelShader.Begin()
+func (a *BattleClient) drawDefaultShader(cam util.Camera) {
+	a.defaultShader.Begin()
 
-	a.modelShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-	a.modelShader.SetUniformAttr(1, cam.GetViewMatrix())
+	a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
+	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawModel)
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
 		a.selector.Draw()
@@ -292,13 +292,16 @@ func (a *BattleClient) drawModels(cam util.Camera) {
 
 	for _, unit := range a.GetAllClientUnits() {
 		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) {
-			unit.Draw(a.modelShader)
+			unit.Draw(a.defaultShader)
 		}
 	}
 
 	a.drawProjectiles()
 
-	a.modelShader.End()
+	if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
+		a.crosshair.Draw()
+	}
+	a.defaultShader.End()
 }
 
 func (a *BattleClient) drawProjectiles() {
@@ -321,7 +324,7 @@ func (a *BattleClient) drawLines(cam util.Camera) {
 	a.lineShader.End()
 }
 
-func (a *BattleClient) drawGUI() {
+func (a *BattleClient) draw2D() {
 	a.guiShader.Begin()
 
 	if a.textLabel != nil {
@@ -333,12 +336,6 @@ func (a *BattleClient) drawGUI() {
 	}
 
 	a.guiShader.End()
-
-	if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
-		a.circleShader.Begin()
-		a.crosshair.Draw()
-		a.circleShader.End()
-	}
 }
 
 func (a *BattleClient) SwitchToNextUnit(currentUnit *Unit) {
@@ -376,7 +373,7 @@ func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionSnapShot) 
 }
 
 func (a *BattleClient) SwitchToEditMap() {
-	a.stateStack = append(a.stateStack, &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}, blockTypeToPlace: 1})
+	a.stateStack = append(a.stateStack, NewEditorState(a))
 	a.state().Init(false)
 }
 
@@ -602,7 +599,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 		}
 	}
 	attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
-	activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit //only for single projectiles and own units
+	activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit && a.settings.EnableBulletCam //only for single projectiles and own units
 
 	projectileArrivalCounter := 0
 	for index, p := range msg.Projectiles {
