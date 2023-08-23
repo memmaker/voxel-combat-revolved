@@ -54,7 +54,7 @@ func (p *Unit) Update(deltaTime float64) {
 
 	p.applyVelocity(deltaTime)
 
-	// debug // p.GetModel().UpdateAnimations(deltaTime) // TODO enable again
+	p.GetModel().UpdateAnimations(deltaTime)
 
 	currentState := p.state.GetName()
 	currentEvent := p.state.Execute(deltaTime)
@@ -157,7 +157,6 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 
 func (p *Unit) TurnTowardsWaypoint() {
 	direction := p.GetWaypoint().Sub(voxel.PositionToGridInt3(p.GetPosition()))
-	println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
 	p.SetForward2DCardinal(direction)
 }
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {

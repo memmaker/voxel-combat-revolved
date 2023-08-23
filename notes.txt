@@ -1,6 +1,5 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
- - Something is wrong with the raycasting on units
 
 # Design Guidelines
  - Turn based
