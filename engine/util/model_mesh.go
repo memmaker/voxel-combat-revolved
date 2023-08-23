@@ -54,7 +54,7 @@ func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
 	m.RootNode.Scale([3]float32{float32(scaleFactor), float32(scaleFactor), float32(scaleFactor)})
 }
 
-func (m *CompoundMesh) GetNodeByName(nodeName string) *MeshNode {
+func (m *CompoundMesh) GetNodeByName(nodeName string) (*MeshNode, bool) {
 	return m.RootNode.GetNodeByName(nodeName)
 }
 
@@ -188,7 +188,7 @@ func (m *MeshNode) Draw(shader *glhf.Shader, modelTransformUniformIndex int, tex
 }
 
 func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
-	if m.temporaryParent != nil {
+	if m.temporaryParent != nil { // currently only used by the fps camera for attaching the arms
 		externalParent := m.temporaryParent.GetTransformMatrix()
 		offset := mgl32.Translate3D(0.2, -0.7, 0) // TODO: make this a parameter?
 		externalParent = externalParent.Mul4(offset)
@@ -198,9 +198,6 @@ func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 		return m.GetLocalMatrix()
 	}
 	return m.parent.GetTransformMatrix().Mul4(m.GetLocalMatrix())
-}
-func (m *MeshNode) GetTransformWithParent(parent Transformer) mgl32.Mat4 {
-	return parent.GetTransformMatrix().Mul4(m.GetLocalMatrix())
 }
 func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	translation := mgl32.Translate3D(m.translation[0], m.translation[1], m.translation[2])
@@ -239,6 +236,7 @@ func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
 
 func (m *CompoundMesh) SetAnimationPose(animation string) {
 	//println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
+	m.currentAnimation = animation
 	m.RootNode.SetAnimationPose(animation)
 	m.holdAnimation = true
 }
@@ -460,17 +458,17 @@ func (m *MeshNode) Translate(keyFrame [3]float32) {
 	m.translation = keyFrame
 }
 
-func (m *MeshNode) GetNodeByName(name string) *MeshNode {
+func (m *MeshNode) GetNodeByName(name string) (*MeshNode, bool) {
 	if m.name == name {
-		return m
+		return m, true
 	}
 	for _, child := range m.children {
-		node := child.GetNodeByName(name)
-		if node != nil {
-			return node
+		node, exists := child.GetNodeByName(name)
+		if exists {
+			return node, true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 func (m *MeshNode) GetColliders() []Collider {
@@ -605,6 +603,10 @@ func (m *MeshNode) HasBone(name string) bool {
 		}
 	}
 	return false
+}
+
+func (m *MeshNode) GetTranslation() mgl32.Vec3 {
+	return mgl32.Vec3{m.translation[0], m.translation[1], m.translation[2]}
 }
 
 type SubMesh struct {

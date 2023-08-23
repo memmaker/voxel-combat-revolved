@@ -70,13 +70,13 @@ func (c *FPSCamera) SetInvertedY(inverted bool) {
 }
 
 func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
-	accuracy = Clamp(accuracy, 0.0, 0.99)
+	accuracy = Clamp(accuracy, 0.0, 1.0)
 	accFactor := 1.0 - accuracy // 0.01..1.0
 
 	randX := rand.Float64()*2.0 - 1.0
 	randY := rand.Float64()*2.0 - 1.0
 
-	println(fmt.Sprintf("randNorm: %0.2f, %0.2f", randX, randY))
+	//println(fmt.Sprintf("randNorm: %0.2f, %0.2f", randX, randY))
 
 	lengthOfVector := math.Sqrt(randX*randX + randY*randY)
 	if lengthOfVector > 1.0 {
@@ -84,13 +84,13 @@ func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, m
 		randX /= lengthOfVector
 		randY /= lengthOfVector
 	}
-	println(fmt.Sprintf("circled: %0.2f, %0.2f", randX, randY))
+	//println(fmt.Sprintf("circled: %0.2f, %0.2f", randX, randY))
 
 	// in range -1.0..1.0
 	randX *= accFactor
 	randY *= accFactor
 
-	println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
+	//println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
 
 	return GetRayFromCameraPlane(c, float32(randX), float32(randY))
 }
@@ -181,4 +181,9 @@ func (c *FPSCamera) updateTransform() {
 
 func (c *FPSCamera) Detach() {
 	c.parent = nil
+}
+
+func (c *FPSCamera) DebugAim() string {
+	pos := c.GetPosition()
+	return fmt.Sprintf("Pos: (%0.2f, %0.2f, %0.2f) Aim: (%0.2f, %0.2f)", pos.X(), pos.Y(), pos.Z(), c.rotatex, c.rotatey)
 }

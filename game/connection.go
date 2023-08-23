@@ -122,8 +122,8 @@ func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, 
 	return c.send("UnitAction", message)
 }
 
-func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, targetAngles [][2]float32) error {
-	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, TargetAngles: targetAngles}
+func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, camRotX, camRotY float32) error {
+	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, TargetAngles: [][2]float32{{camRotX, camRotY}}}
 	return c.send("FreeAimAction", message)
 }
 

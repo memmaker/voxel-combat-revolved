@@ -293,7 +293,11 @@ func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
 	if u.model == nil || !u.model.HasBone("Torso") {
 		return u.GetPosition().Add(mgl32.Vec3{0, 1.25, 0})
 	}
-	return u.GetModel().GetNodeByName("Torso").GetWorldPosition()
+	torso, exists := u.GetModel().GetNodeByName("Torso")
+	if !exists {
+		return u.GetPosition().Add(mgl32.Vec3{0, 1.25, 0})
+	}
+	return torso.GetWorldPosition()
 }
 
 func (u *UnitInstance) ApplyDamage(damage int, part util.DamageZone) bool {
@@ -388,6 +392,32 @@ func (u *UnitInstance) IsPlayingIdleAnimation() bool {
 	return currentAnimation == AnimationWeaponIdle.Str() ||
 		currentAnimation == AnimationIdle.Str() ||
 		currentAnimation == AnimationWallIdle.Str()
+}
+
+func (u *UnitInstance) HasModel() bool {
+	return u.model != nil
+}
+
+func (u *UnitInstance) DebugString(caller string) string {
+	forward := u.Transform.GetForward()
+	debugInfo := fmt.Sprintf("[%s] %s(%d) is at %s facing (%0.2f, %0.2f, %0.2f)", caller, u.GetName(), u.UnitID(), u.GetBlockPosition().ToString(), forward.X(), forward.Y(), forward.Z())
+	debugInfo += fmt.Sprintf("\n[%s] -> Exact position is (%0.2f, %0.2f, %0.2f)", caller, u.GetPosition().X(), u.GetPosition().Y(), u.GetPosition().Z())
+	if u.HasModel() {
+		weapon := u.GetWeapon()
+		weaponName := weapon.Definition.Model
+		model := u.GetModel()
+		weaponMesh, exists := model.GetNodeByName(weaponName)
+		if exists {
+			weaponWorldPos := weaponMesh.GetWorldPosition()
+			debugInfo += fmt.Sprintf("\n[%s] -> '%s' weapon mesh world position: %0.2f, %0.2f, %0.2f", caller, weaponName, weaponWorldPos.X(), weaponWorldPos.Y(), weaponWorldPos.Z())
+		} else {
+			debugInfo += fmt.Sprintf("\n[%s] -> Weapon mesh %s not found", caller, weaponName)
+		}
+	} else {
+		debugInfo += fmt.Sprintf("\n[%s] -> Unit %d has no model", caller, u.UnitID())
+	}
+
+	return debugInfo
 }
 
 func getDamageZones() []util.DamageZone {

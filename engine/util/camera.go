@@ -178,17 +178,18 @@ func GetRayFromCameraPlane(cam Camera, normalizedX float32, normalizedY float32)
 	normalizedNearPos := mgl32.Vec4{normalizedX, normalizedY, cam.GetNearPlaneDist(), 1}
 	normalizedFarPos := mgl32.Vec4{normalizedX, normalizedY, cam.GetNearPlaneDist() + rayLength, 1}
 
-	proj := cam.GetProjectionMatrix()
-	view := cam.GetViewMatrix()
-	projViewInverted := proj.Mul4(view).Inv()
+	projViewInverted := cam.GetProjectionViewMatrix().Inv()
 
 	// project point from camera space to world space
 	nearWorldPos := projViewInverted.Mul4x1(normalizedNearPos)
 	farWorldPos := projViewInverted.Mul4x1(normalizedFarPos)
+
 	// perspective divide
 	rayStart := nearWorldPos.Vec3().Mul(1 / nearWorldPos.W())
 	farPosCorrected := farWorldPos.Vec3().Mul(1 / farWorldPos.W())
+
 	dir := rayStart.Sub(farPosCorrected).Normalize()
 	rayEnd := rayStart.Add(dir.Mul(rayLength))
+
 	return rayStart, rayEnd
 }

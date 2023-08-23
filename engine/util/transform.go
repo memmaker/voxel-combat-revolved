@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 )
@@ -153,7 +152,7 @@ func (t *Transform) GetScale() mgl32.Vec3 {
 
 func (t *Transform) setYRotationAngle(angle float32) {
 	t.rotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0})
-	println(fmt.Sprintf("[Transform] setYRotationAngle for %s: %v", t.GetName(), angle))
+	//println(fmt.Sprintf("[Transform] setYRotationAngle for %s: %v", t.GetName(), angle))
 }
 
 func (t *Transform) SetForward2D(forward mgl32.Vec3) {

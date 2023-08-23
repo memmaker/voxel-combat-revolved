@@ -180,11 +180,13 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 	}
 	unitInstanceID := uint64(len(g.units))
 	unit.SetUnitID(unitInstanceID)
-	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 	// TODO: change spawn position
 	unit.SetBlockPosition(g.voxelMap.GetNextDebugSpawn())
+
+	println(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+
 	return unitInstanceID
 }
 func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
@@ -192,7 +194,7 @@ func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
 		g.playerUnits[userID] = make([]uint64, 0)
 	}
 	unitInstanceID := unit.UnitID()
-	println(fmt.Sprintf("[GameInstance] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	println(fmt.Sprintf("[ClientAddUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 	return unitInstanceID
@@ -376,7 +378,7 @@ func (g *GameInstance) GetBlockDefAt(blockPos voxel.Int3) *BlockDefinition {
 	return g.blockLibrary.GetBlockDefinition(block.ID)
 }
 
-func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damageModifier float64, rayHitInfo *FreeAimHit) (int, bool) {
+func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damageModifier float64, rayHitInfo FreeAimHit) (int, bool) {
 	hitUnit := rayHitInfo.UnitHit.(*UnitInstance)
 	direction := rayHitInfo.HitInfo3D.CollisionWorldPosition.Sub(rayHitInfo.Origin).Normalize()
 	distance := rayHitInfo.Distance

@@ -178,6 +178,7 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
 	currentUnit.SetModel(model)
 	currentUnit.SetVoxelMap(a.GetVoxelMap())
 	unit := NewClientUnit(currentUnit)
+	println(unit.DebugString("CreateClientUnit"))
 	return unit
 }
 
@@ -464,7 +465,7 @@ func (a *BattleClient) SwitchToUnitFirstPerson(unit *Unit, lookAtTarget mgl32.Ve
 	a.crosshair.SetSize(1.0 - accuracy)
 
 	// attach arms of selected unit to camera
-	arms := unit.GetModel().GetNodeByName("Arms")
+	arms, _ := unit.GetModel().GetNodeByName("Arms")
 	if arms != nil {
 		previousAnimation := unit.GetModel().GetAnimationName()
 		arms.SetTempParent(a.fpsCamera)

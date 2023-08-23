@@ -43,8 +43,8 @@ type TargetedUnitActionMessage struct {
 type FreeAimActionMessage struct {
 	UnitMessage
 	Action       string
-	CamPos       mgl32.Vec3
 	TargetAngles [][2]float32
+	CamPos       mgl32.Vec3
 }
 type MapLoadedMessage struct {
 }
