@@ -116,7 +116,7 @@ func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZo
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
-	p.UnitInstance.GetModel().Draw(shader)
+	p.UnitInstance.GetModel().Draw(shader, ShaderModelMatrix)
 }
 
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {

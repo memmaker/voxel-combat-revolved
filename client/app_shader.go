@@ -8,12 +8,6 @@ import (
 )
 
 var (
-	//go:embed shader/model.vert
-	modelVertexShaderSource string
-
-	//go:embed shader/model.frag
-	modelFragmentShaderSource string
-
 	//go:embed shader/chunk.vert
 	chunkVertexShaderSource string
 
@@ -32,11 +26,11 @@ var (
 	//go:embed shader/gui.frag
 	guiFragmentShaderSource string
 
-	//go:embed shader/circle.vert
-	circleVertexShaderSource string
+	//go:embed shader/default.vert
+	defaultVertexShaderSource string
 
-	//go:embed shader/circle.frag
-	circleFragmentShaderSource string
+	//go:embed shader/default.frag
+	defaultFragmentShaderSource string
 )
 
 func (a *BattleClient) loadGuiShader() *glhf.Shader {
@@ -63,30 +57,64 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 	shader.End()
 	return shader
 }
-func (a *BattleClient) loadCircleShader() *glhf.Shader {
+
+const (
+	ShaderDrawModel  = int32(0)
+	ShaderDrawCircle = int32(3)
+)
+const (
+	ShaderProjectionViewMatrix = 0
+	ShaderModelMatrix          = 1
+	ShaderDrawMode             = 2
+	ShaderDrawColor            = 3
+	ShaderThickness            = 4
+	ShaderGlobalLightDirection = 5
+	ShaderGlobalLightColor     = 6
+	ShaderLightPosition        = 7
+	ShaderLightColor           = 8
+)
+
+func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
-			{Name: "position", Type: glhf.Vec2},
+			{Name: "position", Type: glhf.Vec3},
 			{Name: "texCoord", Type: glhf.Vec2},
+			{Name: "vertexColor", Type: glhf.Vec3},
+			{Name: "normal", Type: glhf.Vec3},
 		}
 		uniformFormat = glhf.AttrFormat{
-			glhf.Attr{Name: "projection", Type: glhf.Mat4},
-			glhf.Attr{Name: "camera", Type: glhf.Mat4},
-			glhf.Attr{Name: "model", Type: glhf.Mat4},
-			glhf.Attr{Name: "circleColor", Type: glhf.Vec3},
-			glhf.Attr{Name: "thickness", Type: glhf.Float},
+			glhf.Attr{Name: "camProjectionView", Type: glhf.Mat4}, // 0
+			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4},    // 1
+
+			glhf.Attr{Name: "drawMode", Type: glhf.Int}, // 2
+			glhf.Attr{Name: "color", Type: glhf.Vec3},   // 3
+
+			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 4
+
+			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 5
+			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 6
+
+			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 7
+			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 8
 		}
 		shader *glhf.Shader
 	)
 	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, circleVertexShaderSource, circleFragmentShaderSource)
+	shader, err = glhf.NewShader(vertexFormat, uniformFormat, defaultVertexShaderSource, defaultFragmentShaderSource)
 
 	if err != nil {
 		panic(err)
 	}
 
 	shader.Begin()
-	shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
+	shader.SetUniformAttr(ShaderProjectionViewMatrix, a.isoCamera.GetProjectionViewMatrix())
+
+	lightPos := mgl32.Vec3{1, 5, 0}
+	shader.SetUniformAttr(ShaderLightPosition, lightPos)
+
+	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
+	shader.SetUniformAttr(ShaderLightColor, lightColor)
+
 	shader.End()
 	return shader
 }
@@ -126,9 +154,8 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 			{Name: "compressedValue", Type: glhf.Int},
 		}
 		uniformFormat = glhf.AttrFormat{
-			glhf.Attr{Name: "projection", Type: glhf.Mat4},
-			glhf.Attr{Name: "camera", Type: glhf.Mat4},
-			glhf.Attr{Name: "model", Type: glhf.Mat4},
+			glhf.Attr{Name: "camProjectionView", Type: glhf.Mat4},
+			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4},
 			glhf.Attr{Name: "light_position", Type: glhf.Vec3},
 			glhf.Attr{Name: "light_color", Type: glhf.Vec3},
 		}
@@ -143,60 +170,16 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	}
 
 	shader.Begin()
-	shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
-
-	shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
+	shader.SetUniformAttr(ShaderProjectionViewMatrix, a.isoCamera.GetProjectionViewMatrix())
 
 	model := mgl32.Ident4()
-	shader.SetUniformAttr(2, model)
+	shader.SetUniformAttr(ShaderModelMatrix, model)
 
 	lightPos := mgl32.Vec3{1, 5, 0}
-	shader.SetUniformAttr(3, lightPos)
+	shader.SetUniformAttr(2, lightPos)
 
 	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
-	shader.SetUniformAttr(4, lightColor)
-
-	shader.End()
-	return shader
-}
-
-func (a *BattleClient) loadModelShader() *glhf.Shader {
-	var (
-		vertexFormat = glhf.AttrFormat{
-			{Name: "position", Type: glhf.Vec3},
-			{Name: "normal", Type: glhf.Vec3},
-			{Name: "texCoord", Type: glhf.Vec2},
-		}
-		uniformFormat = glhf.AttrFormat{
-			glhf.Attr{Name: "projection", Type: glhf.Mat4},
-			glhf.Attr{Name: "camera", Type: glhf.Mat4},
-			glhf.Attr{Name: "model", Type: glhf.Mat4},
-			glhf.Attr{Name: "light_position", Type: glhf.Vec3},
-			glhf.Attr{Name: "light_color", Type: glhf.Vec3},
-		}
-		shader *glhf.Shader
-	)
-
-	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, modelVertexShaderSource, modelFragmentShaderSource)
-
-	if err != nil {
-		panic(err)
-	}
-
-	shader.Begin()
-	shader.SetUniformAttr(0, a.isoCamera.GetProjectionMatrix())
-
-	shader.SetUniformAttr(1, a.isoCamera.GetViewMatrix())
-
-	model := mgl32.Ident4()
-	shader.SetUniformAttr(2, model)
-
-	lightPos := mgl32.Vec3{1, 5, 0}
-	shader.SetUniformAttr(3, lightPos)
-
-	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
-	shader.SetUniformAttr(4, lightColor)
+	shader.SetUniformAttr(3, lightColor)
 
 	shader.End()
 	return shader

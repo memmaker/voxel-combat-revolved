@@ -136,6 +136,7 @@ func (t *Transform) GetRotation() mgl32.Quat {
 func (t *Transform) SetRotation(rotation mgl32.Quat) {
 	t.rotation = rotation
 }
+
 func (t *Transform) GetForward() mgl32.Vec3 {
 	return t.rotation.Rotate(mgl32.Vec3{0, 0, -1})
 }

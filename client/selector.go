@@ -61,7 +61,7 @@ func (g *GroundSelector) Draw() {
 	if g.hide {
 		return
 	}
-	g.mesh.Draw(g.shader)
+	g.mesh.Draw(g.shader, ShaderModelMatrix)
 }
 
 func (g *GroundSelector) GetBlockPosition() voxel.Int3 {

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
@@ -38,7 +37,6 @@ func (p *Projectile) IsDead() bool {
 }
 
 func NewProjectile(shader *glhf.Shader, model *util.CompoundMesh, pos, velocity mgl32.Vec3) *Projectile {
-	println(fmt.Sprintf("\n>> Projectile spawned at %v", pos))
 	p := &Projectile{
 		Transform: util.NewTransform(pos, mgl32.QuatIdent(), mgl32.Vec3{0.5, 0.5, 0.5}),
 		velocity:  velocity,
@@ -50,12 +48,12 @@ func NewProjectile(shader *glhf.Shader, model *util.CompoundMesh, pos, velocity 
 	right := forward.Cross(mgl32.Vec3{0, 1, 0})
 	up := right.Cross(forward)
 	p.Transform.SetLookAt(pos.Add(velocity.Normalize().Mul(10)), up)
-	model.RootNode.SetParent(p)
 	return p
 }
 func (p *Projectile) Draw() {
-	p.shader.SetUniformAttr(2, p.GetTransformMatrix())
-	p.model.DrawWithoutTransform(p.shader)
+	p.model.RootNode.SetParent(p)
+	p.shader.SetUniformAttr(ShaderModelMatrix, p.GetTransformMatrix())
+	p.model.Draw(p.shader, ShaderModelMatrix)
 }
 func (p *Projectile) Update(delta float64) {
 	oldPos := p.GetPosition()

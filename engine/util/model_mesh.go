@@ -46,12 +46,8 @@ func (m *CompoundMesh) getSamplerFrames(animationName string) [][]float32 {
 func (m *CompoundMesh) SetAnimationSpeed(newSpeed float64) {
 	m.animationSpeed = newSpeed
 }
-func (m *CompoundMesh) Draw(shader *glhf.Shader) {
-	m.RootNode.Draw(shader, m.textures)
-}
-
-func (m *CompoundMesh) DrawWithoutTransform(shader *glhf.Shader) {
-	m.RootNode.DrawWithoutTransform(shader, m.textures)
+func (m *CompoundMesh) Draw(shader *glhf.Shader, modelTransformUniformIndex int) {
+	m.RootNode.Draw(shader, modelTransformUniformIndex, m.textures)
 }
 
 func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
@@ -146,11 +142,11 @@ func (m *MeshNode) GetCurrentAnimation() *SimpleAnimationData {
 }
 
 func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
+	vertexFormatSize := uint32(shader.VertexFormat().Size() / 4)
 	if m.mesh != nil {
-		//pairs := make(map[uint32]*glhf.VertexSlice)
 		for _, subMesh := range m.mesh.SubMeshes {
 			m.drawPairs = append(m.drawPairs, &DrawPair{TextureIndex: subMesh.TextureIndex, VertexData: subMesh.ToVertexSlice(shader)})
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GetTransformMatrix})
+			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatSize: vertexFormatSize, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
@@ -160,9 +156,10 @@ func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
 }
 
 func (m *MeshNode) CreateColliders() {
+	vertexFormatSize := uint32(11)
 	if m.mesh != nil {
 		for _, subMesh := range m.mesh.SubMeshes {
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, TransformFunc: m.GetTransformMatrix})
+			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatSize: vertexFormatSize, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
@@ -171,11 +168,11 @@ func (m *MeshNode) CreateColliders() {
 	}
 }
 
-func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
+func (m *MeshNode) Draw(shader *glhf.Shader, modelTransformUniformIndex int, textures []*glhf.Texture) {
 	if m.hidden {
 		return
 	}
-	shader.SetUniformAttr(2, m.GetTransformMatrix())
+	shader.SetUniformAttr(modelTransformUniformIndex, m.GetTransformMatrix())
 	for _, pair := range m.drawPairs {
 		textureIndex := pair.TextureIndex
 		meshGroup := pair.VertexData
@@ -186,27 +183,10 @@ func (m *MeshNode) Draw(shader *glhf.Shader, textures []*glhf.Texture) {
 		textures[textureIndex].End()
 	}
 	for _, child := range m.children {
-		child.Draw(shader, textures)
+		child.Draw(shader, modelTransformUniformIndex, textures)
 	}
 }
 
-func (m *MeshNode) DrawWithoutTransform(shader *glhf.Shader, textures []*glhf.Texture) {
-	if m.hidden {
-		return
-	}
-	for _, pair := range m.drawPairs {
-		textureIndex := pair.TextureIndex
-		meshGroup := pair.VertexData
-		textures[textureIndex].Begin()
-		meshGroup.Begin()
-		meshGroup.Draw()
-		meshGroup.End()
-		textures[textureIndex].End()
-	}
-	for _, child := range m.children {
-		child.DrawWithoutTransform(shader, textures)
-	}
-}
 func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 	if m.temporaryParent != nil {
 		externalParent := m.temporaryParent.GetTransformMatrix()
@@ -218,6 +198,9 @@ func (m *MeshNode) GetTransformMatrix() mgl32.Mat4 {
 		return m.GetLocalMatrix()
 	}
 	return m.parent.GetTransformMatrix().Mul4(m.GetLocalMatrix())
+}
+func (m *MeshNode) GetTransformWithParent(parent Transformer) mgl32.Mat4 {
+	return parent.GetTransformMatrix().Mul4(m.GetLocalMatrix())
 }
 func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 	translation := mgl32.Translate3D(m.translation[0], m.translation[1], m.translation[2])
@@ -509,9 +492,6 @@ func (m *MeshNode) GetColliders() []Collider {
 	return result
 }
 
-func (m *MeshNode) GetFront() mgl32.Vec3 {
-	return m.quatRotation.Rotate(mgl32.Vec3{1, 0, 0})
-}
 func (m *MeshNode) ResetAnimations() {
 	m.currentAnimation = ""
 	m.ResetAnimation()

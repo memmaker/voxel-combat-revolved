@@ -199,18 +199,18 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 			println("WARNING: Only triangles are supported for now")
 		}
 		indexOfPositions := subMesh.Attributes["POSITION"]
-		//indexOfColors := subMesh.Attributes["COLOR_0"]
+		indexOfColors := subMesh.Attributes["COLOR_0"]
 		indexOfNormals := subMesh.Attributes["NORMAL"]
 		indexOfUVs := subMesh.Attributes["TEXCOORD_0"]
 
 		positionAccessor := doc.Accessors[indexOfPositions]
-		//colorAccessor := doc.Accessors[indexOfColors]
+		colorAccessor := doc.Accessors[indexOfColors]
 		normalsAccessor := doc.Accessors[indexOfNormals]
 		indicesAccessor := doc.Accessors[*subMesh.Indices]
 		uvsAccessor := doc.Accessors[indexOfUVs]
 
 		var vertBuffer [][3]float32
-		//var colorBuffer [][4]uint8
+		var colorBuffer [][4]uint8
 		var indicesBuffer []uint32
 		var normalsBuffer [][3]float32
 		var uvBuffer [][2]float32
@@ -220,13 +220,13 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 			println(err)
 			return nil
 		}
-		/*
-		   colorBuffer, err = modeler.ReadColor(doc, colorAcr, colorBuffer)
-		   if err != nil {
-		       println(err)
-		       return nil
-		   }
-		*/
+
+	   colorBuffer, err = modeler.ReadColor(doc, colorAccessor, colorBuffer)
+	   if err != nil {
+		   println(err)
+		   return nil
+	   }
+
 		indicesBuffer, err = modeler.ReadIndices(doc, indicesAccessor, indicesBuffer)
 		if err != nil {
 			println(err)
@@ -245,23 +245,29 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 		// merge them..
 		var meshVertices []glhf.GlFloat
 		for i := 0; i < len(vertBuffer); i++ {
+			/*
+			{Name: "position", Type: glhf.Vec3},
+			{Name: "texCoord", Type: glhf.Vec2},
+			{Name: "vertexColor", Type: glhf.Vec3},
+			{Name: "normal", Type: glhf.Vec3},
+			 */
 			meshVertices = append(
 				meshVertices,
 
 				glhf.GlFloat(vertBuffer[i][0]),
 				glhf.GlFloat(vertBuffer[i][1]),
 				glhf.GlFloat(vertBuffer[i][2]),
-				/*
-				   float32(colorBuffer[vertexIndex][0])/255.0,
-				   float32(colorBuffer[vertexIndex][1])/255.0,
-				   float32(colorBuffer[vertexIndex][2])/255.0,
-				*/
-				glhf.GlFloat(normalsBuffer[i][0]),
-				glhf.GlFloat(normalsBuffer[i][1]),
-				glhf.GlFloat(normalsBuffer[i][2]),
 
 				glhf.GlFloat(uvBuffer[i][0]),
 				glhf.GlFloat(uvBuffer[i][1]),
+
+				glhf.GlFloat(colorBuffer[i][0])/255.0,
+				glhf.GlFloat(colorBuffer[i][1])/255.0,
+				glhf.GlFloat(colorBuffer[i][2])/255.0,
+
+				glhf.GlFloat(normalsBuffer[i][0]),
+				glhf.GlFloat(normalsBuffer[i][1]),
+				glhf.GlFloat(normalsBuffer[i][2]),
 			)
 		}
 		currentSubmesh.Indices = indicesBuffer

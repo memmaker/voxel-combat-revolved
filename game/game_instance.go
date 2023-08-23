@@ -52,6 +52,7 @@ type Ruleset struct {
 	MaxOverwatchRange         uint
 	OverwatchAccuracyModifier float64
 	OverwatchDamageModifier   float64
+	IsRangedAttackTurnEnding  bool
 }
 
 func NewDefaultRuleset(engine *GameInstance) *Ruleset {
@@ -451,4 +452,8 @@ func (g *GameInstance) UpdatePressureAfterMove(unit *UnitInstance) {
 
 func (g *GameInstance) GetRules() *Ruleset {
 	return g.rules
+}
+
+func (g *GameInstance) GetMapMetadata() *MapMetadata {
+	return g.mapMeta
 }

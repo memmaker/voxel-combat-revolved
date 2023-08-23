@@ -68,16 +68,14 @@ func (c *Crosshair) localMatrix() mgl32.Mat4 {
 	scale := mgl32.Scale3D(c.currentScale[0], c.currentScale[1], c.currentScale[2])
 	return translation.Mul4(quaternion).Mul4(scale)
 }
-
-func (c *Crosshair) getCamRotation() mgl32.Mat4 {
-	return c.camera.GetTransformMatrix().Mat3().Mat4()
-}
 func (c *Crosshair) Draw() {
-	c.shader.SetUniformAttr(0, c.camera.GetProjectionMatrix())
-	c.shader.SetUniformAttr(1, mgl32.Ident4())
-	c.shader.SetUniformAttr(2, c.localMatrix())
-	c.shader.SetUniformAttr(3, c.color)
-	c.shader.SetUniformAttr(4, c.thickness())
+	c.shader.SetUniformAttr(ShaderProjectionViewMatrix, c.camera.GetProjectionMatrix())
+	c.shader.SetUniformAttr(ShaderModelMatrix, c.localMatrix())
+	c.shader.SetUniformAttr(ShaderDrawMode, ShaderDrawCircle)
+
+	c.shader.SetUniformAttr(ShaderDrawColor, c.color)
+	c.shader.SetUniformAttr(ShaderThickness, c.thickness())
+
 	c.vertices.Begin()
 	c.vertices.Draw()
 	c.vertices.End()
@@ -101,18 +99,23 @@ func (c *Crosshair) SetThickness(thickness float64) {
 func (c *Crosshair) GetNearPlaneQuad() []glhf.GlFloat {
 	cam := c.camera
 	proj := cam.GetProjectionMatrix()
-	projViewInverted := proj.Inv()
-	topLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
-	topRight := c.transformVertex(0.5/cam.GetAspectRatio(), 0.5, cam, projViewInverted)
-	bottomRight := c.transformVertex(0.5/cam.GetAspectRatio(), -0.5, cam, projViewInverted)
-	bottomLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), -0.5, cam, projViewInverted)
-
+	projInverted := proj.Inv()
+	topLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), 0.5, cam, projInverted)
+	topRight := c.transformVertex(0.5/cam.GetAspectRatio(), 0.5, cam, projInverted)
+	bottomRight := c.transformVertex(0.5/cam.GetAspectRatio(), -0.5, cam, projInverted)
+	bottomLeft := c.transformVertex(-0.5/cam.GetAspectRatio(), -0.5, cam, projInverted)
+	/*
+		{Name: "position", Type: glhf.Vec3},
+		{Name: "texCoord", Type: glhf.Vec2},
+		{Name: "vertexColor", Type: glhf.Vec3},
+		{Name: "normal", Type: glhf.Vec3},
+	*/
 	return []glhf.GlFloat{
-		// positions          // texture coords
-		glhf.GlFloat(topLeft.X()), glhf.GlFloat(topLeft.Y()), 0.0, 0.0, // top left
-		glhf.GlFloat(topRight.X()), glhf.GlFloat(topRight.Y()), 1.0, 0.0, // top right
-		glhf.GlFloat(bottomRight.X()), glhf.GlFloat(bottomRight.Y()), 1.0, 1.0, // bottom right
-		glhf.GlFloat(bottomLeft.X()), glhf.GlFloat(bottomLeft.Y()), 0.0, 1.0, // bottom left
+		// positions (x,y,z=0)          // texture coords // color (1,1,1) // normal (0,0,1)
+		glhf.GlFloat(topLeft.X()), glhf.GlFloat(topLeft.Y()), 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0, 1.0, // top left
+		glhf.GlFloat(topRight.X()), glhf.GlFloat(topRight.Y()), 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0, 0, 1.0, // top right
+		glhf.GlFloat(bottomRight.X()), glhf.GlFloat(bottomRight.Y()), 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 0, 1.0, // bottom right
+		glhf.GlFloat(bottomLeft.X()), glhf.GlFloat(bottomLeft.Y()), 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0, 0, 1.0, // bottom left
 	}
 }
 

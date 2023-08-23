@@ -17,8 +17,14 @@ type GameStateEditMap struct {
 	blockPage        int
 	objectMenu       *gui.ActionBar
 	blockMenu        *gui.ActionBar
+	placeRange       func(selection []voxel.Int3)
 }
 
+func NewEditorState(a *BattleClient) *GameStateEditMap {
+	g := &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}, blockTypeToPlace: 1}
+	g.placeRange = g.placeBlocksAtRange
+	return g
+}
 func (g *GameStateEditMap) OnServerMessage(msgType string, json string) {
 
 }
@@ -73,10 +79,17 @@ func (g *GameStateEditMap) PlaceBlockAtCurrentSelection() {
 	g.engine.PlaceBlock(previousGridPosition, voxel.NewBlock(g.blockTypeToPlace))
 }
 
-func (g *GameStateEditMap) PlaceRange(selection []voxel.Int3) {
+func (g *GameStateEditMap) placeBlocksAtRange(selection []voxel.Int3) {
 	for _, pos := range selection {
 		g.engine.PlaceBlock(pos, voxel.NewBlock(g.blockTypeToPlace))
 	}
+}
+
+func (g *GameStateEditMap) placeObjectsAtRange(selection []voxel.Int3) {
+	mapMeta := g.engine.GetMapMetadata()
+
+	// place spawn points
+	mapMeta.SpawnPositions = append(mapMeta.SpawnPositions, selection)
 }
 
 func (g *GameStateEditMap) Init(bool) {
@@ -134,7 +147,7 @@ func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
 	pos := g.engine.blockSelector.GetBlockPosition()
 	println(fmt.Sprintf("Released at %d, %d, %d", pos.X, pos.Y, pos.Z))
 	selection := g.pencil.StopDragAt(pos)
-	g.PlaceRange(selection)
+	g.placeRange(selection)
 }
 func (g *GameStateEditMap) ClearMap() {
 	loadedMap := g.engine.GetVoxelMap()
@@ -148,10 +161,12 @@ func (g *GameStateEditMap) switchToBlocks() {
 	g.blockPage = 0
 	g.setBlockPage(g.blockPage)
 	g.engine.Print("Block menu")
+	g.placeRange = g.placeBlocksAtRange
 }
 func (g *GameStateEditMap) switchToObjects() {
 	g.engine.actionbar = g.objectMenu
 	g.engine.Print("Object menu")
+	g.placeRange = g.placeObjectsAtRange
 }
 
 func (g *GameStateEditMap) createObjectMenu(textureAtlas *glhf.Texture, textureIndex map[string]byte) *gui.ActionBar {

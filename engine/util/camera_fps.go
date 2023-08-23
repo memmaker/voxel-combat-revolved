@@ -20,28 +20,32 @@ type FPSCamera struct {
 	parent           Transformer
 }
 
+func (c *FPSCamera) GetProjectionViewMatrix() mgl32.Mat4 {
+	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
+}
+
 func (c *FPSCamera) GetTransform() Transform {
 	return *c.Transform
 }
 func (c *FPSCamera) MoveInDirection(delta float32, dir [2]int) {
 	currentPos := c.GetPosition()
 	moveVector := mgl32.Vec3{0, 0, 0}
-	if dir[1] != 0 {
+	if dir[0] != 0 {
 		moveVector = moveVector.Add(c.LeftRight(float32(dir[0]) * delta))
 	}
-	if dir[0] != 0 {
+	if dir[1] != 0 {
 		moveVector = moveVector.Add(c.PlanarForwardBackward(float32(dir[1]) * delta))
 	}
 	c.SetPosition(currentPos.Add(moveVector))
 	c.updateTransform()
 }
 
-func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int) *FPSCamera {
+func NewFPSCamera(pos mgl32.Vec3, windowWidth, windowHeight int, sensitivity float32) *FPSCamera {
 	f := &FPSCamera{
 		PerspectiveTransform: NewDefaultPerspectiveTransform("ISO Camera", windowWidth, windowHeight),
 		cameraFront:          mgl32.Vec3{0, 0, -1},
 		cameraUp:             mgl32.Vec3{0, 1, 0},
-		lookSensitivity:      0.08,
+		lookSensitivity:      sensitivity,
 		rotatey:              0,
 		rotatex:              -90,
 		invertedY:            true,
@@ -87,7 +91,7 @@ func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, m
 	randY *= accFactor
 
 	println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
-	//randX, randY = AdjustForAspectRatio(randX, randY, c.windowWidth, c.windowHeight) // from -1.0..1.0 to -n..n on the x axis
+
 	return GetRayFromCameraPlane(c, float32(randX), float32(randY))
 }
 

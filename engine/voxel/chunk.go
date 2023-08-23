@@ -416,11 +416,11 @@ func (i Int3) Length() int32 {
 	return int32(math.Sqrt(float64(i.X*i.X + i.Y*i.Y + i.Z*i.Z)))
 }
 
-func (c *Chunk) Draw(shader *glhf.Shader, camDirection mgl32.Vec3) {
+func (c *Chunk) Draw(shader *glhf.Shader, modelUniformIndex int) {
 	if c.meshBuffer == nil || c.meshBuffer.TriangleCount() == 0 {
 		return
 	}
-	shader.SetUniformAttr(2, c.GetMatrix())
+	shader.SetUniformAttr(modelUniformIndex, c.GetMatrix())
 	c.meshBuffer.Draw()
 	if c.highLightMesh != nil {
 		c.highLightMesh.Draw()

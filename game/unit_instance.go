@@ -32,9 +32,10 @@ type UnitClientDefinition struct {
 }
 
 type UnitCoreStats struct {
-	Health        int     // Health points, unit dies when this reaches 0
-	Accuracy      float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
-	MovementPerAP float64 // MovementPerAP Movement per action point
+	Health          int     // Health points, unit dies when this reaches 0
+	Accuracy        float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
+	MovementPerAP   float64 // MovementPerAP Movement per action point
+	MaxActionPoints float64 // MaxActionPoints Maximum action points
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
@@ -138,7 +139,7 @@ func (u *UnitInstance) EndTurn() {
 }
 
 func (u *UnitInstance) NextTurn() {
-	u.ActionPoints = 4
+	u.ActionPoints = u.Definition.CoreStats.MaxActionPoints
 }
 
 func (u *UnitInstance) CanMove() bool {
@@ -171,7 +172,7 @@ func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 		Transform:     util.NewDefaultTransform(name),
 		Name:          name,
 		Definition:    unitDef,
-		ActionPoints:  4,
+		ActionPoints:  unitDef.CoreStats.MaxActionPoints,
 		MovementPerAP: unitDef.CoreStats.MovementPerAP,
 		Health:        unitDef.CoreStats.Health,
 		DamageZones:   make(map[util.DamageZone]int),
@@ -404,7 +405,7 @@ func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitFor
 	})
 	if len(solidNeighbors) == 0 {
 		// if no wall next to us, we can idle normally
-		println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))
+		//println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))
 		return AnimationWeaponIdle, unitForward
 	} else {
 		// if there is a wall next to us, we need to turn to face it
