@@ -107,7 +107,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}
-	} else if g.moveAction.IsValidTarget(groundBlockPos) && g.selectedUnit.CanAct() {
+	} else if g.moveAction.IsValidTarget(groundBlockPos) {
 		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
 	}
 }

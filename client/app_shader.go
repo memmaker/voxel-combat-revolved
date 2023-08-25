@@ -59,9 +59,10 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 }
 
 const (
-	ShaderDrawTexturedQuads = int32(0)
-	ShaderDrawColoredQuads  = int32(1)
-	ShaderDrawCircle        = int32(3)
+	ShaderDrawTexturedQuads      = int32(0)
+	ShaderDrawColoredQuads       = int32(1)
+	ShaderDrawColoredFadingQuads = int32(2)
+	ShaderDrawCircle             = int32(3)
 )
 const (
 	ShaderProjectionViewMatrix = 0

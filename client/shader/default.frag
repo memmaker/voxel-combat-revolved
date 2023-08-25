@@ -73,18 +73,15 @@ void drawTexturedQuads() {
 }
 
 void drawColoredQuads() {
-    //calculate normal in world coordinates
-    mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
-    vec3 worldNormal = normalize(normalMatrix * VertNormal);
-
-    //calculate the location of this fragment (pixel) in world coordinates
-    float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
-    float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
-    float brightness = clamp(directional_brightness + point_brightness, 0, 1);
-
     vec4 surfaceColor = vec4(VertColor, 1.0);// we probably wanna set the transparency here
     surfaceColor *= color;
-    fragmentColor = vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+    fragmentColor = surfaceColor;//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+}
+
+void drawColoredFadingQuads() {
+    vec4 surfaceColor = vec4(VertColor, VertUV.y);// we probably wanna set the transparency here
+    surfaceColor *= color;
+    fragmentColor = surfaceColor;//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
 }
 
 void drawCircle() {
@@ -110,6 +107,8 @@ void main() {
         drawTexturedQuads();
     } else if (drawMode == 1) {
         drawColoredQuads();
+    } else if (drawMode == 2) {
+        drawColoredFadingQuads();
     } else if (drawMode == 3) {
         drawCircle();
     }

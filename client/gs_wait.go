@@ -25,7 +25,7 @@ func (g *GameStateWaitForEvents) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateWaitForEvents) Init(wasPopped bool) {
-	g.engine.highlights.Clear()
+	g.engine.highlights.ClearAll()
 	g.engine.SwitchToGroundSelector()
 	g.engine.actionbar.Hide()
 }

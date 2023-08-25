@@ -1,8 +1,8 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
  - Highlights not cleared when expected
+ - Weird stuff with turn ending and action points, triggered when using overwatch for everyone
  - Your own Overwatch is not visible
- - Forward Vector during movement seems to be momentarily wrong, especially when climbing after being in a wall_idle
 
 # Design Guidelines
  - Turn based

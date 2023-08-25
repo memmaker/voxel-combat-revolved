@@ -43,9 +43,8 @@ func (g *GameStateAction) Init(bool) {
 	//println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
 	validTargets := g.selectedAction.GetValidTargets()
 	//println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
-	g.engine.highlights.Clear()
 	if len(validTargets) > 0 {
-		g.engine.highlights.SetMultiAndUpdate(validTargets, mgl32.Vec3{0.0, 1.0, 0.0})
+		g.engine.highlights.SetNamedMultiAndUpdate(voxel.HighlightTarget, validTargets, mgl32.Vec3{0.0, 1.0, 0.0})
 	}
 }
 
