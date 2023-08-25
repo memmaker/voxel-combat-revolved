@@ -104,26 +104,26 @@ func (g *GameStateEditMap) placePOIPointsAtRange(selection []voxel.Int3) {
 }
 
 func (g *GameStateEditMap) updateMetaHighlights(mapMeta *game.MapMetadata) {
-	g.engine.highlights.Clear()
+	g.engine.highlights.Clear(voxel.HighlightEditor)
 	if len(mapMeta.SpawnPositions) == 0 {
 		return
 	}
 	if len(mapMeta.SpawnPositions[0]) > 0 {
-		g.engine.highlights.AddMulti(mapMeta.SpawnPositions[0], mgl32.Vec3{1.0, 0.0, 0.0})
+		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.SpawnPositions[0], mgl32.Vec3{1.0, 0.0, 0.0})
 	}
 	if len(mapMeta.SpawnPositions) > 1 && len(mapMeta.SpawnPositions[1]) > 0 {
-		g.engine.highlights.AddMulti(mapMeta.SpawnPositions[1], mgl32.Vec3{0.0, 0.0, 1.0})
+		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.SpawnPositions[1], mgl32.Vec3{0.0, 0.0, 1.0})
 	}
 	if len(mapMeta.PoIPlacements) > 0 {
 		yellow := mgl32.Vec3{1.0, 1.0, 0.0}
-		g.engine.highlights.AddMulti(mapMeta.PoIPlacements, yellow)
+		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.PoIPlacements, yellow)
 	}
-	g.engine.highlights.UpdateVertexData()
+	g.engine.highlights.ShowAsFlat(voxel.HighlightEditor)
 }
 
 func (g *GameStateEditMap) Init(bool) {
 	g.engine.SwitchToBlockSelector()
-	g.engine.highlights.Clear()
+	g.engine.highlights.ClearAll()
 
 	g.objectMenu = g.createObjectMenu(util.CreateAtlasFromDirectory("./assets/gui", []string{"spawn", "poi"}))
 	g.blockMenu = gui.NewActionBar(g.engine.guiShader, g.engine.GetVoxelMap().GetTerrainTexture(), g.engine.WindowWidth, g.engine.WindowHeight, 16, 16)
@@ -191,7 +191,7 @@ func (g *GameStateEditMap) switchToBlocks() {
 	g.setBlockPage(g.blockPage)
 	g.engine.Print("Block menu")
 	g.placeRange = g.placeBlocksAtRange
-	g.engine.highlights.Clear()
+	g.engine.highlights.ClearAll()
 }
 func (g *GameStateEditMap) switchToObjects() {
 	g.engine.actionbar = g.objectMenu

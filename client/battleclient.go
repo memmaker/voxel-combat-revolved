@@ -308,7 +308,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 		a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
 		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
 		a.defaultShader.SetUniformAttr(ShaderDrawColor, a.highlights.GetTransparentColor())
-		a.highlights.Draw()
+		a.highlights.Draw(ShaderDrawMode, ShaderDrawColoredFadingQuads)
 	}
 	a.defaultShader.End()
 }
@@ -486,7 +486,7 @@ func (a *BattleClient) SwitchToUnitFirstPerson(unit *Unit, lookAtTarget mgl32.Ve
 }
 
 func (a *BattleClient) SwitchToFirstPerson() {
-	a.highlights.Clear()
+	a.highlights.Hide()
 	a.groundSelector.Hide()
 	a.actionbar.Hide()
 
@@ -577,13 +577,14 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 }
 
 func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
-	a.GameClient.OnBeginOverwatch(msg)
 	unit, known := a.GetClientUnit(msg.Watcher)
 	if known && a.IsMyUnit(msg.Watcher) {
+		a.GameClient.OnBeginOverwatch(msg)
 		a.SwitchToNextUnit(unit)
+		a.highlights.Clear(voxel.HighlightTarget)
+		a.overwatchPositionsThisTurn = append(a.overwatchPositionsThisTurn, msg.WatchedLocations...)
+		a.updateOverwatchHighlights()
 	}
-	a.overwatchPositionsThisTurn = msg.WatchedLocations
-	a.updateOverwatchHighlights()
 }
 
 func (a *BattleClient) OnReload(msg game.UnitMessage) {
@@ -776,7 +777,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	}
 	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
-	a.highlights.Clear()
+	a.highlights.Hide()
 	a.unitSelector.Hide()
 	destination := msg.Path[len(msg.Path)-1]
 
@@ -908,13 +909,15 @@ func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *U
 	}
 	// we want a scifi techy x-com blue for the near range
 	// we want a corresponding scify techy orange (blade runner) for the far range
-	a.highlights.Clear()
-	a.highlights.AddMulti(aimedRange, mgl32.Vec3{0.412, 0.922, 1})
-	a.highlights.AddMulti(snapRange, mgl32.Vec3{0.361, 0.714, 1})
-	a.highlights.AddMulti(farRange, mgl32.Vec3{1, 0.537, 0.2})
-	a.highlights.UpdateVertexData()
+	a.highlights.Clear(voxel.HighlightMove)
+	a.highlights.Add(voxel.HighlightMove, aimedRange, mgl32.Vec3{0.412, 0.922, 1})
+	a.highlights.Add(voxel.HighlightMove, snapRange, mgl32.Vec3{0.361, 0.714, 1})
+	a.highlights.Add(voxel.HighlightMove, farRange, mgl32.Vec3{1, 0.537, 0.2})
+	a.highlights.ShowAsFlat(voxel.HighlightMove)
 }
 
 func (a *BattleClient) updateOverwatchHighlights() {
-	a.highlights.SetNamedMultiAndUpdate("overwatch", a.overwatchPositionsThisTurn, mgl32.Vec3{1, 0.2, 0.2})
+	a.highlights.Clear(voxel.HighlightOverwatch)
+	a.highlights.Add(voxel.HighlightOverwatch, a.overwatchPositionsThisTurn, mgl32.Vec3{1, 0.2, 0.2})
+	a.highlights.ShowAsFancy(voxel.HighlightOverwatch)
 }
