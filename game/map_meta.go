@@ -33,13 +33,16 @@ func (m *MapMetadata) SaveToDisk(mapfilename string) {
 func NewMapMetadataFromFile(filename string) *MapMetadata {
 	if util.DoesFileExist(filename) {
 		var metadata MapMetadata
-		if util.FromJson(filename, &metadata) {
-			return &metadata
+		data, err := os.ReadFile(filename)
+		if err == nil {
+			if util.FromJson(string(data), &metadata) {
+				return &metadata
+			}
 		}
 	}
 	return &MapMetadata{
 		Name:                "Unnamed Map",
 		FloorCeilingHeights: [][2]int{{1, 4}},
-		SpawnPositions:      [][]voxel.Int3{{{0, 0, 0}}},
+		SpawnPositions:      [][]voxel.Int3{{}},
 	}
 }

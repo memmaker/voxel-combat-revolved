@@ -38,19 +38,19 @@ function Dijkstra(Graph, source):
 
 type DijkstraSource[T any] interface {
 	GetNeighbors(node T) []T
-	GetCost(currentNode T, neighbor T) int
+	GetCost(currentNode T, neighbor T) float64
 }
 
-func Dijkstra[T comparable](source *PqItem[T], maxCost int, dataSource DijkstraSource[T]) (dist map[T]int, prev map[T]T) {
-	dist = make(map[T]int)
+func Dijkstra[T comparable](source *PqItem[T], maxCost float64, dataSource DijkstraSource[T]) (dist map[T]float64, prev map[T]T) {
+	dist = make(map[T]float64)
 	prev = make(map[T]T)
 	existingNodes := make(map[T]PathNode[T])
 	dist[source.GetValue()] = 0
-	getDist := func(n T) int {
+	getDist := func(n T) float64 {
 		if d, ok := dist[n]; ok {
 			return d
 		} else {
-			return math.MaxInt
+			return math.MaxFloat64
 		}
 	}
 	Q := NewPriorityQueue([]PathNode[T]{source})

@@ -4,7 +4,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
-	"github.com/memmaker/battleground/engine/voxel"
 )
 
 func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
@@ -38,6 +37,7 @@ type PositionDrawable interface {
 }
 
 type GroundSelector struct {
+	*util.Transform
 	mesh   *util.CompoundMesh
 	shader *glhf.Shader
 	hide   bool
@@ -49,7 +49,7 @@ func (g *GroundSelector) SetSize(scaleFactor float64) {
 
 func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {
 	offset := mgl32.Vec3{0.5, 0.025, 0.5}
-	g.mesh.SetPosition(pos.Add(offset))
+	g.Transform.SetPosition(pos.Add(offset))
 	g.hide = false
 }
 
@@ -64,16 +64,14 @@ func (g *GroundSelector) Draw() {
 	g.mesh.Draw(g.shader, ShaderModelMatrix)
 }
 
-func (g *GroundSelector) GetBlockPosition() voxel.Int3 {
-	return voxel.PositionToGridInt3(g.mesh.GetPosition())
-}
-
 func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSelector {
 	groundSelector := &GroundSelector{
-		mesh:   mesh,
-		shader: shader,
-		hide:   true,
+		Transform: util.NewDefaultTransform("Ground Selector"),
+		mesh:      mesh,
+		shader:    shader,
+		hide:      true,
 	}
 	mesh.ConvertVertexData(shader)
+	mesh.RootNode.SetParent(groundSelector)
 	return groundSelector
 }

@@ -14,7 +14,7 @@ type VisualOwnUnitMoved struct {
 	Spotted        []*UnitInstance
 	LOSMatrix      map[uint64]map[uint64]bool
 	PressureMatrix map[uint64]map[uint64]float64
-	Cost           int
+	Cost           float64
 }
 
 func (v VisualOwnUnitMoved) MessageType() string {
@@ -40,7 +40,7 @@ type VisualRangedAttack struct {
 	WeaponType        WeaponType
 	AmmoCost          uint
 	Attacker          uint64
-	AimDirection      voxel.Int3
+	AimDirection      mgl32.Vec3
 	APCostForAttacker int
 	IsTurnEnding      bool
 }

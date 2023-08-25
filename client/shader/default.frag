@@ -9,7 +9,7 @@ uniform mat4 camProjectionView;
 uniform mat4 modelTransform;
 
 uniform int drawMode;
-uniform vec3 color;
+uniform vec4 color;
 
 uniform float thickness;
 
@@ -55,7 +55,7 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
     return brightness;
 }
 
-void drawModel() {
+void drawTexturedQuads() {
     //calculate normal in world coordinates
     mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
     vec3 worldNormal = normalize(normalMatrix * VertNormal);
@@ -65,12 +65,25 @@ void drawModel() {
     float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
     float brightness = clamp(directional_brightness + point_brightness, 0, 1);
 
-    //vec4 surfaceColor = vec4(1, 0.2, 0.2, 1);
     vec4 surfaceColor = texture(tex, vec2(VertUV.x, 1-VertUV.y));// 1-Tex.y because texture is flipped
     if (surfaceColor.a == 0) {
         discard;
     }
-    //vec4 surfaceColor = vec4(VertColor, 1.0);
+    fragmentColor = vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+}
+
+void drawColoredQuads() {
+    //calculate normal in world coordinates
+    mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
+    vec3 worldNormal = normalize(normalMatrix * VertNormal);
+
+    //calculate the location of this fragment (pixel) in world coordinates
+    float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
+    float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
+    float brightness = clamp(directional_brightness + point_brightness, 0, 1);
+
+    vec4 surfaceColor = vec4(VertColor, 1.0);// we probably wanna set the transparency here
+    surfaceColor *= color;
     fragmentColor = vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
 }
 
@@ -87,14 +100,16 @@ void drawCircle() {
     fragmentColor = vec4(smoothstep(0.0, fade, distance));
     fragmentColor *= vec4(smoothstep(thickness, thickness - fade, distance));
     //fragmentColor *= vec4(VertColor, 1.0);
-    fragmentColor *= vec4(color, 1.0);
+    fragmentColor *= color;
 
 }
 
 
 void main() {
     if (drawMode == 0) {
-        drawModel();
+        drawTexturedQuads();
+    } else if (drawMode == 1) {
+        drawColoredQuads();
     } else if (drawMode == 3) {
         drawCircle();
     }

@@ -154,10 +154,10 @@ func (u *UnitInstance) APPerMovement() float64 {
 	return (1.0 / u.MovementPerAP) + u.MovementPenalty
 }
 
-func (u *UnitInstance) UseMovement(cost int) {
-	apCost := float64(cost) * u.APPerMovement()
+func (u *UnitInstance) UseMovement(cost float64) {
+	apCost := cost * u.APPerMovement()
 	u.ActionPoints -= apCost
-	println(fmt.Sprintf("[UnitInstance] %s used %d movement points, %d left", u.Name, cost, u.MovesLeft()))
+	println(fmt.Sprintf("[UnitInstance] %s used %0.2f movement points, %d left", u.Name, cost, u.MovesLeft()))
 	println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP, %0.2f left", u.Name, apCost, u.ActionPoints))
 }
 
@@ -226,7 +226,7 @@ func (u *UnitInstance) UpdateMap() {
 func (u *UnitInstance) UpdateAnimation() {
 	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Transform.GetBlockPosition(), u.Transform.GetForward2DCardinal())
 	//println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
-	u.SetForward2DCardinal(newForward)
+	u.Transform.SetForward2DCardinal(newForward)
 	u.model.SetAnimationLoop(animation.Str(), 1.0)
 }
 
@@ -255,12 +255,6 @@ func (u *UnitInstance) SetWeapon(weapon *Weapon) {
 
 func (u *UnitInstance) GetWeapon() *Weapon {
 	return u.Weapon
-}
-
-// SetForward2DCardinal sets the forward vector of the unit and rotates the model accordingly
-func (u *UnitInstance) SetForward2DCardinal(forward voxel.Int3) {
-	direction := forward.ToCardinalDirection()
-	u.Transform.SetForward2DCardinal(direction)
 }
 
 func (u *UnitInstance) Kill() {
@@ -420,6 +414,10 @@ func (u *UnitInstance) DebugString(caller string) string {
 	return debugInfo
 }
 
+func (u *UnitInstance) SetForward(dir mgl32.Vec3) {
+	u.Transform.SetForward2D(dir)
+}
+
 func getDamageZones() []util.DamageZone {
 	allZones := []util.DamageZone{util.ZoneHead, util.ZoneLeftArm, util.ZoneRightArm, util.ZoneLeftLeg, util.ZoneRightLeg, util.ZoneWeapon}
 	return allZones
@@ -427,12 +425,7 @@ func getDamageZones() []util.DamageZone {
 
 func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {
 	//return AnimationDebug, unitForward
-	solidNeighbors := voxelMap.GetNeighborsForGroundMovement(unitPosition, func(neighbor voxel.Int3) bool {
-		if neighbor != unitPosition && voxelMap.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
-			return true
-		}
-		return false
-	})
+	solidNeighbors := voxelMap.GetSolidCardinalNeighborsOfHeight(unitPosition, 2)
 	if len(solidNeighbors) == 0 {
 		// if no wall next to us, we can idle normally
 		//println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))

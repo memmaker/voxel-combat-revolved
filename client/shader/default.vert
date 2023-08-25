@@ -9,7 +9,7 @@ uniform mat4 camProjectionView;
 uniform mat4 modelTransform;
 
 uniform int drawMode;
-uniform vec3 color;
+uniform vec4 color;
 
 uniform float thickness;
 

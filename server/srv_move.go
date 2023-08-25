@@ -33,8 +33,8 @@ func (a ServerActionMove) IsValid() (bool, string) {
 		dist := a.gameAction.GetCost(target)
 		movesLeft := a.unit.MovesLeft()
 
-		if dist > movesLeft {
-			return false, fmt.Sprintf("Targets %s is too far away (dist: %d, moves left: %d)", target.ToString(), dist, movesLeft)
+		if dist > float64(movesLeft) {
+			return false, fmt.Sprintf("Targets %s is too far away (dist: %0.2f, moves left: %d)", target.ToString(), dist, movesLeft)
 		}
 	}
 	return true, ""
@@ -131,7 +131,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	// DO THE MOVEMENT
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
-	a.unit.SetForward2DCardinal(unitForward)
+	a.unit.SetForward(unitForward.ToVec3())
 	a.unit.SetBlockPosition(destination)
 
 	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))

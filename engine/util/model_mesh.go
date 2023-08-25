@@ -50,10 +50,6 @@ func (m *CompoundMesh) Draw(shader *glhf.Shader, modelTransformUniformIndex int)
 	m.RootNode.Draw(shader, modelTransformUniformIndex, m.textures)
 }
 
-func (m *CompoundMesh) SetProportionalScale(scaleFactor float64) {
-	m.RootNode.Scale([3]float32{float32(scaleFactor), float32(scaleFactor), float32(scaleFactor)})
-}
-
 func (m *CompoundMesh) GetNodeByName(nodeName string) (*MeshNode, bool) {
 	return m.RootNode.GetNodeByName(nodeName)
 }
@@ -66,14 +62,6 @@ func (m *CompoundMesh) SetTexture(atIndex int, newTexture *glhf.Texture) {
 		m.textures = newTextures
 	}
 	m.textures[atIndex] = newTexture
-}
-
-func (m *CompoundMesh) SetPosition(pos mgl32.Vec3) {
-	m.RootNode.Translate(pos)
-}
-
-func (m *CompoundMesh) GetPosition() mgl32.Vec3 {
-	return m.RootNode.translation
 }
 
 type SimpleMesh struct {
@@ -284,12 +272,12 @@ func (m *MeshNode) SetAnimation(name string) {
 	if m.currentAnimation == name {
 		return
 	}
+	m.ResetToInitialTransform()
 	if _, ok := m.animations[name]; ok {
 		m.currentAnimation = name
 		m.InitAnimationPose()
 	} else {
 		m.currentAnimation = ""
-		m.ResetToInitialTransform()
 	}
 	m.ResetAnimation()
 
@@ -308,13 +296,13 @@ func (m *MeshNode) InitAnimationPose() {
 	if m.IsCurrentAnimationValid() {
 		animation := m.GetCurrentAnimation()
 		if len(animation.TranslationFrames) > 0 {
-			m.Translate(animation.TranslationFrames[0])
+			m.setTranslation(animation.TranslationFrames[0])
 		}
 		if len(animation.RotationFrames) > 0 {
-			m.Rotate(animation.RotationFrames[0])
+			m.setRotation(animation.RotationFrames[0])
 		}
 		if len(animation.ScaleFrames) > 0 {
-			m.Scale(animation.ScaleFrames[0])
+			m.setScale(animation.ScaleFrames[0])
 		}
 	}
 	for _, child := range m.children {
@@ -339,7 +327,7 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 					m.currentTranslationFrame = 0
 				} else {
 					translation := animation.TranslationFrames[m.currentTranslationFrame]
-					m.Translate(translation)
+					m.setTranslation(translation)
 				}
 			} else if m.currentTranslationFrame != nextTranslationFrameIndex { // lerp between keyframes
 				currentFrameTime := translationFrameTimes[m.currentTranslationFrame]
@@ -353,9 +341,9 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 
 				lerpedPos := Lerp3(currentTranslationKeyFrame, nextTranslationKeyFrame, percentageBetweenFrames)
 				//println(fmt.Sprintf("lerpedPos: %v", lerpedPos))
-				m.Translate(lerpedPos)
+				m.setTranslation(lerpedPos)
 			} else {
-				m.Translate(animation.TranslationFrames[m.currentTranslationFrame])
+				m.setTranslation(animation.TranslationFrames[m.currentTranslationFrame])
 			}
 		} else {
 			m.outOfTranslationFrames = true
@@ -372,7 +360,7 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 					m.outOfRotationFrames = true
 					m.currentRotationFrame = 0
 				} else {
-					m.Rotate(animation.RotationFrames[m.currentRotationFrame])
+					m.setRotation(animation.RotationFrames[m.currentRotationFrame])
 				}
 			} else if m.currentRotationFrame != nextRotationFrameIndex { // lerp between keyframes
 				currentKeyFrameTime := rotationFrameTimes[m.currentRotationFrame]
@@ -384,9 +372,9 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 				currentRotationKeyFrame := animation.RotationFrames[m.currentRotationFrame]
 				nextRotationKeyFrame := animation.RotationFrames[nextRotationFrameIndex]
 				lerpedRotation := LerpQuat(currentRotationKeyFrame, nextRotationKeyFrame, percentageBetweenFrames)
-				m.Rotate(lerpedRotation)
+				m.setRotation(lerpedRotation)
 			} else {
-				m.Rotate(animation.RotationFrames[m.currentRotationFrame])
+				m.setRotation(animation.RotationFrames[m.currentRotationFrame])
 			}
 		} else {
 			m.outOfRotationFrames = true
@@ -402,7 +390,7 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 					m.outOfScaleFrames = true
 					m.currentScaleFrame = 0
 				} else {
-					m.Scale(animation.ScaleFrames[m.currentScaleFrame])
+					m.setScale(animation.ScaleFrames[m.currentScaleFrame])
 				}
 			} else if m.currentScaleFrame != nextScaleFrameIndex { // lerp between keyframes
 				currentKeyFrameTime := scaleFrameTimes[m.currentScaleFrame]
@@ -416,9 +404,9 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 
 				lerpedScale := Lerp3(currentScaleKeyFrame, nextScaleKeyFrame, percentageBetweenFrames)
 
-				m.Scale(lerpedScale)
+				m.setScale(lerpedScale)
 			} else {
-				m.Scale(animation.ScaleFrames[m.currentScaleFrame])
+				m.setScale(animation.ScaleFrames[m.currentScaleFrame])
 			}
 		} else {
 			m.outOfScaleFrames = true
@@ -446,15 +434,15 @@ func (m *MeshNode) IsCurrentAnimationValid() bool {
 	return false
 }
 
-func (m *MeshNode) Rotate(keyFrame [4]float32) {
+func (m *MeshNode) setRotation(keyFrame [4]float32) {
 	m.quatRotation = mgl32.Quat{V: mgl32.Vec3{keyFrame[0], keyFrame[1], keyFrame[2]}, W: keyFrame[3]}
 }
 
-func (m *MeshNode) Scale(keyFrame [3]float32) {
+func (m *MeshNode) setScale(keyFrame [3]float32) {
 	m.scale = keyFrame
 }
 
-func (m *MeshNode) Translate(keyFrame [3]float32) {
+func (m *MeshNode) setTranslation(keyFrame [3]float32) {
 	m.translation = keyFrame
 }
 
@@ -565,20 +553,20 @@ func (m *MeshNode) SetSamplerSource(source func(animationName string) [][]float3
 	m.samplerSource = source
 }
 
-func (m *MeshNode) SetInitialTranslate(translate [3]float32) {
+func (m *MeshNode) setInitialTranslate(translate [3]float32) {
 	m.initialTranslation = translate
-	m.Translate(translate)
+	m.setTranslation(translate)
 }
 
-func (m *MeshNode) SetInitialRotate(rotate [4]float32) {
+func (m *MeshNode) setInitialRotation(rotate [4]float32) {
 	m.initialRotation = mgl32.Quat{V: mgl32.Vec3{rotate[0], rotate[1], rotate[2]}, W: rotate[3]}
-	m.Rotate(rotate)
+	m.setRotation(rotate)
 
 }
 
-func (m *MeshNode) SetInitialScale(scale [3]float32) {
+func (m *MeshNode) setInitialScale(scale [3]float32) {
 	m.initialScale = scale
-	m.Scale(scale)
+	m.setScale(scale)
 }
 
 func (m *MeshNode) ResetToInitialTransform() {
@@ -603,10 +591,6 @@ func (m *MeshNode) HasBone(name string) bool {
 		}
 	}
 	return false
-}
-
-func (m *MeshNode) GetTranslation() mgl32.Vec3 {
-	return mgl32.Vec3{m.translation[0], m.translation[1], m.translation[2]}
 }
 
 type SubMesh struct {

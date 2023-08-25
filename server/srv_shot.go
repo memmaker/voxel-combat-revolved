@@ -137,7 +137,8 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	numberOfProjectiles := a.unit.Weapon.Definition.BulletsPerShot
 
 	for i := uint(0); i < numberOfProjectiles; i++ {
-		projectiles = append(projectiles, a.simulateOneProjectile())
+		projectile := a.simulateOneProjectile()
+		projectiles = append(projectiles, projectile)
 	}
 
 	ammoCost := uint(1)
@@ -145,8 +146,8 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	a.unit.ConsumeAP(costOfAPForShot)
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
-	lastAimDir := util.DirectionToCardinalAim(a.lastAimDirection)
-	a.unit.SetForward2DCardinal(lastAimDir)
+	lastAimDir := a.lastAimDirection
+	a.unit.SetForward(lastAimDir)
 
 	mb.AddMessageForAll(game.VisualRangedAttack{
 		Projectiles:       projectiles,

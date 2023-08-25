@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 )
@@ -70,10 +71,12 @@ func NewTransformFromLookAt(position, target, up mgl32.Vec3) *Transform {
 
 func (t *Transform) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
+		Name     string     `json:"name"`
 		Position mgl32.Vec3 `json:"translation"`
 		Rotation mgl32.Quat `json:"rotation"`
 		Scale    mgl32.Vec3 `json:"scale"`
 	}{
+		Name:     t.nameOfOwner,
 		Position: t.translation,
 		Rotation: t.rotation,
 		Scale:    t.scale,
@@ -82,6 +85,7 @@ func (t *Transform) MarshalJSON() ([]byte, error) {
 
 func (t *Transform) UnmarshalJSON(data []byte) error {
 	var tmp struct {
+		Name     string     `json:"name"`
 		Position mgl32.Vec3 `json:"translation"`
 		Rotation mgl32.Quat `json:"rotation"`
 		Scale    mgl32.Vec3 `json:"scale"`
@@ -90,6 +94,7 @@ func (t *Transform) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	t.nameOfOwner = tmp.Name
 	t.translation = tmp.Position
 	t.rotation = tmp.Rotation
 	t.scale = tmp.Scale
@@ -152,19 +157,20 @@ func (t *Transform) GetScale() mgl32.Vec3 {
 
 func (t *Transform) setYRotationAngle(angle float32) {
 	t.rotation = mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0})
-	//println(fmt.Sprintf("[Transform] setYRotationAngle for %s: %v", t.GetName(), angle))
+	println(fmt.Sprintf("[Transform] SetYRotationAngle for %s: %v", t.GetName(), angle))
 }
 
+func (t *Transform) SetForward2DCardinal(forward voxel.Int3) {
+	t.SetForward2D(forward.ToCardinalDirection().ToVec3())
+}
 func (t *Transform) SetForward2D(forward mgl32.Vec3) {
-	t.setYRotationAngle(DirectionToAngleVec(forward))
+	forward = mgl32.Vec3{forward.X(), 0, forward.Z()}
+	t.SetForward(forward)
 }
 
 func (t *Transform) SetForward(direction mgl32.Vec3) {
 	t.rotation = mgl32.QuatBetweenVectors(mgl32.Vec3{0, 0, -1}, direction)
-}
-
-func (t *Transform) SetForward2DCardinal(forward voxel.Int3) {
-	t.setYRotationAngle(DirectionToAngle(forward))
+	println(fmt.Sprintf("[Transform] SetForward for %s: %v", t.GetName(), direction))
 }
 
 func (t *Transform) SetBlockPosition(position voxel.Int3) {

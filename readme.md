@@ -39,3 +39,14 @@ It has destruction by definition and allows for easy editing.
 
 It also allows this project to use the big amount of tools & resources available for
 minecraft modding.
+
+## Gameplay 101
+
+You can move during free aim mode within your current block.
+
+Sniper rifles need concentration to be accurate. Visible enemy units near your units will put
+pressure on them, making it harder to concentrate, thus reducing accuracy.
+
+Overwatch will always trigger when an enemy steps on that block.
+It incurs a 20% accuracy penalty for the reaction but adds a 10% damage modifier,
+since the enemy is unprepared.

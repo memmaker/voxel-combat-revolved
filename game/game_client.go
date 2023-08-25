@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
@@ -14,8 +15,8 @@ type ClientUnit interface {
 	UnitID() uint64
 	GetBlockPosition() voxel.Int3
 	SetBlockPosition(voxel.Int3)
-	SetForward2DCardinal(voxel.Int3)
-	UseMovement(cost int)
+	SetForward(vec3 mgl32.Vec3)
+	UseMovement(cost float64)
 	ConsumeAP(cost int)
 	EndTurn()
 }
@@ -26,9 +27,9 @@ type GameClient[U ClientUnit] struct {
 	newClientUnit     func(*UnitInstance) U
 }
 
-func NewGameClient[U ClientUnit](controllingUserID uint64, gameID string, newClientUnit func(*UnitInstance) U) *GameClient[U] {
+func NewGameClient[U ClientUnit](controllingUserID uint64, gameID, mapFile string, newClientUnit func(*UnitInstance) U) *GameClient[U] {
 	return &GameClient[U]{
-		GameInstance:      NewGameInstance(gameID),
+		GameInstance:      NewGameInstanceWithMap(gameID, mapFile),
 		newClientUnit:     newClientUnit,
 		controllingUserID: controllingUserID,
 		clientUnitMap:     make(map[uint64]U),
@@ -56,6 +57,7 @@ func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 		println(fmt.Sprintf("[%s] Unit %d already known", a.environment, unitID))
 		return a.clientUnitMap[unitID]
 	}
+	//currentUnit.Transform.SetName(currentUnit.GetName())
 	// add to game instance
 	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
 	currentUnit.SetVoxelMap(a.GetVoxelMap())
@@ -239,7 +241,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	changeLOS := func() {
 		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
+			movingUnit.SetForward(msg.UpdatedUnit.Transform.GetForward())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
@@ -269,7 +271,7 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
-		attackerUnit.SetForward2DCardinal(msg.AimDirection)
+		attackerUnit.SetForward(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		if msg.IsTurnEnding {
@@ -280,11 +282,11 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 		projectile := p
 		if projectile.UnitHit >= 0 {
 			victim, ok := a.GetUnit(uint64(projectile.UnitHit))
-			a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
 			if !ok {
-				println(fmt.Sprintf("[%s] Projectile hit unit %d, but unit not found", a.environment, projectile.UnitHit))
+				println(fmt.Sprintf("[%s] Projectile hit unknown unit %d, but unit not found", a.environment, projectile.UnitHit))
 				return
 			}
+			a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
 			println(fmt.Sprintf("[%s] Projectile hit unit %s(%d)", a.environment, victim.GetName(), victim.UnitID()))
 		}
 
