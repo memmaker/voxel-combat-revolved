@@ -11,7 +11,6 @@ import (
 
 type GameStateUnit struct {
 	IsoMovementState
-	selectedUnit     *Unit
 	noCameraMovement bool
 	moveAction       *game.ActionMove
 }
@@ -25,20 +24,20 @@ func (g *GameStateUnit) OnServerMessage(msgType string, json string) {
 }
 
 func NewGameStateUnit(engine *BattleClient, unit *Unit) *GameStateUnit {
+	engine.SetSelectedUnit(unit)
 	return &GameStateUnit{
 		IsoMovementState: IsoMovementState{
 			engine: engine,
 		},
-		selectedUnit: unit,
-		moveAction:   game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
+		moveAction: game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
 	}
 }
 func NewGameStateUnitNoCamMove(engine *BattleClient, unit *Unit) *GameStateUnit {
+	engine.SetSelectedUnit(unit)
 	return &GameStateUnit{
 		IsoMovementState: IsoMovementState{
 			engine: engine,
 		},
-		selectedUnit:     unit,
 		moveAction:       game.NewActionMove(engine.GetVoxelMap(), unit.UnitInstance),
 		noCameraMovement: false,
 	}
@@ -63,29 +62,29 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 }
 
 func (g *GameStateUnit) nextUnit() {
-	nextUnit, exists := g.engine.GetNextUnit(g.selectedUnit)
+	nextUnit, exists := g.engine.GetNextUnit(g.engine.selectedUnit)
 	if !exists {
 		println("[GameStateUnit] No unit left to act.")
 	} else {
-		g.selectedUnit = nextUnit
+		g.engine.SetSelectedUnit(nextUnit)
 		g.Init(false)
 	}
 }
 
 func (g *GameStateUnit) Init(wasPopped bool) {
 	if !wasPopped {
-		if g.selectedUnit.CanMove() {
-			g.moveAction = game.NewActionMove(g.engine.GetVoxelMap(), g.selectedUnit.UnitInstance)
+		if g.engine.selectedUnit.CanMove() {
+			g.moveAction = game.NewActionMove(g.engine.GetVoxelMap(), g.engine.selectedUnit.UnitInstance)
 			validTargets := g.moveAction.GetValidTargets()
 			if len(validTargets) > 0 {
-				g.engine.SetHighlightsForMovement(g.moveAction, g.selectedUnit, validTargets)
+				g.engine.SetHighlightsForMovement(g.moveAction, g.engine.selectedUnit, validTargets)
 			}
+		} else {
+			g.engine.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		}
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
-		footPos := util.ToGrid(g.selectedUnit.GetPosition())
-		g.engine.SwitchToGroundSelector()
+		footPos := util.ToGrid(g.engine.selectedUnit.GetPosition())
 		g.engine.SwitchToIsoCamera()
-		g.engine.unitSelector.SetPosition(footPos)
 
 		if !g.noCameraMovement {
 			startCam := g.engine.isoCamera.GetTransform()
@@ -93,8 +92,6 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 			endCam := g.engine.isoCamera.GetTransform()
 			g.engine.StartCameraAnimation(startCam, endCam, 0.5)
 		}
-
-		g.engine.UpdateActionbarFor(g.selectedUnit)
 	}
 }
 
@@ -102,12 +99,13 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 	groundBlockPos := g.engine.groundSelector.GetBlockPosition()
 	if g.engine.GetVoxelMap().IsOccupied(groundBlockPos) {
 		unitHit := g.engine.GetVoxelMap().GetMapObjectAt(groundBlockPos).(*game.UnitInstance)
-		if unitHit != g.selectedUnit.UnitInstance && unitHit.CanAct() && g.engine.IsUnitOwnedByClient(unitHit.UnitID()) {
-			g.selectedUnit, _ = g.engine.GetClientUnit(unitHit.UnitID())
-			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.selectedUnit.GetBlockPosition().ToString()))
+		if unitHit != g.engine.selectedUnit.UnitInstance && unitHit.CanAct() && g.engine.IsUnitOwnedByClient(unitHit.UnitID()) {
+			clickedUnit, _ := g.engine.GetClientUnit(unitHit.UnitID())
+			g.engine.SetSelectedUnit(clickedUnit)
+			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.engine.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}
 	} else if g.moveAction.IsValidTarget(groundBlockPos) {
-		util.MustSend(g.engine.server.TargetedUnitAction(g.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
+		util.MustSend(g.engine.server.TargetedUnitAction(g.engine.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
 	}
 }

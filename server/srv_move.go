@@ -52,7 +52,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	currentPos := a.unit.GetBlockPosition()
 	moveTarget := a.targets[0]
 	distance := a.gameAction.GetCost(moveTarget)
-	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %d)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
+	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %0.2f)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
 
 	foundPath := a.gameAction.GetPath(moveTarget)
 	destination := foundPath[len(foundPath)-1]

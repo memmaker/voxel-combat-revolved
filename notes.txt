@@ -2,7 +2,7 @@
  - Cannot look inside buildings with roofs
  - Highlights not cleared when expected
  - Weird stuff with turn ending and action points, triggered when using overwatch for everyone
- - Your own Overwatch is not visible
+
 
 # Design Guidelines
  - Turn based

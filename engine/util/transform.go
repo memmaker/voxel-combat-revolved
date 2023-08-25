@@ -170,7 +170,7 @@ func (t *Transform) SetForward2D(forward mgl32.Vec3) {
 
 func (t *Transform) SetForward(direction mgl32.Vec3) {
 	t.rotation = mgl32.QuatBetweenVectors(mgl32.Vec3{0, 0, -1}, direction)
-	println(fmt.Sprintf("[Transform] SetForward for %s: %v", t.GetName(), direction))
+	//println(fmt.Sprintf("[Transform] SetForward for %s: %v", t.GetName(), direction))
 }
 
 func (t *Transform) SetBlockPosition(position voxel.Int3) {

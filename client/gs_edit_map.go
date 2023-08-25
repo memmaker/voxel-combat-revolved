@@ -104,19 +104,19 @@ func (g *GameStateEditMap) placePOIPointsAtRange(selection []voxel.Int3) {
 }
 
 func (g *GameStateEditMap) updateMetaHighlights(mapMeta *game.MapMetadata) {
-	g.engine.highlights.Clear(voxel.HighlightEditor)
+	g.engine.highlights.ClearFlat(voxel.HighlightEditor)
 	if len(mapMeta.SpawnPositions) == 0 {
 		return
 	}
 	if len(mapMeta.SpawnPositions[0]) > 0 {
-		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.SpawnPositions[0], mgl32.Vec3{1.0, 0.0, 0.0})
+		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.SpawnPositions[0], mgl32.Vec3{1.0, 0.0, 0.0})
 	}
 	if len(mapMeta.SpawnPositions) > 1 && len(mapMeta.SpawnPositions[1]) > 0 {
-		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.SpawnPositions[1], mgl32.Vec3{0.0, 0.0, 1.0})
+		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.SpawnPositions[1], mgl32.Vec3{0.0, 0.0, 1.0})
 	}
 	if len(mapMeta.PoIPlacements) > 0 {
 		yellow := mgl32.Vec3{1.0, 1.0, 0.0}
-		g.engine.highlights.Add(voxel.HighlightEditor, mapMeta.PoIPlacements, yellow)
+		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.PoIPlacements, yellow)
 	}
 	g.engine.highlights.ShowAsFlat(voxel.HighlightEditor)
 }

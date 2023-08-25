@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 )
 
 func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
@@ -31,7 +32,7 @@ func NewBlockSelector(shader *glhf.Shader) *util.LineMesh {
 }
 
 type PositionDrawable interface {
-	SetPosition(pos mgl32.Vec3)
+	SetBlockPosition(pos voxel.Int3)
 	Draw()
 	SetSize(scaleFactor float64)
 }
@@ -47,9 +48,9 @@ func (g *GroundSelector) SetSize(scaleFactor float64) {
 	println("Nonsense")
 }
 
-func (g *GroundSelector) SetPosition(pos mgl32.Vec3) {
+func (g *GroundSelector) SetBlockPosition(pos voxel.Int3) {
 	offset := mgl32.Vec3{0.5, 0.025, 0.5}
-	g.Transform.SetPosition(pos.Add(offset))
+	g.Transform.SetPosition(pos.ToVec3().Add(offset))
 	g.hide = false
 }
 

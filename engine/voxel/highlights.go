@@ -19,83 +19,103 @@ const (
 )
 
 type Highlights struct {
-	flatVertices      *glhf.VertexSlice[glhf.GlFloat]
-	fancyVertices     *glhf.VertexSlice[glhf.GlFloat]
-	namedHighlightMap map[Highlight]map[Int3]mgl32.Vec3
-	shader            *glhf.Shader
-	isHidden          bool
+	flatVertices  *glhf.VertexSlice[glhf.GlFloat]
+	fancyVertices *glhf.VertexSlice[glhf.GlFloat]
+	fancies       map[Highlight]map[Int3]mgl32.Vec3
+	flats         map[Highlight]map[Int3]mgl32.Vec3
+	shader        *glhf.Shader
+	isHidden      bool
 }
 
 func NewHighlights(shader *glhf.Shader) *Highlights {
 	return &Highlights{
-		shader:            shader,
-		namedHighlightMap: make(map[Highlight]map[Int3]mgl32.Vec3),
+		shader:  shader,
+		flats:   make(map[Highlight]map[Int3]mgl32.Vec3),
+		fancies: make(map[Highlight]map[Int3]mgl32.Vec3),
 	}
 }
 
-func (h *Highlights) Add(name Highlight, position []Int3, color mgl32.Vec3) {
-	if _, ok := h.namedHighlightMap[name]; !ok {
-		h.namedHighlightMap[name] = make(map[Int3]mgl32.Vec3)
+func (h *Highlights) AddFlat(name Highlight, position []Int3, color mgl32.Vec3) {
+	if _, ok := h.flats[name]; !ok {
+		h.flats[name] = make(map[Int3]mgl32.Vec3)
 	}
 	for _, p := range position {
-		h.namedHighlightMap[name][p] = color
+		h.flats[name][p] = color
 	}
 }
 
-func (h *Highlights) SetNamedMultiAndUpdate(name Highlight, positions []Int3, color mgl32.Vec3) {
-	if _, ok := h.namedHighlightMap[name]; !ok {
-		h.namedHighlightMap[name] = make(map[Int3]mgl32.Vec3)
+func (h *Highlights) AddFancy(name Highlight, position []Int3, color mgl32.Vec3) {
+	if _, ok := h.fancies[name]; !ok {
+		h.fancies[name] = make(map[Int3]mgl32.Vec3)
+	}
+	for _, p := range position {
+		h.fancies[name][p] = color
+	}
+}
+
+func (h *Highlights) SetFlat(name Highlight, positions []Int3, color mgl32.Vec3) {
+	if _, ok := h.flats[name]; !ok {
+		h.flats[name] = make(map[Int3]mgl32.Vec3)
 	} else {
-		clear(h.namedHighlightMap[name])
+		clear(h.flats[name])
 	}
 	for _, p := range positions {
-		h.namedHighlightMap[name][p] = color
+		h.flats[name][p] = color
 	}
 	h.ShowAsFlat(name)
 }
 
-func (h *Highlights) Clear(name Highlight) {
-	if _, ok := h.namedHighlightMap[name]; !ok {
+func (h *Highlights) ClearFlat(name Highlight) {
+	if _, ok := h.flats[name]; !ok {
 		return
 	}
-	clear(h.namedHighlightMap[name])
+	clear(h.flats[name])
 }
-
+func (h *Highlights) ClearFancy(name Highlight) {
+	if _, ok := h.fancies[name]; !ok {
+		return
+	}
+	clear(h.fancies[name])
+}
 func (h *Highlights) ClearAll() {
-	for _, namedHighlight := range h.namedHighlightMap {
+	for _, namedHighlight := range h.flats {
 		clear(namedHighlight)
 	}
-	clear(h.namedHighlightMap)
+	clear(h.flats)
+
+	for _, namedHighlight := range h.fancies {
+		clear(namedHighlight)
+	}
+	clear(h.fancies)
 }
 
 func (h *Highlights) Draw(uniformForDrawMode int, fancyQuadDrawMode int32) {
 	if h.isHidden {
 		return
 	}
-	if h.flatVertices != nil {
+	if h.flatVertices != nil && h.flatVertices.Len() > 0 {
 		h.flatVertices.Begin()
 		h.flatVertices.Draw()
 		h.flatVertices.End()
 	}
-	if h.fancyVertices != nil {
+	if h.fancyVertices != nil && h.fancyVertices.Len() > 0 {
 		h.shader.SetUniformAttr(uniformForDrawMode, fancyQuadDrawMode)
 		gl.Disable(gl.CULL_FACE)
-		//gl.CullFace(gl.BACK)
 		h.fancyVertices.Begin()
 		h.fancyVertices.Draw()
 		h.fancyVertices.End()
 		gl.Enable(gl.CULL_FACE)
-		//gl.CullFace(gl.BACK)
 	}
 }
 func (h *Highlights) Hide() {
 	h.isHidden = true
 }
 func (h *Highlights) ShowAsFlat(category Highlight) {
-	highlights, ok := h.namedHighlightMap[category]
+	highlights, ok := h.flats[category]
 	if !ok {
 		return
 	}
+	h.isHidden = false
 
 	allVertices := make([]glhf.GlFloat, 0)
 	allIndices := make([]uint32, 0)
@@ -114,10 +134,12 @@ func (h *Highlights) ShowAsFlat(category Highlight) {
 }
 
 func (h *Highlights) ShowAsFancy(category Highlight) {
-	highlights, ok := h.namedHighlightMap[category]
+	highlights, ok := h.fancies[category]
 	if !ok {
 		return
 	}
+
+	h.isHidden = false
 
 	allVertices := make([]glhf.GlFloat, 0)
 	allIndices := make([]uint32, 0)
@@ -139,11 +161,11 @@ func (h *Highlights) appendFancyQuads(allVertices []glhf.GlFloat, allIndices []u
 	// we want one quad at the border of each side of the block
 	// pointing up
 	fancyHeight := float32(2)
-
-	topLeftGround := mgl32.Vec3{float32(position.X), float32(position.Y), float32(position.Z)}
-	topRightGround := mgl32.Vec3{float32(position.X + 1), float32(position.Y), float32(position.Z)}
-	bottomRightGround := mgl32.Vec3{float32(position.X + 1), float32(position.Y), float32(position.Z + 1)}
-	bottomLeftGround := mgl32.Vec3{float32(position.X), float32(position.Y), float32(position.Z + 1)}
+	inset := float32(0.05)
+	topLeftGround := mgl32.Vec3{float32(position.X) + inset, float32(position.Y), float32(position.Z) + inset}
+	topRightGround := mgl32.Vec3{float32(position.X+1) - inset, float32(position.Y), float32(position.Z) + inset}
+	bottomRightGround := mgl32.Vec3{float32(position.X+1) - inset, float32(position.Y), float32(position.Z+1) - inset}
+	bottomLeftGround := mgl32.Vec3{float32(position.X) + inset, float32(position.Y), float32(position.Z+1) - inset}
 
 	topLeftUpper := topLeftGround.Add(mgl32.Vec3{0, fancyHeight, 0})
 	topRightUpper := topRightGround.Add(mgl32.Vec3{0, fancyHeight, 0})
@@ -291,6 +313,58 @@ func (h *Highlights) appendQuad(allVertices []glhf.GlFloat, allIndices []uint32,
 	return allVertices, allIndices
 }
 
-func (h *Highlights) GetTransparentColor() mgl32.Vec4 {
-	return mgl32.Vec4{1.0, 1.0, 1.0, 0.2}
+func (h *Highlights) GetTintColor() mgl32.Vec4 {
+	return mgl32.Vec4{1.0, 1.0, 1.0, 0.3}
+}
+
+func (h *Highlights) ClearAndUpdateFlat(category Highlight) {
+	h.ClearFlat(category)
+	h.updateFlats()
+}
+
+func (h *Highlights) ClearAndUpdateFancy(category Highlight) {
+	h.ClearFancy(category)
+	h.updateFancies()
+}
+
+func (h *Highlights) updateAll() {
+	h.updateFlats()
+	h.updateFancies()
+}
+
+func (h *Highlights) updateFancies() {
+	floatsPerVertex := h.shader.VertexFormat().Size() / 4 // = 11 -> 3 for position, 2 for texture coords, 3 for color, 3 for normal
+
+	fancyVerts := make([]glhf.GlFloat, 0)
+	fancyIndices := make([]uint32, 0)
+
+	for _, highlights := range h.fancies {
+		for position, color := range highlights {
+			fancyVerts, fancyIndices = h.appendFancyQuads(fancyVerts, fancyIndices, position, color, floatsPerVertex)
+		}
+	}
+
+	vertexCount := len(fancyVerts) / floatsPerVertex
+
+	h.fancyVertices = glhf.MakeIndexedVertexSlice(h.shader, vertexCount, vertexCount, fancyIndices)
+	h.fancyVertices.Begin()
+	h.fancyVertices.SetVertexData(fancyVerts)
+	h.fancyVertices.End()
+}
+
+func (h *Highlights) updateFlats() {
+	flatVerts := make([]glhf.GlFloat, 0)
+	flatIndices := make([]uint32, 0)
+	floatsPerVertex := h.shader.VertexFormat().Size() / 4 // = 11 -> 3 for position, 2 for texture coords, 3 for color, 3 for normal
+	for _, highlights := range h.flats {
+		for position, color := range highlights {
+			flatVerts, flatIndices = h.appendQuad(flatVerts, flatIndices, position, color, floatsPerVertex)
+		}
+	}
+	vertexCount := len(flatVerts) / floatsPerVertex
+
+	h.flatVertices = glhf.MakeIndexedVertexSlice(h.shader, vertexCount, vertexCount, flatIndices)
+	h.flatVertices.Begin()
+	h.flatVertices.SetVertexData(flatVerts)
+	h.flatVertices.End()
 }

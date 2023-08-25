@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
@@ -40,11 +39,11 @@ func (a *UnitGotoWaypointBehavior) snapToPosition(blockPosition voxel.Int3) {
 	a.unit.GetModel().SetAnimationLoop(game.AnimationWeaponWalk.Str(), 1.0)
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
 	a.unit.SetBlockPosition(blockPosition)
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
 }
 
 func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
 	a.snapToPosition(a.unit.GetWaypoint())
 
 	if a.unit.IsLastWaypoint() {
@@ -59,7 +58,7 @@ func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {
 
 func (a *UnitGotoWaypointBehavior) startWaypointAnimation() {
 	a.unit.TurnTowardsWaypoint()
-	println(fmt.Sprintf("[UnitGotoWaypointBehavior] Start waypoint animation for: %v -> %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
+	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Start waypoint animation for: %v -> %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
 	if a.unit.IsCurrentWaypointAClimb() {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
 		a.unit.GetModel().SetAnimation(game.AnimationClimb.Str(), 1.0)

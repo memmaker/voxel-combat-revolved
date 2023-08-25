@@ -44,7 +44,7 @@ func (g *GameStateAction) Init(bool) {
 	validTargets := g.selectedAction.GetValidTargets()
 	//println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
 	if len(validTargets) > 0 {
-		g.engine.highlights.SetNamedMultiAndUpdate(voxel.HighlightTarget, validTargets, mgl32.Vec3{0.0, 1.0, 0.0})
+		g.engine.highlights.SetFlat(voxel.HighlightTarget, validTargets, mgl32.Vec3{0.0, 1.0, 0.0})
 	}
 }
 
