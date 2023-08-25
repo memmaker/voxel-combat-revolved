@@ -8,7 +8,6 @@ import (
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
 	"os"
-	"sort"
 )
 
 type Map struct {
@@ -530,91 +529,65 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 	return voxelMap
 }
 
-func (m *Map) SetHighlights(highlightPositions []Int3) {
-	textureIndex := m.selectionIndex
-	sort.Slice(highlightPositions, func(i, j int) bool {
-		chunkXI, chunkYI, chunkZI := highlightPositions[i].X/CHUNK_SIZE, highlightPositions[i].Y/CHUNK_SIZE, highlightPositions[i].Z/CHUNK_SIZE
-		chunkXJ, chunkYJ, chunkZJ := highlightPositions[j].X/CHUNK_SIZE, highlightPositions[j].Y/CHUNK_SIZE, highlightPositions[j].Z/CHUNK_SIZE
-		return chunkXI < chunkXJ || chunkYI < chunkYJ || chunkZI < chunkZJ
-	})
-	firstBlockPos := highlightPositions[0]
-	firstChunk := m.GetChunkFromBlock(firstBlockPos.X, firstBlockPos.Y, firstBlockPos.Z)
-	currentChunk := firstChunk
-	currentChunkX, currentChunkY, currentChunkZ := firstChunk.chunkPosX, firstChunk.chunkPosY, firstChunk.chunkPosZ
-	highlightsForChunk := make([]Int3, 0)
-	firstBlockLocalPos := Int3{firstBlockPos.X % CHUNK_SIZE, firstBlockPos.Y % CHUNK_SIZE, firstBlockPos.Z % CHUNK_SIZE}
-	highlightsForChunk = append(highlightsForChunk, firstBlockLocalPos)
-	for _, absPos := range highlightPositions {
-		chunkX, chunkY, chunkZ := absPos.X/CHUNK_SIZE, absPos.Y/CHUNK_SIZE, absPos.Z/CHUNK_SIZE
-		if chunkX != currentChunkX || chunkY != currentChunkY || chunkZ != currentChunkZ {
-			currentChunk.SetHighlights(highlightsForChunk, textureIndex)
-			highlightsForChunk = make([]Int3, 0)
-			currentChunkX, currentChunkY, currentChunkZ = chunkX, chunkY, chunkZ
-			currentChunk = m.GetChunk(chunkX, chunkY, chunkZ)
+var cardinalNeighbors = []Int3{
+	{1, 0, 0},
+	{-1, 0, 0},
+	{0, 0, 1},
+	{0, 0, -1},
+}
+var diagonalNeighbors = []Int3{
+	{1, 0, 1},
+	{-1, 0, 1},
+	{1, 0, -1},
+	{-1, 0, -1},
+}
+
+var allNeighbors = append(cardinalNeighbors, diagonalNeighbors...)
+
+func (m *Map) GetSolidCardinalNeighborsOfHeight(position Int3, height int32) []Int3 {
+	neighbors := make([]Int3, 0, 4)
+NEIGHBORITERATION:
+	for _, offset := range cardinalNeighbors {
+		neighbor := position.Add(offset)
+		if m.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
+			for y := int32(1); y <= height-1; y++ {
+				if !m.IsSolidBlockAt(neighbor.X, neighbor.Y+y, neighbor.Z) {
+					continue NEIGHBORITERATION
+				}
+			}
+			neighbors = append(neighbors, neighbor)
 		}
-		localPos := Int3{absPos.X % CHUNK_SIZE, absPos.Y % CHUNK_SIZE, absPos.Z % CHUNK_SIZE}
-		highlightsForChunk = append(highlightsForChunk, localPos)
 	}
-	currentChunk.SetHighlights(highlightsForChunk, textureIndex)
+	return neighbors
 }
 
 func (m *Map) GetNeighborsForGroundMovement(block Int3, keepPredicate func(neighbor Int3) bool) []Int3 {
-	neighbors := make([]Int3, 0, 4)
-	xp := block.Add(Int3{X: 1})
-	if m.ContainsGrid(xp) {
-		if m.IsSolidBlockAt(xp.X, xp.Y, xp.Z) {
-			// check one block above (climbing one block is allowed)
-			xp = xp.Add(Int3{Y: 1})
-		} else {
-			// get the lowest solid block below and test the block above that
-			xp = m.GetGroundPosition(xp)
-		}
-		if m.ContainsGrid(xp) && keepPredicate(xp) {
-			neighbors = append(neighbors, xp)
+	neighbors := make([]Int3, 0, 8)
+
+	for _, offset := range cardinalNeighbors {
+		neighbor := block.Add(offset)
+		if m.ContainsGrid(neighbor) {
+			if m.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
+				// check one block above (climbing one block is allowed)
+				neighbor = neighbor.Add(Int3{Y: 1})
+			} else {
+				// get the lowest solid block below and test the block above that
+				neighbor = m.GetGroundPosition(neighbor)
+			}
+			if m.ContainsGrid(neighbor) && keepPredicate(neighbor) {
+				neighbors = append(neighbors, neighbor)
+			}
 		}
 	}
 
-	xn := block.Add(Int3{X: -1})
-	if m.ContainsGrid(xn) {
-		if m.IsSolidBlockAt(xn.X, xn.Y, xn.Z) {
-			// check one block above (climbing one block is allowed)
-			xn = xn.Add(Int3{Y: 1})
-		} else {
-			// get the lowest solid block below and test the block above that
-			xn = m.GetGroundPosition(xn)
-		}
-		if m.ContainsGrid(xn) && keepPredicate(xn) {
-			neighbors = append(neighbors, xn)
+	for _, offset := range diagonalNeighbors {
+		neighbor := block.Add(offset)
+		neighbor = m.GetGroundPosition(neighbor)
+		if m.ContainsGrid(neighbor) && keepPredicate(neighbor) {
+			neighbors = append(neighbors, neighbor)
 		}
 	}
 
-	zp := block.Add(Int3{Z: 1})
-	if m.ContainsGrid(zp) {
-		if m.IsSolidBlockAt(zp.X, zp.Y, zp.Z) {
-			// check one block above (climbing one block is allowed)
-			zp = zp.Add(Int3{Y: 1})
-		} else {
-			// get the lowest solid block below and test the block above that
-			zp = m.GetGroundPosition(zp)
-		}
-		if m.ContainsGrid(zp) && keepPredicate(zp) {
-			neighbors = append(neighbors, zp)
-		}
-	}
-
-	zn := block.Add(Int3{Z: -1})
-	if m.ContainsGrid(zn) {
-		if m.IsSolidBlockAt(zn.X, zn.Y, zn.Z) {
-			// check one block above (climbing one block is allowed)
-			zn = zn.Add(Int3{Y: 1})
-		} else {
-			// get the lowest solid block below and test the block above that
-			zn = m.GetGroundPosition(zn)
-		}
-		if m.ContainsGrid(zn) && keepPredicate(zn) {
-			neighbors = append(neighbors, zn)
-		}
-	}
 	return neighbors
 }
 
@@ -627,15 +600,6 @@ func (m *Map) GetGroundPosition(startBlock Int3) Int3 {
 	}
 	return startBlock
 }
-
-func (m *Map) ClearHighlights() {
-	for _, chunk := range m.chunks {
-		if chunk != nil {
-			chunk.ClearHighlights()
-		}
-	}
-}
-
 func (m *Map) IsOccupied(blockPos Int3) bool {
 	block := m.GetBlockFromVec(blockPos)
 	return block != nil && block.IsOccupied()

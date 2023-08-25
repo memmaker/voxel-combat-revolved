@@ -156,8 +156,10 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 }
 
 func (p *Unit) TurnTowardsWaypoint() {
-	direction := p.GetWaypoint().Sub(voxel.PositionToGridInt3(p.GetPosition()))
-	p.SetForward2DCardinal(direction)
+	d := p.GetWaypoint().Sub(p.GetBlockPosition())
+	direction := voxel.Int3{X: d.X, Y: 0, Z: d.Z}
+	println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
+	p.Transform.SetForward2D(direction.ToVec3())
 }
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
 	p.UnitInstance.Transform.SetForward2D(direction)
@@ -208,7 +210,7 @@ func (p *Unit) StartIdleAnimationLoop() {
 	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.GetForward2DCardinal())
 	//println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
 	p.UnitInstance.GetModel().SetAnimationLoop(animation.Str(), 1.0)
-	p.SetForward2DCardinal(front)
+	p.Transform.SetForward2DCardinal(front)
 	//println(p.model.GetAnimationDebugString())
 }
 
@@ -257,6 +259,10 @@ func (p *Unit) IsAtLocation(destination voxel.Int3) bool {
 	currentPos := p.GetPosition()
 	dist := targetPos.Sub(currentPos).Len()
 	return dist < PositionalTolerance
+}
+
+func (p *Unit) GetExactAP() float64 {
+	return p.ActionPoints
 }
 
 func NewClientUnit(instance *game.UnitInstance) *Unit {

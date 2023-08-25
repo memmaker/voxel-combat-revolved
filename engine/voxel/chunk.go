@@ -10,22 +10,21 @@ import (
 // translated from https://github.com/Vercidium/voxel-mesh-generation/blob/master/source/Chunk.cs
 
 type Chunk struct {
-	data          []*Block
-	m             *Map
-	chunkPosX     int32
-	chunkPosY     int32
-	chunkPosZ     int32
-	chunkHelper   *ChunkHelper
-	cXN           *Chunk
-	cXP           *Chunk
-	cYN           *Chunk
-	cYP           *Chunk
-	cZN           *Chunk
-	cZP           *Chunk
-	isDirty       bool
-	meshBuffer    ChunkMesh
-	highLightMesh *HighlightMesh
-	chunkShader   *glhf.Shader
+	data        []*Block
+	m           *Map
+	chunkPosX   int32
+	chunkPosY   int32
+	chunkPosZ   int32
+	chunkHelper *ChunkHelper
+	cXN         *Chunk
+	cXP         *Chunk
+	cYN         *Chunk
+	cYP         *Chunk
+	cZN         *Chunk
+	cZP         *Chunk
+	isDirty     bool
+	meshBuffer  ChunkMesh
+	chunkShader *glhf.Shader
 }
 
 func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
@@ -422,9 +421,6 @@ func (c *Chunk) Draw(shader *glhf.Shader, modelUniformIndex int) {
 	}
 	shader.SetUniformAttr(modelUniformIndex, c.GetMatrix())
 	c.meshBuffer.Draw()
-	if c.highLightMesh != nil {
-		c.highLightMesh.Draw()
-	}
 }
 func (c *Chunk) getDiscreteCamDir(camDir mgl32.Vec3) Int3 {
 	intPos := Int3{0, 0, 0}
@@ -471,14 +467,6 @@ func (c *Chunk) AABBMin() mgl32.Vec3 {
 
 func (c *Chunk) AABBMax() mgl32.Vec3 {
 	return mgl32.Vec3{float32(c.chunkPosX*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE + CHUNK_SIZE)}
-}
-
-func (c *Chunk) SetHighlights(positions []Int3, textureIndex byte) {
-	c.highLightMesh = NewHighlightMesh(c.chunkShader, positions, textureIndex)
-}
-
-func (c *Chunk) ClearHighlights() {
-	c.highLightMesh = nil
 }
 
 func (c *Chunk) ClearAllBlocks() {

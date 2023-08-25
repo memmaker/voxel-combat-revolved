@@ -85,47 +85,6 @@ func (vs *VertexSlice[V]) Cap() int {
 	return vs.va.cap - vs.i
 }
 
-// SetLen resizes the VertexSlice to length len.
-func (vs *VertexSlice[V]) SetLen(len int) {
-	vs.End() // vs must have been Begin-ed before calling this method
-	*vs = vs.grow(len)
-	vs.Begin()
-}
-
-// grow returns supplied vs with length changed to len. Allocates new underlying vertex array if
-// necessary. The original content is preserved.
-func (vs VertexSlice[V]) grow(len int) VertexSlice[V] {
-	if len <= vs.Cap() {
-		// capacity sufficient
-		return VertexSlice[V]{
-			va: vs.va,
-			i:  vs.i,
-			j:  vs.i + len,
-		}
-	}
-
-	// grow the capacity
-	newCap := vs.Cap()
-	if newCap < 1024 {
-		newCap += newCap
-	} else {
-		newCap += newCap / 4
-	}
-	if newCap < len {
-		newCap = len
-	}
-	newVs := VertexSlice[V]{
-		va: newIndexedVertexArray[V](vs.va.shader, newCap, vs.va.indices),
-		i:  0,
-		j:  len,
-	}
-	// preserve the original content
-	newVs.Begin()
-	newVs.Slice(0, vs.Len()).SetVertexData(vs.VertexData())
-	newVs.End()
-	return newVs
-}
-
 // Slice returns a sub-slice of this VertexSlice covering the range [i, j) (relative to this
 // VertexSlice).
 //

@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
-	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"log"
 	"net"
@@ -341,7 +341,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		}
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
-		unit.SetForward2DCardinal(voxel.Int3{X: 0, Y: 0, Z: 1})
+		unit.SetForward(mgl32.Vec3{0, 0, 1})
 
 		unitID := gameInstance.ServerSpawnUnit(userID, unit) // sets the instance userID
 		unit.UpdateAnimation()

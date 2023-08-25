@@ -48,10 +48,18 @@ type FreeAimActionMessage struct {
 }
 type MapLoadedMessage struct {
 }
+type PlacementMode string
+
+const (
+	PlacementModeRandom PlacementMode = "random"
+	PlacementModeManual PlacementMode = "manual"
+)
+
 type CreateGameMessage struct {
 	Map            string
 	GameIdentifier string
 	IsPublic       bool
+	Placement      PlacementMode
 }
 
 type JoinGameMessage struct {

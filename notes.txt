@@ -1,5 +1,8 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
+ - Highlights not cleared when expected
+ - Your own Overwatch is not visible
+ - Forward Vector during movement seems to be momentarily wrong, especially when climbing after being in a wall_idle
 
 # Design Guidelines
  - Turn based
@@ -25,6 +28,8 @@
  - Snapshots are always fired from the center of a block at eye level
    -> Free aim allows moving the origin within the whole block
    -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
+ - Diagonal Movement is choppily animated
+   -> The animation for climbing and dropping expects a cardinal direction
 
 # Where Phoenix Point failed
  - Difficulty curve / Balance

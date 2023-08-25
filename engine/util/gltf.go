@@ -221,11 +221,11 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 			return nil
 		}
 
-	   colorBuffer, err = modeler.ReadColor(doc, colorAccessor, colorBuffer)
-	   if err != nil {
-		   println(err)
-		   return nil
-	   }
+		colorBuffer, err = modeler.ReadColor(doc, colorAccessor, colorBuffer)
+		if err != nil {
+			println(err)
+			return nil
+		}
 
 		indicesBuffer, err = modeler.ReadIndices(doc, indicesAccessor, indicesBuffer)
 		if err != nil {
@@ -246,11 +246,11 @@ func loadMesh(doc *gltf.Document, meshIndex uint32) *SimpleMesh {
 		var meshVertices []glhf.GlFloat
 		for i := 0; i < len(vertBuffer); i++ {
 			/*
-			{Name: "position", Type: glhf.Vec3},
-			{Name: "texCoord", Type: glhf.Vec2},
-			{Name: "vertexColor", Type: glhf.Vec3},
-			{Name: "normal", Type: glhf.Vec3},
-			 */
+				{Name: "position", Type: glhf.Vec3},
+				{Name: "texCoord", Type: glhf.Vec2},
+				{Name: "vertexColor", Type: glhf.Vec3},
+				{Name: "normal", Type: glhf.Vec3},
+			*/
 			meshVertices = append(
 				meshVertices,
 
@@ -288,9 +288,9 @@ func buildNodeHierarchy(document *gltf.Document, meshNodes []*MeshNode, nodeInde
 	meshNode := meshNodes[nodeIndex]
 	meshNode.SetSamplerSource(samplerFrameSource)
 
-	meshNode.SetInitialTranslate(docNode.TranslationOrDefault())
-	meshNode.SetInitialRotate(docNode.RotationOrDefault())
-	meshNode.SetInitialScale(docNode.ScaleOrDefault())
+	meshNode.setInitialTranslate(docNode.TranslationOrDefault())
+	meshNode.setInitialRotation(docNode.RotationOrDefault())
+	meshNode.setInitialScale(docNode.ScaleOrDefault())
 
 	for _, childNodeIndex := range docNode.Children {
 		meshNode.children = append(meshNode.children, buildNodeHierarchy(document, meshNodes, childNodeIndex, samplerFrameSource))

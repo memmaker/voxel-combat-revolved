@@ -10,17 +10,17 @@ func NewNode[T comparable](value T) *PqItem[T] {
 
 // An PathNode is something we manage in a priority queue.
 type PqItem[T comparable] struct {
-	value    T   // The value of the item; arbitrary.
-	priority int // The priority of the item in the queue.
+	value    T       // The value of the item; arbitrary.
+	priority float64 // The priority of the item in the queue.
 	// The index is needed by update and is maintained by the heap.Interface methods.
 	index int // The index of the item in the heap.
 }
 
-func (item *PqItem[T]) GetPriority() int {
+func (item *PqItem[T]) GetPriority() float64 {
 	return item.priority
 }
 
-func (item *PqItem[T]) SetPriority(priority int) {
+func (item *PqItem[T]) SetPriority(priority float64) {
 	item.priority = priority
 }
 
@@ -37,8 +37,8 @@ func (item *PqItem[T]) GetValue() T {
 }
 
 type PathNode[T comparable] interface {
-	GetPriority() int
-	SetPriority(int)
+	GetPriority() float64
+	SetPriority(float64)
 	GetIndex() int
 	SetIndex(int)
 	GetValue() T
@@ -97,7 +97,7 @@ func (pq *PriorityQueue[T]) IsEmpty() bool {
 }
 
 // update modifies the priority and value of an PathNode in the queue.
-func (pq *PriorityQueue[T]) update(item PathNode[T], priority int) {
+func (pq *PriorityQueue[T]) update(item PathNode[T], priority float64) {
 	item.SetPriority(priority)
 	heap.Fix(pq, item.GetIndex())
 }

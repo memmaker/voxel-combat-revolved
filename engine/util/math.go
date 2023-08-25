@@ -3,6 +3,7 @@ package util
 import (
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
+	"math/rand"
 
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -167,4 +168,8 @@ function easeOutSine(x: number): number {
 
 func EaseOutSine(x float64) float64 {
 	return math.Sin((x * math.Pi) / 2)
+}
+
+func RandomChoice(choices []voxel.Int3) voxel.Int3 {
+	return choices[rand.Intn(len(choices))]
 }

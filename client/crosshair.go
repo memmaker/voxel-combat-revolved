@@ -16,7 +16,7 @@ type Crosshair struct {
 	quatRotation  mgl32.Quat
 	originalScale [3]float32
 	currentScale  [3]float32
-	color         mgl32.Vec3
+	color         mgl32.Vec4
 
 	size              float32
 	currentThickness  float32
@@ -43,7 +43,7 @@ func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
 		originalScale:     scale,
 		originalThickness: 0.02,
 		currentThickness:  0.02,
-		color:             mgl32.Vec3{float32(47) / float32(255), float32(214) / float32(255), float32(195) / float32(255)},
+		color:             mgl32.Vec4{float32(47) / float32(255), float32(214) / float32(255), float32(195) / float32(255), 1.0},
 		size:              1.0,
 	}
 	c.Init(shader)
@@ -87,7 +87,7 @@ func (c *Crosshair) SetSize(size float64) {
 	c.currentScale = [3]float32{c.size, c.size, c.size}
 	c.currentThickness = c.originalThickness / c.size
 }
-func (c *Crosshair) SetColor(color mgl32.Vec3) {
+func (c *Crosshair) SetColor(color mgl32.Vec4) {
 	c.color = color
 }
 

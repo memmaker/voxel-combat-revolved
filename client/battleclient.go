@@ -15,42 +15,44 @@ import (
 type BattleClient struct {
 	*util.GlApplication
 	*game.GameClient[*Unit]
-	lastMousePosX       float64
-	lastMousePosY       float64
-	wireFrame           bool
-	selector            PositionDrawable
-	crosshair           *Crosshair
-	chunkShader         *glhf.Shader
-	lineShader          *glhf.Shader
-	guiShader           *glhf.Shader
-	defaultShader       *glhf.Shader
-	textLabel           *etxt.TextMesh
-	textRenderer        *etxt.OpenGLTextRenderer
-	lastHitInfo         *game.RayCastHit
-	projectiles         []*Projectile
-	debugObjects        []PositionDrawable
-	isoCamera           *util.ISOCamera
-	fpsCamera           *util.FPSCamera
-	cameraIsFirstPerson bool
-	drawBoundingBoxes   bool
-	showDebugInfo       bool
-	timer               *util.Timer
-	stateStack          []GameState
-	conditionQueue      []ConditionalCall
-	isBlockSelection    bool
-	groundSelector      *GroundSelector
-	unitSelector        *GroundSelector
-	blockSelector       *util.LineMesh
-	projectileTexture   *glhf.Texture
-	actionbar           *gui.ActionBar
-	server              *game.ServerConnection
-	serverChannel       chan game.StringMessage
-	isBusy              bool
-	onSwitchToIsoCamera func()
-	bulletModel         *util.CompoundMesh
-	settings            ClientSettings
-	guiIcons            map[string]byte
-	cameraAnimation     *util.CameraAnimation
+	lastMousePosX              float64
+	lastMousePosY              float64
+	wireFrame                  bool
+	selector                   PositionDrawable
+	crosshair                  *Crosshair
+	chunkShader                *glhf.Shader
+	lineShader                 *glhf.Shader
+	guiShader                  *glhf.Shader
+	defaultShader              *glhf.Shader
+	textLabel                  *etxt.TextMesh
+	textRenderer               *etxt.OpenGLTextRenderer
+	lastHitInfo                *game.RayCastHit
+	projectiles                []*Projectile
+	debugObjects               []PositionDrawable
+	isoCamera                  *util.ISOCamera
+	fpsCamera                  *util.FPSCamera
+	cameraIsFirstPerson        bool
+	drawBoundingBoxes          bool
+	showDebugInfo              bool
+	timer                      *util.Timer
+	stateStack                 []GameState
+	conditionQueue             []ConditionalCall
+	isBlockSelection           bool
+	groundSelector             *GroundSelector
+	unitSelector               *GroundSelector
+	blockSelector              *util.LineMesh
+	projectileTexture          *glhf.Texture
+	actionbar                  *gui.ActionBar
+	highlights                 *voxel.Highlights
+	server                     *game.ServerConnection
+	serverChannel              chan game.StringMessage
+	isBusy                     bool
+	onSwitchToIsoCamera        func()
+	bulletModel                *util.CompoundMesh
+	settings                   ClientSettings
+	guiIcons                   map[string]byte
+	cameraAnimation            *util.CameraAnimation
+	overwatchPositionsThisTurn []voxel.Int3
 }
 
 func (a *BattleClient) state() GameState {
@@ -119,7 +121,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 		timer:         util.NewTimer(),
 		settings:      settings,
 	}
-	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, myApp.CreateClientUnit)
+	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
 	myApp.GameClient.SetEnvironment("GL-Client")
 	myApp.chunkShader = myApp.loadChunkShader()
 	myApp.lineShader = myApp.loadLineShader()
@@ -145,6 +147,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	guiAtlas, guiIconIndices := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
+	myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
 
 	myApp.SwitchToBlockSelector()
 	/* Old Crosshair
@@ -281,7 +284,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 	a.defaultShader.Begin()
 
 	a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
-	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawModel)
+	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
 		a.selector.Draw()
@@ -301,6 +304,11 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
 	if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
 		a.crosshair.Draw()
+	} else {
+		a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
+		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, a.highlights.GetTransparentColor())
+		a.highlights.Draw()
 	}
 	a.defaultShader.End()
 }
@@ -478,7 +486,7 @@ func (a *BattleClient) SwitchToUnitFirstPerson(unit *Unit, lookAtTarget mgl32.Ve
 }
 
 func (a *BattleClient) SwitchToFirstPerson() {
-	a.GetVoxelMap().ClearHighlights()
+	a.highlights.Clear()
 	a.groundSelector.Hide()
 	a.actionbar.Hide()
 
@@ -574,6 +582,8 @@ func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
 	if known && a.IsMyUnit(msg.Watcher) {
 		a.SwitchToNextUnit(unit)
 	}
+	a.overwatchPositionsThisTurn = msg.WatchedLocations
+	a.updateOverwatchHighlights()
 }
 
 func (a *BattleClient) OnReload(msg game.UnitMessage) {
@@ -591,7 +601,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
-		attackerUnit.SetForward2DCardinal(msg.AimDirection)
+		attackerUnit.SetForward(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
@@ -699,7 +709,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	changeLOS := func() {
 		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward2DCardinal(msg.UpdatedUnit.GetForward2DCardinal())
+			movingUnit.SetForward(msg.UpdatedUnit.Transform.GetForward())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
@@ -766,7 +776,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 	}
 	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
-	a.GetVoxelMap().ClearHighlights()
+	a.highlights.Clear()
 	a.unitSelector.Hide()
 	destination := msg.Path[len(msg.Path)-1]
 
@@ -798,6 +808,7 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 		println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
 	if msg.YourTurn {
+		a.overwatchPositionsThisTurn = nil
 		a.ResetUnitsForNextTurn()
 		a.Print("It's your turn!")
 		a.SwitchToUnitNoCameraMovement(a.FirstUnit())
@@ -866,4 +877,44 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
 	// TODO: Spawn blood particles
 	// TODO: Add blood decals on unit skin
+}
+
+func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {
+	var snapRange []voxel.Int3  // can snap fire from here
+	var aimedRange []voxel.Int3 // can free aim from here
+	var farRange []voxel.Int3   // can't fire from here
+
+	apNeededForFiring := unit.GetWeapon().Definition.BaseAPForShot
+
+	apAvailable := unit.GetExactAP()
+
+	budgetForSnap := apAvailable - float64(apNeededForFiring)
+	budgetForAimed := apAvailable - float64(apNeededForFiring+1)
+
+	movesPerAp := unit.Definition.CoreStats.MovementPerAP
+
+	budgetInBlocksForSnap := budgetForSnap * movesPerAp
+	budgetInBlocksForAimed := budgetForAimed * movesPerAp
+
+	for _, target := range targets {
+		cost := float64(action.GetCost(target))
+		if cost <= budgetInBlocksForAimed {
+			aimedRange = append(aimedRange, target)
+		} else if cost <= budgetInBlocksForSnap {
+			snapRange = append(snapRange, target)
+		} else {
+			farRange = append(farRange, target)
+		}
+	}
+	// we want a scifi techy x-com blue for the near range
+	// we want a corresponding scify techy orange (blade runner) for the far range
+	a.highlights.Clear()
+	a.highlights.AddMulti(aimedRange, mgl32.Vec3{0.412, 0.922, 1})
+	a.highlights.AddMulti(snapRange, mgl32.Vec3{0.361, 0.714, 1})
+	a.highlights.AddMulti(farRange, mgl32.Vec3{1, 0.537, 0.2})
+	a.highlights.UpdateVertexData()
+}
+
+func (a *BattleClient) updateOverwatchHighlights() {
+	a.highlights.SetNamedMultiAndUpdate("overwatch", a.overwatchPositionsThisTurn, mgl32.Vec3{1, 0.2, 0.2})
 }

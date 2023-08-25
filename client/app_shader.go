@@ -59,8 +59,9 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 }
 
 const (
-	ShaderDrawModel  = int32(0)
-	ShaderDrawCircle = int32(3)
+	ShaderDrawTexturedQuads = int32(0)
+	ShaderDrawColoredQuads  = int32(1)
+	ShaderDrawCircle        = int32(3)
 )
 const (
 	ShaderProjectionViewMatrix = 0
@@ -87,7 +88,7 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4},    // 1
 
 			glhf.Attr{Name: "drawMode", Type: glhf.Int}, // 2
-			glhf.Attr{Name: "color", Type: glhf.Vec3},   // 3
+			glhf.Attr{Name: "color", Type: glhf.Vec4},   // 3
 
 			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 4
 

@@ -55,7 +55,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 	case "GameStarted":
 		var gameInfo GameStartedMessage
 		util.FromJson(messageAsJson, &gameInfo)
-		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo.OwnID, gameInfo.GameID, c.createDummyUnit)
+		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo.OwnID, gameInfo.GameID, gameInfo.MapFile, c.createDummyUnit)
 		c.GameClient.SetEnvironment("AI-Client")
 		println("Game started!")
 		loadedMap := voxel.NewMapFromFile(gameInfo.MapFile, nil, nil)
@@ -225,7 +225,7 @@ func (c *DummyClient) CreateGameSequence() {
 	println("[DummyClient] Starting create game sequence...")
 	util.MustSend(con.Login("creator"))
 	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map.bin", "fx's test game", true))
+	util.MustSend(con.CreateGame("./assets/maps/map.bin", "fx's test game", PlacementModeRandom, true))
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)

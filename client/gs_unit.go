@@ -78,7 +78,7 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 			g.moveAction = game.NewActionMove(g.engine.GetVoxelMap(), g.selectedUnit.UnitInstance)
 			validTargets := g.moveAction.GetValidTargets()
 			if len(validTargets) > 0 {
-				g.engine.GetVoxelMap().SetHighlights(validTargets)
+				g.engine.SetHighlightsForMovement(g.moveAction, g.selectedUnit, validTargets)
 			}
 		}
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))

@@ -53,8 +53,8 @@ func (c *ServerConnection) SelectFaction(factionName string) error {
 	return c.send("SelectFaction", message)
 }
 
-func (c *ServerConnection) CreateGame(mapName string, gameID string, isPublic bool) error {
-	message := CreateGameMessage{Map: mapName, GameIdentifier: gameID, IsPublic: isPublic}
+func (c *ServerConnection) CreateGame(mapName string, gameID string, placement PlacementMode, isPublic bool) error {
+	message := CreateGameMessage{Map: mapName, GameIdentifier: gameID, IsPublic: isPublic, Placement: placement}
 	return c.send("CreateGame", message)
 }
 
