@@ -17,8 +17,8 @@ func (m *LineMesh) SetSize(scaleFactor float64) {
 	panic("implement me")
 }
 
-func (m *LineMesh) SetPosition(pos mgl32.Vec3) {
-	m.pos = pos
+func (m *LineMesh) SetBlockPosition(pos voxel.Int3) {
+	m.pos = pos.ToBlockCenterVec3()
 }
 func (m *LineMesh) Draw() {
 	m.shader.SetUniformAttr(2, m.GetMatrix())

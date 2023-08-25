@@ -53,6 +53,7 @@ type BattleClient struct {
 	guiIcons                   map[string]byte
 	cameraAnimation            *util.CameraAnimation
 	overwatchPositionsThisTurn []voxel.Int3
+	selectedUnit               *Unit
 }
 
 func (a *BattleClient) state() GameState {
@@ -137,8 +138,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	myApp.ScrollHandler = myApp.handleScrollEvents
 
 	myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.defaultShader)
-
-	selectorMesh := util.LoadGLTFWithTextures("./assets/models/selector.glb")
+	selectorColor := mgl32.Vec3{1, 1, 1}
+	selectorMesh := util.LoadGLTF("./assets/models/selector.glb", &selectorColor)
 	selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
 	myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.defaultShader)
 	myApp.blockSelector = NewBlockSelector(myApp.lineShader)
@@ -153,7 +154,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	/* Old Crosshair
 	   myApp.textRenderer.SetAlign(etxt.YCenter, etxt.XCenter)
 	   crosshair := myApp.textRenderer.DrawText("+")
-	   crosshair.SetPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
+	   crosshair.SetBlockPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
 	   myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
 	*/
 	crosshair := NewCrosshair(myApp.defaultShader, myApp.fpsCamera)
@@ -286,14 +287,6 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 	a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
 	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
-	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
-		a.selector.Draw()
-	}
-
-	if a.unitSelector != nil {
-		a.unitSelector.Draw()
-	}
-
 	for _, unit := range a.GetAllClientUnits() {
 		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) {
 			unit.Draw(a.defaultShader)
@@ -302,12 +295,24 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
 	a.drawProjectiles()
 
+	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
+		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
+		a.selector.Draw()
+	}
+	if a.unitSelector != nil {
+		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawCircle)
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
+		a.defaultShader.SetUniformAttr(ShaderThickness, float32(0.3))
+		a.unitSelector.Draw()
+	}
+
 	if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
 		a.crosshair.Draw()
 	} else {
 		a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
 		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
-		a.defaultShader.SetUniformAttr(ShaderDrawColor, a.highlights.GetTransparentColor())
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, a.highlights.GetTintColor())
 		a.highlights.Draw(ShaderDrawMode, ShaderDrawColoredFadingQuads)
 	}
 	a.defaultShader.End()
@@ -350,6 +355,7 @@ func (a *BattleClient) draw2D() {
 func (a *BattleClient) SwitchToNextUnit(currentUnit *Unit) {
 	nextUnit, hasNext := a.GetNextUnit(currentUnit)
 	if !hasNext {
+		a.SwitchToUnit(currentUnit)
 		return
 	}
 	a.SwitchToUnit(nextUnit)
@@ -376,7 +382,7 @@ func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
 func (a *BattleClient) SwitchToFreeAim(unit *Unit, action *game.ActionSnapShot) {
 	a.stateStack = []GameState{
 		NewGameStateUnit(a, unit),
-		&GameStateFreeAim{engine: a, selectedUnit: unit, selectedAction: action, lockedTarget: -1},
+		&GameStateFreeAim{engine: a, selectedAction: action, lockedTarget: -1},
 	}
 	a.state().Init(false)
 }
@@ -427,9 +433,9 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 
 	if hitInfo.Hit {
 		if a.isBlockSelection {
-			a.selector.SetPosition(hitInfo.PreviousGridPosition.ToVec3())
+			a.selector.SetBlockPosition(hitInfo.PreviousGridPosition)
 		} else {
-			a.selector.SetPosition(a.GetVoxelMap().GetGroundPosition(hitInfo.PreviousGridPosition).ToVec3())
+			a.selector.SetBlockPosition(a.GetVoxelMap().GetGroundPosition(hitInfo.PreviousGridPosition))
 		}
 	}
 }
@@ -579,9 +585,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
 	unit, known := a.GetClientUnit(msg.Watcher)
 	if known && a.IsMyUnit(msg.Watcher) {
+		a.highlights.ClearFlat(voxel.HighlightTarget)
+		a.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		a.GameClient.OnBeginOverwatch(msg)
 		a.SwitchToNextUnit(unit)
-		a.highlights.Clear(voxel.HighlightTarget)
+
 		a.overwatchPositionsThisTurn = append(a.overwatchPositionsThisTurn, msg.WatchedLocations...)
 		a.updateOverwatchHighlights()
 	}
@@ -651,7 +659,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 		})
 
 		if activateBulletCam {
-			a.startBulletCamFor(firedProjectile)
+			a.startBulletCamFor(attacker, firedProjectile)
 		}
 		projectileNumber := index + 1
 		if projectile.UnitHit >= 0 {
@@ -667,11 +675,14 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	}
 }
 
-func (a *BattleClient) startBulletCamFor(firedProjectile *Projectile) {
+func (a *BattleClient) startBulletCamFor(attacker *Unit, firedProjectile *Projectile) {
 	if !a.cameraIsFirstPerson {
 		a.SwitchToFirstPerson()
 	} else {
 		a.onSwitchToISO()
+	}
+	a.onSwitchToIsoCamera = func() {
+		a.fpsCamera.Detach()
 	}
 	a.fpsCamera.SetForward(firedProjectile.GetForward())
 	a.fpsCamera.AttachTo(firedProjectile)
@@ -787,7 +798,8 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 			a.AddOrUpdateUnit(acquiredLOSUnit)
 		}
 		unit.SetBlockPosition(destination)
-		a.SwitchToUnitNoCameraMovement(unit)
+		// TODO: we don't want to switch here, if the user selected a different unit in the meantime
+		a.SwitchToUnit(unit)
 		a.isBusy = false
 	}
 	destinationReached := func() bool {
@@ -809,7 +821,7 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 		println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
 	if msg.YourTurn {
-		a.overwatchPositionsThisTurn = nil
+		a.ResetOverwatch()
 		a.ResetUnitsForNextTurn()
 		a.Print("It's your turn!")
 		a.SwitchToUnitNoCameraMovement(a.FirstUnit())
@@ -877,7 +889,7 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
 	// TODO: Spawn blood particles
-	// TODO: Add blood decals on unit skin
+	// TODO: AddFlat blood decals on unit skin
 }
 
 func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {
@@ -909,15 +921,29 @@ func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *U
 	}
 	// we want a scifi techy x-com blue for the near range
 	// we want a corresponding scify techy orange (blade runner) for the far range
-	a.highlights.Clear(voxel.HighlightMove)
-	a.highlights.Add(voxel.HighlightMove, aimedRange, mgl32.Vec3{0.412, 0.922, 1})
-	a.highlights.Add(voxel.HighlightMove, snapRange, mgl32.Vec3{0.361, 0.714, 1})
-	a.highlights.Add(voxel.HighlightMove, farRange, mgl32.Vec3{1, 0.537, 0.2})
+	a.highlights.ClearFlat(voxel.HighlightMove)
+	a.highlights.AddFlat(voxel.HighlightMove, aimedRange, mgl32.Vec3{0.412, 0.922, 1})
+	a.highlights.AddFlat(voxel.HighlightMove, snapRange, mgl32.Vec3{0.361, 0.714, 1})
+	a.highlights.AddFlat(voxel.HighlightMove, farRange, mgl32.Vec3{1, 0.537, 0.2})
 	a.highlights.ShowAsFlat(voxel.HighlightMove)
 }
 
 func (a *BattleClient) updateOverwatchHighlights() {
-	a.highlights.Clear(voxel.HighlightOverwatch)
-	a.highlights.Add(voxel.HighlightOverwatch, a.overwatchPositionsThisTurn, mgl32.Vec3{1, 0.2, 0.2})
+	a.highlights.ClearFancy(voxel.HighlightOverwatch)
+	a.highlights.AddFancy(voxel.HighlightOverwatch, a.overwatchPositionsThisTurn, mgl32.Vec3{1, 0.2, 0.2})
 	a.highlights.ShowAsFancy(voxel.HighlightOverwatch)
+}
+
+func (a *BattleClient) ResetOverwatch() {
+	a.overwatchPositionsThisTurn = nil
+	a.highlights.ClearAndUpdateFancy(voxel.HighlightOverwatch)
+}
+
+func (a *BattleClient) SetSelectedUnit(unit *Unit) {
+	a.selectedUnit = unit
+
+	a.SwitchToGroundSelector()
+	a.unitSelector.SetBlockPosition(unit.GetBlockPosition())
+
+	a.UpdateActionbarFor(unit)
 }

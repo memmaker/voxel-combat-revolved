@@ -79,7 +79,7 @@ void drawColoredQuads() {
 }
 
 void drawColoredFadingQuads() {
-    vec4 surfaceColor = vec4(VertColor, VertUV.y);// we probably wanna set the transparency here
+    vec4 surfaceColor = vec4(VertColor, VertUV.y + 0.2);// we probably wanna set the transparency here
     surfaceColor *= color;
     fragmentColor = surfaceColor;//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
 }

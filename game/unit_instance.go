@@ -135,10 +135,12 @@ func (u *UnitInstance) CanFreeAim() bool {
 	return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
 }
 func (u *UnitInstance) EndTurn() {
+	println(fmt.Sprintf("[UnitInstance] %s(%d) ended turn. AP=0.", u.GetName(), u.UnitID()))
 	u.ActionPoints = 0
 }
 
 func (u *UnitInstance) NextTurn() {
+	println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.UnitID(), u.Definition.CoreStats.MaxActionPoints))
 	u.ActionPoints = u.Definition.CoreStats.MaxActionPoints
 }
 
@@ -157,8 +159,8 @@ func (u *UnitInstance) APPerMovement() float64 {
 func (u *UnitInstance) UseMovement(cost float64) {
 	apCost := cost * u.APPerMovement()
 	u.ActionPoints -= apCost
-	println(fmt.Sprintf("[UnitInstance] %s used %0.2f movement points, %d left", u.Name, cost, u.MovesLeft()))
-	println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP, %0.2f left", u.Name, apCost, u.ActionPoints))
+	//println(fmt.Sprintf("[UnitInstance] %s used %0.2f movement points, %d left", u.Name, cost, u.MovesLeft()))
+	println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP for moving, %0.2f left", u.Name, apCost, u.ActionPoints))
 }
 
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
@@ -166,7 +168,7 @@ func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
 }
 
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
-	compoundMesh := util.LoadGLTF(unitDef.ModelFile)
+	compoundMesh := util.LoadGLTF(unitDef.ModelFile, nil)
 	compoundMesh.RootNode.CreateColliders()
 	u := &UnitInstance{
 		Transform:     util.NewDefaultTransform(name),

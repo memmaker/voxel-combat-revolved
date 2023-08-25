@@ -102,7 +102,7 @@ func Raycast2D(startX, startY, directionX, directionY float64, shouldStopRay fun
 		//Sprite visibleSprite = GetSpriteMapAt(mapX, mapY);
 		/*
 		   if (visibleSprite != null && !mVisibleSprites.Contains(visibleSprite))
-		       mVisibleSprites.Add(visibleSprite);
+		       mVisibleSprites.AddFlat(visibleSprite);
 		*/
 
 		// 5. Prüfen wir ob eine Wand getroffen wurde

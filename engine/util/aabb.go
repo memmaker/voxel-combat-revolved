@@ -62,7 +62,7 @@ func AABBVoxelMapIntersection(previousPos, position, extents mgl32.Vec3, isSolid
 		if BdotB != 0 {
 			previousPos = position
 			AdotB := (1 - r.Result) * velocity.Dot(r.Normal)
-			//translation = translation.Add(velocity.Mul(1 - r.Result)).Sub(r.Normal.Mul(AdotB / BdotB))
+			//translation = translation.AddFlat(velocity.Mul(1 - r.Result)).Sub(r.Normal.Mul(AdotB / BdotB))
 			position = position.Add(velocity.Mul(1 - r.Result).Sub(r.Normal.Mul(AdotB / BdotB)))
 		}
 	}

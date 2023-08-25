@@ -2,8 +2,6 @@ package client
 
 import (
 	"fmt"
-	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/game"
 )
 
@@ -34,15 +32,4 @@ func (a *BattleClient) updateDebugInfo() {
 
 	//debugInfo := fmt.Sprintf("\n%s\n%s", unitPosString, animString)
 	a.Print(debugInfo)
-}
-
-func (a *BattleClient) placeDebugLine(startEnd [2]mgl32.Vec3) {
-	a.debugObjects = a.debugObjects[:0]
-	//camDirection := a.player.cam.GetForward()
-	var lines [][2]mgl32.Vec3
-	lines = [][2]mgl32.Vec3{
-		startEnd,
-	}
-	rayLine := util.NewLineMesh(a.lineShader, lines)
-	a.debugObjects = append(a.debugObjects, rayLine)
 }
