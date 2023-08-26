@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
@@ -15,7 +14,7 @@ type ClientUnit interface {
 	UnitID() uint64
 	GetBlockPosition() voxel.Int3
 	SetBlockPosition(voxel.Int3)
-	SetForward(vec3 mgl32.Vec3)
+	SetForward(vec3 voxel.Int3)
 	UseMovement(cost float64)
 	ConsumeAP(cost int)
 	EndTurn()
@@ -60,9 +59,11 @@ func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 	//currentUnit.Transform.SetName(currentUnit.GetName())
 	// add to game instance
 	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
-	currentUnit.SetVoxelMap(a.GetVoxelMap())
 
 	unit := a.newClientUnit(currentUnit)
+
+	currentUnit.AutoSetStanceAndForward()
+	currentUnit.StartStanceAnimation()
 
 	a.clientUnitMap[unitID] = unit
 
@@ -241,7 +242,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	changeLOS := func() {
 		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward(msg.UpdatedUnit.Transform.GetForward())
+			movingUnit.SetForward(msg.UpdatedUnit.GetForward())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
@@ -271,7 +272,7 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
-		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.SetForward(voxel.DirectionToGridInt3(msg.AimDirection))
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		if msg.IsTurnEnding {

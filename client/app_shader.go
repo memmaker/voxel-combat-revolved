@@ -63,6 +63,7 @@ const (
 	ShaderDrawColoredQuads       = int32(1)
 	ShaderDrawColoredFadingQuads = int32(2)
 	ShaderDrawCircle             = int32(3)
+	ShaderDrawLine               = int32(4)
 )
 const (
 	ShaderProjectionViewMatrix = 0
@@ -70,10 +71,11 @@ const (
 	ShaderDrawMode             = 2
 	ShaderDrawColor            = 3
 	ShaderThickness            = 4
-	ShaderGlobalLightDirection = 5
-	ShaderGlobalLightColor     = 6
-	ShaderLightPosition        = 7
-	ShaderLightColor           = 8
+	ShaderAspectRatio          = 5
+	ShaderGlobalLightDirection = 6
+	ShaderGlobalLightColor     = 7
+	ShaderLightPosition        = 8
+	ShaderLightColor           = 9
 )
 
 func (a *BattleClient) loadDefaultShader() *glhf.Shader {
@@ -93,11 +95,13 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 
 			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 4
 
-			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 5
-			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 6
+			glhf.Attr{Name: "aspect", Type: glhf.Float}, // 5
 
-			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 7
-			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 8
+			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 6
+			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 7
+
+			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 8
+			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 9
 		}
 		shader *glhf.Shader
 	)

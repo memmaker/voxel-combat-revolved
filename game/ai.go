@@ -32,7 +32,7 @@ func (d *DummyClientUnit) SetServerInstance(instance *UnitInstance) {
 	instance.SetVoxelMap(oldVoxelMap)
 
 	d.UnitInstance = instance
-	d.UpdateMapAndAnimation()
+	d.AutoSetStanceAndForward()
 }
 
 type DummyClient struct {

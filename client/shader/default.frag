@@ -105,7 +105,7 @@ void drawCircle() {
 void main() {
     if (drawMode == 0) {
         drawTexturedQuads();
-    } else if (drawMode == 1) {
+    } else if (drawMode == 1 || drawMode == 4) {
         drawColoredQuads();
     } else if (drawMode == 2) {
         drawColoredFadingQuads();

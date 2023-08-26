@@ -3,6 +3,6 @@
   "Height": 600,
   "FPSCameraInvertedMouse": true,
   "FPSCameraMouseSensitivity": 0.08,
-  "EnableBulletCam": true,
-  "EnableCameraAnimations": true
+  "EnableBulletCam": false,
+  "EnableCameraAnimations": false
 }

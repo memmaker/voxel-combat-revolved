@@ -8,25 +8,6 @@ import (
 	"math"
 )
 
-type MeshAnimation string
-
-func (a MeshAnimation) Str() string {
-	return string(a)
-}
-
-const (
-	AnimationIdle       MeshAnimation = "animation.idle"
-	AnimationWeaponIdle MeshAnimation = "animation.weapon_idle"
-	AnimationWallIdle   MeshAnimation = "animation.wall_idle"
-	AnimationWalk       MeshAnimation = "animation.walk"
-	AnimationWeaponWalk MeshAnimation = "animation.weapon_walk"
-	AnimationClimb      MeshAnimation = "animation.climb"
-	AnimationDrop       MeshAnimation = "animation.drop"
-	AnimationDeath      MeshAnimation = "animation.death"
-	AnimationHit        MeshAnimation = "animation.hit"
-	AnimationDebug      MeshAnimation = "animation.debug"
-)
-
 type UnitClientDefinition struct {
 	TextureFile string
 }
@@ -46,9 +27,10 @@ type UnitDefinition struct {
 	ClientRepresentation UnitClientDefinition
 	CoreStats            UnitCoreStats
 
-	ModelFile            string
-	OccupiedBlockOffsets []voxel.Int3
+	ModelFile string
 }
+
+// IDEA: we want a stance system, where the unit can be in different stances. A stance defines which blocks are occupied.
 
 // UnitInstance is an instance of an unit on the battlefield. It contains the dynamic information about the unit.
 type UnitInstance struct {
@@ -68,6 +50,7 @@ type UnitInstance struct {
 	DamageZones     map[util.DamageZone]int
 	MovementPenalty float64
 	AimPenalty      float64
+	CurrentStance   Stance
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -162,22 +145,25 @@ func (u *UnitInstance) UseMovement(cost float64) {
 	//println(fmt.Sprintf("[UnitInstance] %s used %0.2f movement points, %d left", u.Name, cost, u.MovesLeft()))
 	println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP for moving, %0.2f left", u.Name, apCost, u.ActionPoints))
 }
-
+func (u *UnitInstance) GetStance() HumanoidStance {
+	return HumanStanceFromID(u.CurrentStance)
+}
 func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
-	return u.Definition.OccupiedBlockOffsets
+	return u.GetStance().GetOccupiedBlockOffsets(u.GetForward2DCardinal())
 }
 
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
 	compoundMesh := util.LoadGLTF(unitDef.ModelFile, nil)
 	compoundMesh.RootNode.CreateColliders()
 	u := &UnitInstance{
-		Transform:     util.NewDefaultTransform(name),
+		Transform:     util.NewScaledTransform(name, 1.0),
 		Name:          name,
 		Definition:    unitDef,
 		ActionPoints:  unitDef.CoreStats.MaxActionPoints,
 		MovementPerAP: unitDef.CoreStats.MovementPerAP,
 		Health:        unitDef.CoreStats.Health,
 		DamageZones:   make(map[util.DamageZone]int),
+		CurrentStance: StanceWeaponReady,
 	}
 	u.SetModel(compoundMesh)
 	return u
@@ -195,8 +181,17 @@ func (u *UnitInstance) IsActive() bool {
 }
 
 func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
+	if u.Transform.GetBlockPosition() == pos {
+		return
+	}
 	u.Transform.SetBlockPosition(pos)
-	u.UpdateMapAndAnimation()
+	u.AutoSetStanceAndForward()
+
+	isOnMap := u.voxelMap.IsUnitOnMap(u)
+
+	if !isOnMap {
+		u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
+	}
 	//println(fmt.Sprintf("[UnitInstance] %s moved to %s", u.Name, pos.ToString()))
 }
 
@@ -207,29 +202,13 @@ func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
 	u.Transform.SetPosition(pos)
 
 	if oldBlockPos != newBlockPos { // only update if the block position has changed
-		u.UpdateMapAndAnimation()
+		u.AutoSetStanceAndForward()
 	}
 	//println(fmt.Sprintf("[UnitInstance] %s moved to %v", u.Name, pos))
 }
 
-// UpdateMapAndModelAndAnimation updates the position of the unit in the voxel map and the model position and rotation.
-// It will also set the animation pose on the model.
-func (u *UnitInstance) UpdateMapAndAnimation() {
-	u.UpdateMap()
-	if u.model != nil && u.IsPlayingIdleAnimation() {
-		u.UpdateAnimation()
-	}
-}
-
 func (u *UnitInstance) UpdateMap() {
 	u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
-}
-
-func (u *UnitInstance) UpdateAnimation() {
-	animation, newForward := GetIdleAnimationAndForwardVector(u.voxelMap, u.Transform.GetBlockPosition(), u.Transform.GetForward2DCardinal())
-	//println(fmt.Sprintf("[UnitInstance] SetAnimationPose for %s(%d): %s -> %v", u.GetName(), u.UnitID(), animation.Str(), newForward))
-	u.Transform.SetForward2DCardinal(newForward)
-	u.model.SetAnimationLoop(animation.Str(), 1.0)
 }
 
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
@@ -416,26 +395,62 @@ func (u *UnitInstance) DebugString(caller string) string {
 	return debugInfo
 }
 
-func (u *UnitInstance) SetForward(dir mgl32.Vec3) {
-	u.Transform.SetForward2D(dir)
+func (u *UnitInstance) GetExactAP() float64 {
+	return u.ActionPoints
+}
+
+// this is the official way to set the forward vector
+func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
+	currentForward := u.Transform.GetForward2DCardinal()
+	if forward2d == currentForward {
+		return
+	}
+	u.voxelMap.RemoveUnit(u)                    // we need to update the map whenever we change the stance or the forward vector
+	u.Transform.SetForward2DCardinal(forward2d) // this is the official way to set the forward vector
+	u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
+}
+func (u *UnitInstance) SetStanceAndForward(stance Stance, forward2d voxel.Int3) {
+	currentForward := u.Transform.GetForward2DCardinal()
+	if u.CurrentStance == stance && forward2d == currentForward {
+		return
+	}
+	u.voxelMap.RemoveUnit(u) // we need to update the map whenever we change the stance or the forward vector
+
+	u.Transform.SetForward2DCardinal(forward2d)
+	u.CurrentStance = stance
+	u.StartStanceAnimation()
+	u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
+}
+
+func (u *UnitInstance) StartStanceAnimation() {
+	if u.HasModel() {
+		u.GetModel().SetAnimationLoop(u.GetStance().GetAnimation().Str(), 1.0)
+	}
 }
 
 func getDamageZones() []util.DamageZone {
 	allZones := []util.DamageZone{util.ZoneHead, util.ZoneLeftArm, util.ZoneRightArm, util.ZoneLeftLeg, util.ZoneRightLeg, util.ZoneWeapon}
 	return allZones
 }
+func (u *UnitInstance) AutoSetStanceAndForward() {
+	u.SetStanceAndForward(AutoChoseStanceAndForward(u.GetVoxelMap(), u.GetBlockPosition(), u.GetForward2DCardinal()))
+}
 
-func GetIdleAnimationAndForwardVector(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (MeshAnimation, voxel.Int3) {
+func (u *UnitInstance) GetForward() voxel.Int3 {
+	return u.Transform.GetForward2DCardinal()
+}
+
+func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (Stance, voxel.Int3) {
 	//return AnimationDebug, unitForward
 	solidNeighbors := voxelMap.GetSolidCardinalNeighborsOfHeight(unitPosition, 2)
 	if len(solidNeighbors) == 0 {
 		// if no wall next to us, we can idle normally
 		//println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))
-		return AnimationWeaponIdle, unitForward
+		return StanceWeaponReady, unitForward
 	} else {
 		// if there is a wall next to us, we need to turn to face it
 		newFront := getWallIdleDirection(solidNeighbors[0].Sub(unitPosition))
-		return AnimationWallIdle, newFront
+		return StanceLeanWall, newFront
 	}
 }
 func getWallIdleDirection(wallDirection voxel.Int3) voxel.Int3 {

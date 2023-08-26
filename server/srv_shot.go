@@ -147,7 +147,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 	a.unit.Weapon.ConsumeAmmo(ammoCost)
 
 	lastAimDir := a.lastAimDirection
-	a.unit.SetForward(lastAimDir)
+	a.unit.SetForward(voxel.DirectionToGridInt3(lastAimDir))
 
 	mb.AddMessageForAll(game.VisualRangedAttack{
 		Projectiles:       projectiles,
