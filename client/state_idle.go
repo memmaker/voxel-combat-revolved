@@ -10,7 +10,7 @@ func (a *ActorIdleBehavior) GetName() ActorState {
 
 func (a *ActorIdleBehavior) Init(actor *Unit) {
 	a.actor = actor
-	actor.StartIdleAnimationLoop()
+	actor.StartStanceAnimation()
 }
 
 func (a *ActorIdleBehavior) Execute(deltaTime float64) TransitionEvent {

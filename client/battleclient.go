@@ -44,6 +44,7 @@ type BattleClient struct {
 	projectileTexture          *glhf.Texture
 	actionbar                  *gui.ActionBar
 	highlights                 *voxel.Highlights
+	lines                      *LineDrawer
 	server                     *game.ServerConnection
 	serverChannel              chan game.StringMessage
 	isBusy                     bool
@@ -54,6 +55,7 @@ type BattleClient struct {
 	cameraAnimation            *util.CameraAnimation
 	overwatchPositionsThisTurn []voxel.Int3
 	selectedUnit               *Unit
+	aspectRatio                float32
 }
 
 func (a *BattleClient) state() GameState {
@@ -121,6 +123,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 		fpsCamera:     fpsCamera,
 		timer:         util.NewTimer(),
 		settings:      settings,
+		aspectRatio:   float32(settings.Width) / float32(settings.Height),
 	}
 	myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
 	myApp.GameClient.SetEnvironment("GL-Client")
@@ -149,6 +152,11 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 	myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
+	myApp.lines = NewLineDrawer(myApp.defaultShader)
+	myApp.lines.AddSimpleLine(mgl32.Vec3{2, 2, 0}, mgl32.Vec3{4, 2, 0})
+
+	myApp.lines.AddLine(Line{lineParts: []mgl32.Vec3{mgl32.Vec3{3, 2, 0}, mgl32.Vec3{4, 2, 0}, mgl32.Vec3{5, 2, 0}}})
+	myApp.lines.UpdateVerticesAndShow()
 
 	myApp.SwitchToBlockSelector()
 	/* Old Crosshair
@@ -300,6 +308,13 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
 		a.selector.Draw()
 	}
+
+	if a.lines != nil {
+		a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
+		a.defaultShader.SetUniformAttr(ShaderAspectRatio, a.aspectRatio)
+		a.lines.Draw()
+	}
+
 	if a.unitSelector != nil {
 		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawCircle)
 		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
@@ -610,7 +625,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
-		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.SetForward(voxel.DirectionToGridInt3(msg.AimDirection))
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
@@ -721,7 +736,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 	changeLOS := func() {
 		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
 		if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
-			movingUnit.SetForward(msg.UpdatedUnit.Transform.GetForward())
+			movingUnit.SetForward(msg.UpdatedUnit.GetForward())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
 			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
@@ -855,7 +870,7 @@ func (a *BattleClient) freezeIdleAnimations() {
 	for _, unit := range a.GetAllUnits() {
 		if unit.IsActive() {
 			clientUnit, _ := a.GetClientUnit(unit.UnitID())
-			clientUnit.FreezeIdleAnimation()
+			clientUnit.FreezeStanceAnimation()
 		}
 	}
 }
@@ -864,7 +879,7 @@ func (a *BattleClient) resumeIdleAnimations() {
 	for _, unit := range a.GetAllUnits() {
 		if unit.IsActive() {
 			clientUnit, _ := a.GetClientUnit(unit.UnitID())
-			clientUnit.StartIdleAnimationLoop()
+			clientUnit.StartStanceAnimation()
 		}
 	}
 }

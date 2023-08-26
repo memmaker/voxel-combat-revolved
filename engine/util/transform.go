@@ -33,6 +33,15 @@ func NewDefaultTransform(name string) *Transform {
 	}
 }
 
+func NewScaledTransform(name string, scale float32) *Transform {
+	return &Transform{
+		translation: mgl32.Vec3{0, 0, 0},
+		rotation:    mgl32.QuatIdent(),
+		scale:       mgl32.Vec3{scale, scale, scale},
+		nameOfOwner: name,
+	}
+}
+
 func NewTransform(position mgl32.Vec3, rotation mgl32.Quat, scale mgl32.Vec3) *Transform {
 	return &Transform{
 		translation: position,
@@ -194,4 +203,8 @@ func (t *Transform) SetLookAt2D(target mgl32.Vec3) {
 func (t *Transform) getLookAt(target, up mgl32.Vec3) mgl32.Quat {
 	lookAtMatrix := mgl32.QuatLookAtV(t.translation, target, up)
 	return lookAtMatrix.Inverse()
+}
+
+func (t *Transform) SetScale(scale mgl32.Vec3) {
+	t.scale = scale
 }

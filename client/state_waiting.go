@@ -17,5 +17,5 @@ func (a *ActorWaitingBehavior) GetName() ActorState {
 
 func (a *ActorWaitingBehavior) Init(actor *Unit) {
 	a.actor = actor
-	actor.StartIdleAnimationLoop()
+	actor.StartStanceAnimation()
 }

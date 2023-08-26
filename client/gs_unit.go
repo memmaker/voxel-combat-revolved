@@ -82,6 +82,19 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		} else {
 			g.engine.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		}
+
+		// line of sight test
+		/*
+			g.engine.lines.Clear()
+			ourEyePos := g.engine.selectedUnit.GetEyePosition()
+			enemies := g.engine.GetVisibleEnemyUnits(g.engine.selectedUnit.UnitID())
+			for _, enemy := range enemies {
+				enemyEyePos := enemy.GetEyePosition()
+				g.engine.lines.AddSimpleLine(ourEyePos, enemyEyePos)
+			}
+			g.engine.lines.UpdateVerticesAndShow()
+		*/
+
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
 		footPos := util.ToGrid(g.engine.selectedUnit.GetPosition())
 		g.engine.SwitchToIsoCamera()

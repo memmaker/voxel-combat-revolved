@@ -25,6 +25,7 @@
  - Model meshes are sometimes outside of the occupied blocks
    -> Visual glitches, clipping, etc.
    -> Raycasting will fail on these parts of the model
+   -> Options: Scale the model down or add special logic for that stance..
  - Snapshots are always fired from the center of a block at eye level
    -> Free aim allows moving the origin within the whole block
    -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack

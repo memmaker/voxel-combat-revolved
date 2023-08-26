@@ -111,7 +111,7 @@ func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.Damage
 
 func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
 	// needs to be passed to the new state, we do indirectly via the unit
-	p.UnitInstance.Transform.SetForward2D(forceOfImpact.Mul(-1.0).Normalize())
+	p.UnitInstance.Transform.SetForward2D(forceOfImpact.Mul(-1.0).Normalize()) // ok, because this is temporary
 	p.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
 	// TODO: add the actual hit animation
 }
@@ -159,10 +159,10 @@ func (p *Unit) TurnTowardsWaypoint() {
 	d := p.GetWaypoint().Sub(p.GetBlockPosition())
 	direction := voxel.Int3{X: d.X, Y: 0, Z: d.Z}
 	println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
-	p.Transform.SetForward2D(direction.ToVec3())
+	p.SetForward(direction)
 }
 func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
-	p.UnitInstance.Transform.SetForward2D(direction)
+	p.UnitInstance.Transform.SetForward2D(direction) // ok, because this is temporary
 }
 
 func (p *Unit) IsDead() bool {
@@ -205,15 +205,6 @@ func (p *Unit) Description() string {
 	return fmt.Sprintf("Unit: %s", p.GetName())
 }
 
-func (p *Unit) StartIdleAnimationLoop() {
-	ownPos := p.GetBlockPosition()
-	animation, front := game.GetIdleAnimationAndForwardVector(p.GetVoxelMap(), ownPos, p.GetForward2DCardinal())
-	//println(fmt.Sprintf("[Unit] %s(%d) StartIdleAnimationLoop %s -> %v", p.GetName(), p.UnitID(), animation.Str(), front))
-	p.UnitInstance.GetModel().SetAnimationLoop(animation.Str(), 1.0)
-	p.Transform.SetForward2DCardinal(front)
-	//println(p.model.GetAnimationDebugString())
-}
-
 func (p *Unit) GetLastWaypoint() voxel.Int3 {
 	return p.currentPath[len(p.currentPath)-1]
 }
@@ -222,9 +213,8 @@ func (p *Unit) IsIdle() bool {
 	return p.state.GetName() == ActorStateIdle
 }
 
-func (p *Unit) FreezeIdleAnimation() {
-	p.StartIdleAnimationLoop()
-	p.UnitInstance.GetModel().ResetAnimations()
+func (p *Unit) FreezeStanceAnimation() {
+	p.UnitInstance.GetModel().SetAnimationPose(p.GetStance().GetAnimation().Str())
 }
 
 func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
@@ -235,7 +225,8 @@ func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
 	unit.SetVoxelMap(oldVoxelMap)
 
 	p.UnitInstance = unit
-	p.UpdateMapAndAnimation()
+	p.AutoSetStanceAndForward()
+	p.StartStanceAnimation()
 }
 
 func (p *Unit) IsInTheAir() bool {
@@ -261,10 +252,6 @@ func (p *Unit) IsAtLocation(destination voxel.Int3) bool {
 	return dist < PositionalTolerance
 }
 
-func (p *Unit) GetExactAP() float64 {
-	return p.ActionPoints
-}
-
 func NewClientUnit(instance *game.UnitInstance) *Unit {
 	// load model of unit
 	a := &Unit{
@@ -273,7 +260,7 @@ func NewClientUnit(instance *game.UnitInstance) *Unit {
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 	}
-	a.UpdateMapAndAnimation()
+	a.AutoSetStanceAndForward()
 	a.SetState(ActorStateIdle)
 	return a
 }

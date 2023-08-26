@@ -256,13 +256,14 @@ func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
 	}
+	m.ResetToInitialTransform()
 	if _, ok := m.animations[name]; ok {
 		m.currentAnimation = name
-		m.ResetAnimation()
+		m.ResetAnimationTimer()
 		m.InitAnimationPose()
 	} else {
 		m.currentAnimation = ""
-		m.ResetToInitialTransform()
+		m.ResetAnimationTimer()
 	}
 }
 func (m *MeshNode) SetAnimation(name string) {
@@ -279,11 +280,11 @@ func (m *MeshNode) SetAnimation(name string) {
 	} else {
 		m.currentAnimation = ""
 	}
-	m.ResetAnimation()
+	m.ResetAnimationTimer()
 
 }
 
-func (m *MeshNode) ResetAnimation() {
+func (m *MeshNode) ResetAnimationTimer() {
 	m.animationTimer = 0
 	m.currentTranslationFrame = 0
 	m.currentRotationFrame = 0
@@ -413,7 +414,7 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 		}
 
 		if m.outOfTranslationFrames && m.outOfRotationFrames && m.outOfScaleFrames {
-			m.ResetAnimation()
+			m.ResetAnimationTimer()
 			animationFinished = true
 		}
 	}
@@ -480,7 +481,7 @@ func (m *MeshNode) GetColliders() []Collider {
 
 func (m *MeshNode) ResetAnimations() {
 	m.currentAnimation = ""
-	m.ResetAnimation()
+	m.ResetAnimationTimer()
 	for _, child := range m.children {
 		child.ResetAnimations()
 	}
@@ -591,6 +592,10 @@ func (m *MeshNode) HasBone(name string) bool {
 		}
 	}
 	return false
+}
+
+func (m *MeshNode) SetUniformScale(f float64) {
+	m.scale = [3]float32{float32(f), float32(f), float32(f)}
 }
 
 type SubMesh struct {

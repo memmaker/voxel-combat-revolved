@@ -678,3 +678,8 @@ func (m *Map) ClearAllChunks() {
 func (m *Map) GetTerrainTexture() *glhf.Texture {
 	return m.terrainTexture
 }
+
+func (m *Map) IsUnitOnMap(u MapObject) bool {
+	_, ok := m.knownUnitPositions[u.UnitID()]
+	return ok
+}
