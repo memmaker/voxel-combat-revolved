@@ -4,5 +4,5 @@
   "FPSCameraInvertedMouse": true,
   "FPSCameraMouseSensitivity": 0.08,
   "EnableBulletCam": false,
-  "EnableCameraAnimations": false
+  "EnableCameraAnimations": true
 }
