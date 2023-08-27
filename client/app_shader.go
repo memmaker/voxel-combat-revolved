@@ -71,11 +71,12 @@ const (
 	ShaderDrawMode             = 2
 	ShaderDrawColor            = 3
 	ShaderThickness            = 4
-	ShaderAspectRatio          = 5
+	ShaderViewport             = 5
 	ShaderGlobalLightDirection = 6
 	ShaderGlobalLightColor     = 7
 	ShaderLightPosition        = 8
 	ShaderLightColor           = 9
+	ShaderMultiPurpose         = 10
 )
 
 func (a *BattleClient) loadDefaultShader() *glhf.Shader {
@@ -95,13 +96,14 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 
 			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 4
 
-			glhf.Attr{Name: "aspect", Type: glhf.Float}, // 5
+			glhf.Attr{Name: "viewport", Type: glhf.Vec2}, // 5
 
 			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 6
 			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 7
 
 			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 8
 			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 9
+			glhf.Attr{Name: "multi", Type: glhf.Float},         // 10
 		}
 		shader *glhf.Shader
 	)
