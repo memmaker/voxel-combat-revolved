@@ -19,6 +19,8 @@ uniform vec3 global_light_color;
 uniform vec3 light_position;
 uniform vec3 light_color;
 
+uniform float multi;
+
 uniform sampler2D tex;
 
 out vec4 fragmentColor;
@@ -100,16 +102,48 @@ void drawCircle() {
     fragmentColor *= color;
 
 }
+// still missing: linelength, uv
+void drawLine() {
+    float antialias = 1.0;// hard-coded for now
+    float linelength = multi;
+    float adjustedThickness = VertColor.x;
+
+    float d = 0;
+    float w = adjustedThickness/2.0 - antialias;
+
+    vec3 lineColor = color.rgb;
+
+    if (VertNormal.z < 0)
+    lineColor *= 0.75*vec3(pow(abs(VertNormal.z), .5));//*vec3(0.95, 0.75, 0.75);
+
+    // Cap at start
+    if (VertUV.x < 0)
+    d = length(VertUV) - w;
+    // Cap at end
+    else if (VertUV.x >= linelength)
+    d = length(VertUV - vec2(linelength, 0)) - w;
+    // Body
+    else
+    d = abs(VertUV.y) - w;
+    if (d < 0) {
+        fragmentColor = vec4(lineColor, color.a);
+    } else {
+        d /= antialias;
+        fragmentColor = vec4(lineColor.rgb, exp(-d*d));
+    }
+}
 
 
 void main() {
     if (drawMode == 0) {
         drawTexturedQuads();
-    } else if (drawMode == 1 || drawMode == 4) {
+    } else if (drawMode == 1) {
         drawColoredQuads();
     } else if (drawMode == 2) {
         drawColoredFadingQuads();
     } else if (drawMode == 3) {
         drawCircle();
+    } else if (drawMode == 4) {
+        drawLine();
     }
 }

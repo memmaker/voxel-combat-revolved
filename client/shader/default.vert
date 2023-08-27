@@ -12,12 +12,100 @@ uniform int drawMode;
 uniform vec4 color;
 
 uniform float thickness;
-uniform float aspect;
+uniform vec2 viewport;
+
+uniform float multi;
 
 out vec3 VertPos;
 out vec2 VertUV;
 out vec3 VertColor;
 out vec3 VertNormal;
+
+/* Expects
+uniform vec2 viewport;
+uniform mat4 model, view, projection;
+uniform float antialias, thickness, linelength;
+attribute vec3 prev, curr, next;
+attribute vec2 uv;
+varying vec2 v_uv;
+*/
+// still missing: linelength, uv
+void drawLine() {
+    mat4 projViewModel = camProjectionView * modelTransform;
+
+    float antialias = 1.0;// hard-coded for now
+    float linelength = multi;
+
+    vec3 curr = position;
+    vec3 next = normal;
+    vec3 prev = vertexColor;
+
+    // Normalized device coordinates
+    vec4 NDC_prev = projViewModel * vec4(prev.xyz, 1.0);
+    vec4 NDC_curr = projViewModel * vec4(curr.xyz, 1.0);
+    vec4 NDC_next = projViewModel * vec4(next.xyz, 1.0);
+
+    // Viewport (screen) coordinates
+    vec2 screen_prev = viewport * ((NDC_prev.xy/NDC_prev.w) + 1.0)/2.0;
+    vec2 screen_curr = viewport * ((NDC_curr.xy/NDC_curr.w) + 1.0)/2.0;
+    vec2 screen_next = viewport * ((NDC_next.xy/NDC_next.w) + 1.0)/2.0;
+
+    // Compute tickness according to line orientation (through surface normal)
+    vec4 sNormal = modelTransform*vec4(curr.xyz, 1.0);
+    VertNormal = sNormal.xyz;
+    if (sNormal.z < 0)
+    VertColor = vec3(thickness/2.0);
+    else
+    VertColor = vec3(thickness*(pow(sNormal.z, .5)+1)/2.);
+
+    vec2 twoDeePos;
+    float w = thickness/2.0 + antialias;
+    vec2 t0 = normalize(screen_curr.xy - screen_prev.xy);
+    vec2 n0 = vec2(-t0.y, t0.x);
+    vec2 t1 = normalize(screen_next.xy - screen_curr.xy);
+    vec2 n1 = vec2(-t1.y, t1.x);
+    VertUV = vec2(texCoord.x, texCoord.y*w);
+    if (prev.xz == curr.xz) {
+        VertUV.x = -w;
+        twoDeePos = screen_curr.xy - w*t1 + texCoord.y*w*n1;
+    } else if (curr.xz == next.xz) {
+        VertUV.x = linelength+w;
+        twoDeePos = screen_curr.xy + w*t0 + texCoord.y*w*n0;
+    } else {
+        vec2 miter = normalize(n0 + n1);
+        // The max operator avoid glitches when miter is too large
+        float dy = w / max(dot(miter, n1), 1.0);
+        twoDeePos = screen_curr.xy + dy*texCoord.y*miter;
+    }
+
+    // Back to NDC coordinates
+    gl_Position = vec4(2.0*twoDeePos/viewport-1.0, NDC_curr.z/NDC_curr.w, 1.0);
+    /*
+    vec2 twoDeePos;
+    float w = thickness/2.0 + antialias;
+    vec2 t0 = normalize(screen_curr.xy - screen_prev.xy);
+    vec2 n0 = vec2(-t0.y, t0.x);
+    vec2 t1 = normalize(screen_next.xy - screen_curr.xy);
+    vec2 n1 = vec2(-t1.y, t1.x);
+    VertUV = vec2(texCoord.x, texCoord.y*w);
+    if (prev.xy == curr.xy) { // expects doubled vertices at the beginning and end
+        VertUV.x = -w;
+        twoDeePos = screen_curr.xy - w*t1 + texCoord.y*w*n1;
+    } else if (curr.xy == next.xy) { // expects doubled vertices at the beginning and end
+        VertUV.x = linelength+w;
+        twoDeePos = screen_curr.xy + w*t0 + texCoord.y*w*n0;
+    } else {
+        vec2 miter = normalize(n0 + n1);
+        // The max operator avoid glitches when miter is too large
+        float dy = w / max(dot(miter, n1), 1.0);
+        twoDeePos = screen_curr.xy + dy*texCoord.y*miter;
+    }
+
+    // Back to NDC coordinates
+    gl_Position = vec4(2.0*twoDeePos/viewport-1.0, NDC_curr.z/NDC_curr.w, 1.0);
+    */
+}
+
 
 /* But we deliver this..
 {Name: "position", Type: glhf.Vec3},  -> vec3 position   //current point on line
@@ -26,69 +114,9 @@ out vec3 VertNormal;
 {Name: "normal", Type: glhf.Vec3}, -> vec3 next       //next point on line
 */
 
-// adapted from: https://github.com/mattdesl/webgl-lines/blob/master/projected/vert.glsl
-void drawLine() {
-    int miter = 0;// hard-coded for now, set to 1 for miter join
-
-    float direction = texCoord.x;
-    vec3 next = normal;
-    vec3 previous = vertexColor;
-
-    vec2 aspectVec = vec2(aspect, 1.0);
-    mat4 projViewModel = camProjectionView * modelTransform;
-    vec4 previousProjected = projViewModel * vec4(previous, 1.0);
-    vec4 currentProjected = projViewModel * vec4(position, 1.0);
-    vec4 nextProjected = projViewModel * vec4(next, 1.0);
-
-    //get 2D screen space with W divide and aspect correction
-    vec2 currentScreen = currentProjected.xy / currentProjected.w * aspectVec;
-    vec2 previousScreen = previousProjected.xy / previousProjected.w * aspectVec;
-    vec2 nextScreen = nextProjected.xy / nextProjected.w * aspectVec;
-
-    float len = thickness;
-    float orientation = direction;
-
-    //starting point uses (next - current)
-    vec2 dir = vec2(0.0);
-    if (currentScreen == previousScreen) {
-        dir = normalize(nextScreen - currentScreen);
-    }
-    //ending point uses (current - previous)
-    else if (currentScreen == nextScreen) {
-        dir = normalize(currentScreen - previousScreen);
-    }
-    //somewhere in middle, needs a join
-    else {
-        //get directions from (C - B) and (B - A)
-        vec2 dirA = normalize((currentScreen - previousScreen));
-        if (miter == 1) {
-            vec2 dirB = normalize((nextScreen - currentScreen));
-            //now compute the miter join normal and length
-            vec2 tangent = normalize(dirA + dirB);
-            vec2 perp = vec2(-dirA.y, dirA.x);
-            vec2 miter = vec2(-tangent.y, tangent.x);
-            dir = tangent;
-            len = thickness / dot(miter, perp);
-        } else {
-            dir = dirA;
-        }
-    }
-    vec2 normal = vec2(-dir.y, dir.x);
-    normal *= len/2.0;
-    normal.x /= aspect;
-
-    vec4 offset = vec4(normal * orientation, 0.0, 1.0);
-    gl_Position = currentProjected + offset;
-    gl_PointSize = 1.0;
-}
-
-
 void main() {
     if (drawMode == 4) {
-        drawLine();
-        VertUV = vec2(0.0);
-        VertColor = vec3(1.0);
-        VertNormal = vec3(0.0);
+        drawLine();// will set VertUV, VertNormal, VertColor.X = thickness
     } else {
         gl_Position = camProjectionView * modelTransform * vec4(position, 1.0);
         VertUV = texCoord;
