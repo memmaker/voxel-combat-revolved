@@ -1,12 +1,9 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
- - Highlights not cleared when expected
  - Weird stuff with turn ending and action points, triggered when using overwatch for everyone
- - Occupied Blocks buggy after introducing stances
- - Forward direction during movement currently bugged
- - No diagonal forward directions possible
- - Line drawing not working correctly
  - Really start using those CoRoutines for stuff like animations: https://github.com/SolarLune/gocoro/blob/master/gocoro.go
+ - An enemy mysteriously disappeared (LoS?)
+ - Dead unit's animation was reset to ready after moving
 
 # Design Guidelines
  - Turn based

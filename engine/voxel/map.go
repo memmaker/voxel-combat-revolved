@@ -17,7 +17,7 @@ type Map struct {
 	depth              int32
 	chunkShader        *glhf.Shader
 	terrainTexture     *glhf.Texture
-	knownUnitPositions map[uint64]Int3
+	knownUnitPositions map[uint64][]Int3
 
 	spawnCounter    int
 	textureCallback func(block *Block, side FaceType) byte
@@ -44,7 +44,7 @@ func NewMap(width, height, depth int32) *Map {
 		width:              width,
 		height:             height,
 		depth:              depth,
-		knownUnitPositions: make(map[uint64]Int3),
+		knownUnitPositions: make(map[uint64][]Int3),
 	}
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
 	return m
@@ -56,7 +56,7 @@ func NewMapFromFile(filename string, shader *glhf.Shader, texture *glhf.Texture)
 		width:              0,
 		height:             0,
 		depth:              0,
-		knownUnitPositions: make(map[uint64]Int3),
+		knownUnitPositions: make(map[uint64][]Int3),
 		chunkShader:        shader,
 		terrainTexture:     texture,
 	}
@@ -370,9 +370,7 @@ func (m *Map) RemoveUnit(unit MapObject) {
 	if !isOnMap {
 		return
 	}
-	offsets := unit.GetOccupiedBlockOffsets(currentPos)
-	for _, offset := range offsets {
-		occupiedBlockPos := currentPos.Add(offset)
+	for _, occupiedBlockPos := range currentPos {
 		block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 		if block != nil && block.IsOccupied() {
 			block.RemoveUnit(unit)
@@ -389,14 +387,16 @@ func (m *Map) SetUnit(unit MapObject, blockPos Int3) bool {
 	ok, reason := m.IsUnitPlaceable(unit, blockPos)
 	if ok {
 		offsets := unit.GetOccupiedBlockOffsets(blockPos)
+		occupiedBlocks := make([]Int3, len(offsets))
 		println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.UnitID(), blockPos.ToString(), len(offsets)))
-		for _, offset := range offsets {
+		for index, offset := range offsets {
 			occupiedBlockPos := blockPos.Add(offset)
 			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 			block.AddUnit(unit)
 			println(fmt.Sprintf("[Map] - %s", occupiedBlockPos.ToString()))
+			occupiedBlocks[index] = occupiedBlockPos
 		}
-		m.knownUnitPositions[unit.UnitID()] = blockPos
+		m.knownUnitPositions[unit.UnitID()] = occupiedBlocks
 		return true
 	}
 	println(fmt.Sprintf("[Map] ERR - Failed to place %s(%d): %s (%s)", unit.GetName(), unit.UnitID(), blockPos.ToString(), reason))

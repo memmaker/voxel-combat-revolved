@@ -226,6 +226,10 @@ func (l *LineDrawer) Clear() {
     l.isHidden = true
 }
 
+func (l *LineDrawer) Hide() {
+    l.isHidden = true
+}
+
 func NewOutlinedCube(min voxel.Int3, max voxel.Int3) []Line {
     // top
     topLeftFront := mgl32.Vec3{float32(min.X), float32(max.Y), float32(min.Z)}
