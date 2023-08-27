@@ -2,7 +2,7 @@ A turn based tactics multiplayer game with destructible terrain and free aim.
 
 # In one sentence
 
-It takes the general idea of XCOM, adds back the ballistics system from the original
+It takes the general idea of Firaxis XCOM, adds back the ballistics system from the 1994 original
 spiked with the free aim mode taken from Phoenix Point and puts it into a minecraft style
 destructible block world, with a focus on multiplayer matches.
 

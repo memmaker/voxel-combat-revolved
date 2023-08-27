@@ -27,7 +27,7 @@ func (a ServerActionMove) IsValid() (bool, string) {
 	}
 	for _, target := range a.targets {
 		if !a.gameAction.IsValidTarget(target) {
-			return false, fmt.Sprintf("Targets %s is not valid", target.ToString())
+			return false, fmt.Sprintf("Target %s is not valid", target.ToString())
 		}
 
 		dist := a.gameAction.GetCost(target)

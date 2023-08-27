@@ -509,6 +509,7 @@ func (a *BattleClient) SwitchToFirstPerson() {
     a.highlights.Hide()
     a.groundSelector.Hide()
     a.actionbar.Hide()
+    a.lines.Hide()
 
     a.captureMouse()
 
