@@ -148,8 +148,13 @@ func (u *UnitInstance) UseMovement(cost float64) {
 func (u *UnitInstance) GetStance() HumanoidStance {
     return HumanStanceFromID(u.CurrentStance)
 }
-func (u *UnitInstance) GetOccupiedBlockOffsets() []voxel.Int3 {
-    return u.GetStance().GetOccupiedBlockOffsets(u.GetForward2DCardinal())
+func (u *UnitInstance) GetOccupiedBlockOffsets(atPos voxel.Int3) []voxel.Int3 {
+    if atPos == u.GetBlockPosition() {
+        return u.GetStance().GetOccupiedBlockOffsets(u.GetForward2DCardinal())
+    }
+    chosenStance, chosenForward := AutoChoseStanceAndForward(u.GetVoxelMap(), u.UnitID(), atPos, u.GetForward2DCardinal())
+    stance := HumanStanceFromID(chosenStance)
+    return stance.GetOccupiedBlockOffsets(chosenForward)
 }
 
 func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
@@ -180,37 +185,33 @@ func (u *UnitInstance) IsActive() bool {
     return !u.IsDead
 }
 
+func (u *UnitInstance) SetBlockPositionAndUpdateStance(pos voxel.Int3) {
+    u.SetBlockPosition(pos)
+    u.AutoSetStanceAndForward()
+}
+
 func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
     if u.Transform.GetBlockPosition() == pos {
         return
     }
     u.Transform.SetBlockPosition(pos)
-    println(fmt.Sprintf("[UnitInstance] %s moved to block %s", u.Name, pos.ToString()))
-    u.AutoSetStanceAndForward()
-
-    isOnMap := u.voxelMap.IsUnitOnMap(u)
-
-    if !isOnMap {
-        u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
-    }
-    //println(fmt.Sprintf("[UnitInstance] %s moved to %s", u.Name, pos.ToString()))
 }
 
-func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
+func (u *UnitInstance) UpdateMapPosition() {
+    u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
+}
+func (u *UnitInstance) SetPositionAndUpdateMap(pos mgl32.Vec3) {
     oldBlockPos := u.Transform.GetBlockPosition()
     newBlockPos := voxel.PositionToGridInt3(pos)
 
-    println(fmt.Sprintf("[UnitInstance] %s moved to (%0.2f, %0.2f, %0.2f)", u.Name, pos.X(), pos.Y(), pos.Z()))
+    //println(fmt.Sprintf("[UnitInstance] %s moved to (%0.2f, %0.2f, %0.2f)", u.Name, pos.X(), pos.Y(), pos.Z()))
+
     u.Transform.SetPosition(pos)
 
     if oldBlockPos != newBlockPos { // only update if the block position has changed
-        u.AutoSetStanceAndForward()
+        u.UpdateMapPosition()
     }
     //println(fmt.Sprintf("[UnitInstance] %s moved to %v", u.Name, pos))
-}
-
-func (u *UnitInstance) UpdateMap() {
-    u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
 }
 
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
@@ -407,6 +408,7 @@ func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
     if forward2d == currentForward {
         return
     }
+    println(fmt.Sprintf("[UnitInstance] %s SetForward(%s)", u.GetName(), forward2d.ToString()))
     u.voxelMap.RemoveUnit(u)                    // we need to update the map whenever we change the stance or the forward vector
     u.Transform.SetForward2DDiagonal(forward2d) // this is the official way to set the forward vector
     u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
@@ -437,20 +439,22 @@ func getDamageZones() []util.DamageZone {
     return allZones
 }
 func (u *UnitInstance) AutoSetStanceAndForward() {
-    u.SetStanceAndForward(AutoChoseStanceAndForward(u.GetVoxelMap(), u.GetBlockPosition(), u.GetForward2DCardinal()))
+    u.SetStanceAndForward(AutoChoseStanceAndForward(u.GetVoxelMap(), u.UnitID(), u.GetBlockPosition(), u.GetForward2DCardinal()))
 }
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
     return u.Transform.GetForward2DDiagonal()
 }
 
-func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitPosition, unitForward voxel.Int3) (Stance, voxel.Int3) {
+func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitID uint64, unitPosition, unitForward voxel.Int3) (Stance, voxel.Int3) {
+    // TODO: make this clever, needs to reacts to walls and nearby units and their stances.
     //return AnimationDebug, unitForward
-    solidNeighbors := voxelMap.GetSolidCardinalNeighborsOfHeight(unitPosition, 2)
+
+    solidNeighbors := voxelMap.GetBlockedCardinalNeighborsUpToHeight(unitID, unitPosition, 2)
     if len(solidNeighbors) == 0 {
         // if no wall next to us, we can idle normally
         //println(fmt.Sprintf("[UnitInstance] no wall next to %s, returning given forward vector: %s", unitPosition.ToString(), unitForward.ToString()))
-        return StanceWeaponReady, unitForward
+        return StanceWeaponReady, unitForward.ToCardinalDirection()
     } else {
         // if there is a wall next to us, we need to turn to face it
         newFront := getWallIdleDirection(solidNeighbors[0].Sub(unitPosition))

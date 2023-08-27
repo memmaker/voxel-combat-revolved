@@ -13,6 +13,7 @@ type GameStateUnit struct {
 	IsoMovementState
 	noCameraMovement bool
 	moveAction       *game.ActionMove
+	lastCursorPos    voxel.Int3
 }
 
 func (g *GameStateUnit) OnMouseReleased(x float64, y float64) {
@@ -120,5 +121,30 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 		}
 	} else if g.moveAction.IsValidTarget(groundBlockPos) {
 		util.MustSend(g.engine.server.TargetedUnitAction(g.engine.selectedUnit.UnitID(), g.moveAction.GetName(), []voxel.Int3{groundBlockPos}))
+	}
+}
+
+func (g *GameStateUnit) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
+	g.IsoMovementState.OnMouseMoved(oldX, oldY, newX, newY)
+	cursorPos := g.engine.groundSelector.GetBlockPosition()
+	if cursorPos == g.lastCursorPos {
+		return
+	}
+	g.lastCursorPos = cursorPos
+
+	g.engine.lines.Clear()
+	atLeastOneEnemyInSight := false
+	currentUnit := g.engine.selectedUnit
+	visibleEnemies := g.engine.GetAllVisibleEnemies(currentUnit.ControlledBy())
+	observerPos := cursorPos.ToBlockCenterVec3().Add(currentUnit.GetEyeOffset())
+	for enemy, _ := range visibleEnemies {
+		if g.engine.CanSeeFrom(currentUnit.UnitInstance, enemy, observerPos) {
+			enemyEyePos := enemy.GetEyePosition()
+			g.engine.lines.AddSimpleLine(observerPos, enemyEyePos)
+			atLeastOneEnemyInSight = true
+		}
+	}
+	if atLeastOneEnemyInSight {
+		g.engine.lines.UpdateVerticesAndShow()
 	}
 }

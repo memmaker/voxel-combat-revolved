@@ -166,7 +166,7 @@ func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
 		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), []voxel.Int3{chosenDest}))
 		// HACK: assume this works
-		unit.SetBlockPosition(chosenDest)
+		unit.SetBlockPositionAndUpdateStance(chosenDest)
 		c.waitingForUnit = unit.UnitID()
 		return true
 	} else {

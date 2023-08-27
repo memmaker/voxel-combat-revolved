@@ -370,7 +370,26 @@ func (i Int3) ToBlockCenterVec3D() mgl32.Vec3 {
 func (i Int3) ToString() string {
     return fmt.Sprintf("(%d,%d,%d)", i.X, i.Y, i.Z)
 }
+func (i Int3) ToCardinalDirection() Int3 {
+    absX := int32(math.Abs(float64(i.X)))
+    absZ := int32(math.Abs(float64(i.Z)))
 
+    signX := int32(1)
+    signZ := int32(1)
+
+    if i.X < 0 {
+        signX = -1
+    }
+    if i.Z < 0 {
+        signZ = -1
+    }
+
+    if absX > absZ {
+        return Int3{signX, 0, 0}
+    } else {
+        return Int3{0, 0, signZ}
+    }
+}
 func (i Int3) ToDiagonalDirection() Int3 {
     // allowed values are
     // north: 0,0,-1

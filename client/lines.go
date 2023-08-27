@@ -163,7 +163,9 @@ func (l *LineDrawer) AddLine(line *Line) {
     l.lines = append(l.lines, line)
 }
 func (l *LineDrawer) Draw() {
-
+    if l.isHidden {
+        return
+    }
     for _, line := range l.lines {
         line.Draw(l.shader)
     }
@@ -220,7 +222,7 @@ module.exports.createIndices = function createIndices(length) {
 */
 
 func (l *LineDrawer) Clear() {
-    clear(l.lines)
+    l.lines = make([]*Line, 0)
     l.isHidden = true
 }
 

@@ -153,9 +153,6 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
     myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
     myApp.lines = NewLineDrawer(myApp.defaultShader)
-    //myApp.lines.AddSimpleLine(mgl32.Vec3{2, 2, 0}, mgl32.Vec3{4, 2, 0})
-    myApp.lines.AddLine(&Line{lineParts: []mgl32.Vec3{mgl32.Vec3{32, 3, 28}, mgl32.Vec3{34, 3, 29}, mgl32.Vec3{36, 3, 28}}}) //, mgl32.Vec3{8, 2, 2}, mgl32.Vec3{10, 2, 1}}})
-    myApp.lines.UpdateVerticesAndShow()
 
     myApp.SwitchToBlockSelector()
     /* Old Crosshair
@@ -187,7 +184,6 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
         model.SetTexture(0, util.MustLoadTexture(currentUnit.Definition.ClientRepresentation.TextureFile))
     }
     currentUnit.SetModel(model)
-    currentUnit.SetVoxelMap(a.GetVoxelMap())
     unit := NewClientUnit(currentUnit)
     println(unit.DebugString("CreateClientUnit"))
     return unit
@@ -743,7 +739,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
         }
         if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
             // even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
-            movingUnit.SetBlockPosition(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
+            movingUnit.SetBlockPositionAndUpdateStance(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
         }
     }
     currentPathPart := 0
@@ -773,7 +769,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 
     if !hasPath {
         if msg.UpdatedUnit != nil {
-            movingUnit.SetBlockPosition(msg.UpdatedUnit.GetBlockPosition())
+            movingUnit.SetBlockPositionAndUpdateStance(msg.UpdatedUnit.GetBlockPosition())
         }
         changeLOS()
         return
@@ -782,7 +778,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
     startPos := firstPath[0]
     currentPos := movingUnit.GetBlockPosition()
     if voxel.ManhattanDistance2(currentPos, startPos) > 1 {
-        movingUnit.SetBlockPosition(startPos)
+        movingUnit.SetBlockPositionAndUpdateStance(startPos)
         currentPos = startPos
     }
     destination := firstPath[len(firstPath)-1]
@@ -815,7 +811,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
         for _, acquiredLOSUnit := range msg.Spotted {
             a.AddOrUpdateUnit(acquiredLOSUnit)
         }
-        unit.SetBlockPosition(destination)
+        unit.SetBlockPositionAndUpdateStance(destination)
         // TODO: we don't want to switch here, if the user selected a different unit in the meantime
         a.SwitchToUnit(unit)
         a.isBusy = false
@@ -906,7 +902,7 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 }
 
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
-    // TODO: Spawn blood particles
+    // TODO: UpdateMapPosition blood particles
     // TODO: AddFlat blood decals on unit skin
 }
 
