@@ -204,12 +204,13 @@ func (g *GameInstance) GetLOSChanges(unit *UnitInstance, pos voxel.Int3) ([]*Uni
 	return newEnemies, lostEnemies, newContact
 }
 
-func (g *GameInstance) RayCastLineOfSight(rayStart, rayEnd mgl32.Vec3, targetUnit voxel.MapObject, projectedTargetLocation voxel.Int3) *RayCastHit {
+func (g *GameInstance) RayCastLineOfSight(rayStart, rayEnd mgl32.Vec3, targetUnit *UnitInstance, projectedTargetLocation voxel.Int3) *RayCastHit {
 	voxelMap := g.voxelMap
 	var visitedBlocks []voxel.Int3
 	var unitHit *UnitInstance
 	occupiedByTarget := map[voxel.Int3]bool{}
-	for _, offset := range targetUnit.GetOccupiedBlockOffsets() {
+
+	for _, offset := range targetUnit.GetOccupiedBlockOffsets(targetUnit.GetBlockPosition()) {
 		occupiedByTarget[projectedTargetLocation.Add(offset)] = true
 	}
 	stopRay := func(x, y, z int32) bool {
@@ -221,7 +222,7 @@ func (g *GameInstance) RayCastLineOfSight(rayStart, rayEnd mgl32.Vec3, targetUni
 				//println(fmt.Sprintf("[GameInstance] Raycast hit block at %d, %d, %d", x, y, z))
 				return true
 			} else if occupiedByTarget[currentBlockPos] {
-				unitHit = targetUnit.(*UnitInstance)
+				unitHit = targetUnit
 				//println(fmt.Sprintf("[GameInstance] Raycast hit unit %s at %d, %d, %d", unitHit.name, x, y, z))
 				return true
 			}
@@ -292,7 +293,6 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 			}
 			minDistance := float32(math.MaxFloat32)
 			for _, meshPartCollider := range collidingObject.GetColliders() {
-				//meshsCollided, _ = util.GJK(projectile.GetCollider(), meshPartCollider) // we made this sweeping for the projectiles only for now
 				rayHit, rayPoint = meshPartCollider.IntersectsRay(rayStart, rayEnd) // why don't we hit the weapon on the server side?
 
 				if rayHit {

@@ -173,8 +173,8 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 		randomChoice = util.RandomChoice(spawnsForTeam)
 		canBePlaced, _ = g.voxelMap.IsUnitPlaceable(unit, randomChoice)
 	}
-
-	unit.SetBlockPosition(randomChoice)
+	unit.SetBlockPositionAndUpdateStance(randomChoice)
+	unit.UpdateMapPosition()
 	unit.StartStanceAnimation()
 
 	println(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
@@ -191,6 +191,7 @@ func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
 	g.units[unitInstanceID] = unit
 
 	unit.SetVoxelMap(g.voxelMap)
+	unit.UpdateMapPosition()
 
 	return unitInstanceID
 }
@@ -269,13 +270,14 @@ func (g *GameInstance) GetAllVisibleEnemies(playerID uint64) map[*UnitInstance]b
 			continue
 		}
 		for unitID, isVisible := range unitsVisible {
+			if !isVisible {
+				continue
+			}
 			observed := g.units[unitID]
 			if observed.ControlledBy() == playerID {
 				continue
 			}
-			if isVisible {
-				result[g.units[unitID]] = true
-			}
+			result[g.units[unitID]] = true
 		}
 	}
 	return result

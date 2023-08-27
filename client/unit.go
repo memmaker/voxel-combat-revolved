@@ -86,7 +86,7 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	}
 
 	if previousPos != newPos {
-		p.SetPosition(newPos)
+		p.SetPositionAndUpdateMap(newPos)
 	}
 }
 
@@ -136,7 +136,7 @@ func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
 	p.currentWaypoint = 0
 	p.eventQueue = append(p.eventQueue, EventNewPath)
-	println(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
+	//println(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
 }
 func (p *Unit) GetWaypoint() voxel.Int3 {
 	return p.currentPath[p.currentWaypoint]
@@ -191,7 +191,7 @@ func (p *Unit) IsCurrentWaypointADrop() bool {
 
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
-	println(fmt.Sprintf("[Unit] %s(%d) NextWaypoint, now: %s", p.GetName(), p.UnitID(), p.GetWaypoint().ToString()))
+	//println(fmt.Sprintf("[Unit] %s(%d) NextWaypoint, now: %s", p.GetName(), p.UnitID(), p.GetWaypoint().ToString()))
 }
 func (p *Unit) IsUserControlled() bool {
 	return p.controlledByUser
@@ -260,7 +260,6 @@ func NewClientUnit(instance *game.UnitInstance) *Unit {
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 	}
-	a.AutoSetStanceAndForward()
 	a.SetState(ActorStateIdle)
 	return a
 }

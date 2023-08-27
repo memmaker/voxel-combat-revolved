@@ -132,7 +132,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	moveCost := a.gameAction.GetCost(destination)
 	a.unit.UseMovement(moveCost)
 	a.unit.SetForward(unitForward)
-	a.unit.SetBlockPosition(destination)
+	a.unit.SetBlockPositionAndUpdateStance(destination)
 
 	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
 
