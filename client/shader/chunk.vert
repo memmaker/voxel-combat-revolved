@@ -40,7 +40,7 @@
 in int compressedValue;
 
 flat out vec3 VertNormal;
-invariant out vec3 VertPos;
+out vec3 VertPos;
 flat out int VertTexIndex;
 // set uniform locations
 
@@ -81,14 +81,14 @@ attributes |= int32(textureIndex) << 24
 */
 void decompressVertex(int compressedValue, out vec3 position, out int normalDir, out int textureIndex)
 {
-    int positionX = compressedValue & 0x3F;// 0x3F = 0b111111
-    int positionY = (compressedValue >> 6) & 0x3F;
-    int positionZ = (compressedValue >> 12) & 0x3F;
-    normalDir = (compressedValue >> 18) & 0x7;// 0x7 = 0b111
-    textureIndex = (compressedValue >> 21) & 0xFF;// 0xFF = 0b11111111
+    int positionX = compressedValue & int(0x3F);// 0x3F = 0b111111
+    int positionY = (compressedValue >> int(6)) & int(0x3F);
+    int positionZ = (compressedValue >> int(12)) & int(0x3F);
+    normalDir = (compressedValue >> int(18)) & int(0x7);// 0x7 = 0b111
+    textureIndex = (compressedValue >> int(21)) & int(0xFF);// 0xFF = 0b11111111
     // read bit 30 to determine if this is hovering highlight
     position = vec3(float(positionX), float(positionY), float(positionZ));
-    int isHovering = (compressedValue >> 29) & 0x1;
+    int isHovering = (compressedValue >> int(29)) & int(0x1);
     position.y += float(isHovering) * 0.01;
 }
 
