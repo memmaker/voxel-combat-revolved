@@ -82,7 +82,7 @@ func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32
 }
 
 func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
-	c.camDistance -= float32(amount) * float32(deltaTime) * 3
+	c.camDistance -= float32(amount) * float32(deltaTime)
 	if c.camDistance < 0.5 {
 		c.camDistance = 0.5
 	}
@@ -90,7 +90,7 @@ func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
 }
 
 func (c *ISOCamera) ZoomOut(deltaTime float64, amount float64) {
-	c.camDistance += float32(amount) * float32(deltaTime) * 3
+	c.camDistance += float32(amount) * float32(deltaTime)
 	if c.camDistance > 50 {
 		c.camDistance = 50
 	}
