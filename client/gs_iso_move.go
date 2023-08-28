@@ -7,10 +7,11 @@ type IsoMovementState struct {
 }
 
 func (i *IsoMovementState) OnScroll(deltaTime float64, xoff float64, yoff float64) {
+	speedFactor := i.engine.settings.ISOCameraScrollZoomSpeed
 	if yoff > 0 {
-		i.engine.isoCamera.ZoomOut(deltaTime, yoff)
+		i.engine.isoCamera.ZoomOut(deltaTime, yoff*float64(speedFactor))
 	} else {
-		i.engine.isoCamera.ZoomIn(deltaTime, -yoff)
+		i.engine.isoCamera.ZoomIn(deltaTime, -yoff*float64(speedFactor))
 	}
 }
 
