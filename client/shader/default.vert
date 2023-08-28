@@ -53,10 +53,10 @@ void drawLine() {
     // Compute tickness according to line orientation (through surface normal)
     vec4 sNormal = modelTransform*vec4(curr.xyz, 1.0);
     VertNormal = sNormal.xyz;
-    if (sNormal.z < 0)
+    if (sNormal.z < 0.0)
     VertColor = vec3(thickness/2.0);
     else
-    VertColor = vec3(thickness*(pow(sNormal.z, .5)+1)/2.);
+    VertColor = vec3(thickness*(pow(sNormal.z, 0.5)+1.0)/2.0);
 
     vec2 twoDeePos;
     float w = thickness/2.0 + antialias;
