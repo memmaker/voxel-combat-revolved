@@ -87,7 +87,7 @@ void decompressVertex(int compressedValue, out vec3 position, out int normalDir,
     normalDir = (compressedValue >> 18) & 0x7;// 0x7 = 0b111
     textureIndex = (compressedValue >> 21) & 0xFF;// 0xFF = 0b11111111
     // read bit 30 to determine if this is hovering highlight
-    position = vec3(positionX, positionY, positionZ);
+    position = vec3(float(positionX), float(positionY), float(positionZ));
     int isHovering = (compressedValue >> 29) & 0x1;
     position.y += float(isHovering) * 0.01;
 }
@@ -95,7 +95,7 @@ void decompressVertex(int compressedValue, out vec3 position, out int normalDir,
 
 void main() {
     // decompress the vertex
-    int normalDir;
+    int normalDir = -1;
 
     decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex);
 
