@@ -1,4 +1,5 @@
 #version 330 core
+#extension all : disable
 
 flat in vec3 VertNormal;
 in vec3 VertPos;

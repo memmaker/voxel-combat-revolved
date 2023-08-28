@@ -1,5 +1,5 @@
 #version 330 core
-
+#extension all : disable
 // Plan for the bit-packing
 // 32 bits per vertex
 // Bits 0..4: X position (0..31)
@@ -82,8 +82,11 @@ attributes |= int32(textureIndex) << 24
 void decompressVertex(int compressedValue, out vec3 position, out int normalDir, out int textureIndex)
 {
     int positionX = compressedValue & int(0x3F);// 0x3F = 0b111111
-    int positionY = (compressedValue >> int(6)) & int(0x3F);
-    int positionZ = (compressedValue >> int(12)) & int(0x3F);
+    int yPart = compressedValue >> int(6);
+    int positionY = yPart & int(0x3F);
+    int zPart = compressedValue >> int(12);
+    int positionZ = zPart & int(0x3F);
+
     normalDir = (compressedValue >> int(18)) & int(0x7);// 0x7 = 0b111
     textureIndex = (compressedValue >> int(21)) & int(0xFF);// 0xFF = 0b11111111
     // read bit 30 to determine if this is hovering highlight
