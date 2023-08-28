@@ -50,7 +50,19 @@ func MakeIntVertexSlice(shader *Shader, len, cap int, indices []uint32) *VertexS
 	}
 }
 
+func MakeUIntVertexSlice(shader *Shader, len, cap int, indices []uint32) *VertexSlice[GlUInt] {
+	if len > cap {
+		panic("failed to make vertex slice: len > cap")
+	}
+	return &VertexSlice[GlUInt]{
+		va: newIndexedVertexArray[GlUInt](shader, cap, indices),
+		i:  0,
+		j:  len,
+	}
+}
+
 type GlInt int32
+type GlUInt uint32
 type GlFloat float32
 
 func MakeIndexedVertexSlice(shader *Shader, len, cap int, indices []uint32) *VertexSlice[GlFloat] {
@@ -197,7 +209,7 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 	offset := 0
 	for i, attr := range va.format {
 		switch attr.Type {
-		case Int, Float, Vec2, Vec3, Vec4:
+		case Int, UInt, Float, Vec2, Vec3, Vec4:
 		default:
 			panic(errors.New("failed to create vertex array: invalid attribute type"))
 		}
@@ -238,6 +250,9 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 		case Int:
 			size = 1
 			glType = gl.INT
+		case UInt:
+			size = 1
+			glType = gl.UNSIGNED_INT
 		case Float:
 			size = 1
 		case Vec2:

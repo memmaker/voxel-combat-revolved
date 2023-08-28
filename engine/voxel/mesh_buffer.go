@@ -14,11 +14,11 @@ const (
 )
 
 type MeshBuffer struct {
-	drawableVertexData *glhf.VertexSlice[glhf.GlInt]
-	flatVertexData     []glhf.GlInt
-	sortedVertexData   map[FaceType][]glhf.GlInt
+	drawableVertexData *glhf.VertexSlice[glhf.GlUInt]
+	flatVertexData     []glhf.GlUInt
+	sortedVertexData   map[FaceType][]glhf.GlUInt
 	vertexCount        int
-	indexMap           map[int32]uint32
+	indexMap           map[uint32]uint32
 	indexBuffer        []uint32
 	drawMode           DrawMode
 	faceMap            map[Int3]MultiDrawIndex
@@ -79,7 +79,7 @@ func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureInd
 	m.vertexCount += 6
 }
 
-func (m *MeshBuffer) addVertex(vertex int32, normal FaceType) {
+func (m *MeshBuffer) addVertex(vertex uint32, normal FaceType) {
 	if m.drawMode == Indexed {
 		m.addIndexedVertex(vertex)
 	} else if m.drawMode == Partial {
@@ -89,21 +89,21 @@ func (m *MeshBuffer) addVertex(vertex int32, normal FaceType) {
 	}
 }
 
-func (m *MeshBuffer) addFlatVertex(vertex int32) {
-	m.flatVertexData = append(m.flatVertexData, glhf.GlInt(vertex))
+func (m *MeshBuffer) addFlatVertex(vertex uint32) {
+	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(vertex))
 }
 
-func (m *MeshBuffer) addVertexSorted(vertex int32, normal FaceType) {
-	m.sortedVertexData[normal] = append(m.sortedVertexData[normal], glhf.GlInt(vertex))
+func (m *MeshBuffer) addVertexSorted(vertex uint32, normal FaceType) {
+	m.sortedVertexData[normal] = append(m.sortedVertexData[normal], glhf.GlUInt(vertex))
 }
 
-func (m *MeshBuffer) addIndexedVertex(vertex int32) {
+func (m *MeshBuffer) addIndexedVertex(vertex uint32) {
 	if vertexIndex, isCached := m.indexMap[vertex]; isCached {
 		m.indexBuffer = append(m.indexBuffer, vertexIndex)
 		return
 	}
 	vertexIndex := len(m.flatVertexData)
-	m.flatVertexData = append(m.flatVertexData, glhf.GlInt(vertex))
+	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(vertex))
 	if vertexIndex > math.MaxUint32 {
 		println("vertexIndex out of bounds: ", vertexIndex)
 	}
@@ -113,7 +113,7 @@ func (m *MeshBuffer) addIndexedVertex(vertex int32) {
 }
 
 func (m *MeshBuffer) Reset() {
-	m.indexMap = make(map[int32]uint32)
+	m.indexMap = make(map[uint32]uint32)
 	m.indexBuffer = m.indexBuffer[:0]
 	m.flatVertexData = m.flatVertexData[:0]
 	m.vertexCount = 0
@@ -124,9 +124,9 @@ func (m *MeshBuffer) FlushMesh(shader *glhf.Shader) {
 		return
 	}
 	if m.drawMode == Indexed {
-		m.drawableVertexData = glhf.MakeIntVertexSlice(shader, m.vertexCount, m.vertexCount, m.indexBuffer)
+		m.drawableVertexData = glhf.MakeUIntVertexSlice(shader, m.vertexCount, m.vertexCount, m.indexBuffer)
 	} else {
-		m.drawableVertexData = glhf.MakeIntVertexSlice(shader, m.vertexCount, m.vertexCount, nil)
+		m.drawableVertexData = glhf.MakeUIntVertexSlice(shader, m.vertexCount, m.vertexCount, nil)
 	}
 	m.drawableVertexData.Begin()
 	if m.drawMode == Partial {
@@ -168,44 +168,44 @@ func (m *MeshBuffer) PartialDraw(camDirection Int3) {
 }
 
 // Compresses the position, normal direction and texture index into a 32 bit integer.
-func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte, extraBits uint8) int32 {
+func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte, extraBits uint8) uint32 {
 	// 6 bits for the x y z axis
 	// max value for each axis is 2^6 - 1 = 63
 	// we want to pack these into one 32 bit integer
-	maxX := int32(63)
-	maxY := int32(63)
-	maxZ := int32(63)
+	maxX := uint32(63)
+	maxY := uint32(63)
+	maxZ := uint32(63)
 
-	xAxis := position.X
-	yAxis := position.Y << 6
-	zAxis := position.Z << 12
+	xAxis := uint32(position.X)
+	yAxis := uint32(position.Y) << 6
+	zAxis := uint32(position.Z) << 12
 
-	if position.X < 0 || position.X > maxX {
+	if position.X < 0 || uint32(position.X) > maxX {
 		println("x axis out of bounds: ", position.X)
 	}
-	if position.Y < 0 || position.Y > maxY {
+	if position.Y < 0 || uint32(position.Y) > maxY {
 		println("y axis out of bounds: ", position.Y)
 	}
-	if position.Z < 0 || position.Z > maxZ {
+	if position.Z < 0 || uint32(position.Z) > maxZ {
 		println("z axis out of bounds: ", position.Z)
 	}
 	compressedPosition := xAxis | yAxis | zAxis
 
 	// 3 bits for the normal direction (0..5)
-	attributes := int32(normalDirection) << 18
+	attributes := uint32(normalDirection) << 18
 	// 8 bits for the texture index (0..255)
-	attributes |= int32(textureIndex) << 21
+	attributes |= uint32(textureIndex) << 21
 
 	// add the first three extra bits
-	attributes |= int32(extraBits) << 29
+	attributes |= uint32(extraBits) << 29
 
 	compressedVertex := compressedPosition | attributes
 	// total: 29 bits, 3 bits left
 	return compressedVertex
 }
 
-func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []glhf.GlInt {
-	mergedData := make([]glhf.GlInt, 0, 0)
+func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlUInt) []glhf.GlUInt {
+	mergedData := make([]glhf.GlUInt, 0, 0)
 	faceVertices := make(map[FaceType][2]int32, 0)
 	for normalDir, vertexData := range data {
 		startIndex, count := len(mergedData), len(vertexData)
@@ -250,12 +250,12 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlInt) []
 }
 
 func NewMeshBuffer() *MeshBuffer {
-	faceMap := make(map[FaceType][]glhf.GlInt)
+	faceMap := make(map[FaceType][]glhf.GlUInt)
 	for i := 0; i < 6; i++ {
-		faceMap[FaceType(i)] = make([]glhf.GlInt, 0, 0)
+		faceMap[FaceType(i)] = make([]glhf.GlUInt, 0, 0)
 	}
 	return &MeshBuffer{
-		indexMap:         make(map[int32]uint32),
+		indexMap: make(map[uint32]uint32),
 		sortedVertexData: faceMap,
 		drawMode:         Flat,
 		faceMap:          make(map[Int3]MultiDrawIndex),

@@ -203,6 +203,9 @@ func (s *Shader) SetUniformAttr(uniform int, value interface{}) (ok bool) {
 	case Int:
 		value := value.(int32)
 		gl.Uniform1iv(s.uniformLoc[uniform], 1, &value)
+	case UInt:
+		value := value.(uint32)
+		gl.Uniform1uiv(s.uniformLoc[uniform], 1, &value)
 	case Float:
 		value := value.(float32)
 		gl.Uniform1fv(s.uniformLoc[uniform], 1, &value)

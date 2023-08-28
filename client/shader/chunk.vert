@@ -37,11 +37,11 @@
 
 // that's 20 bits per vertex without the texture index
 // if we assume a 32 bit int, that leaves 12 bits for the texture index
-in int compressedValue;
+in uint compressedValue;
 
 flat out vec3 VertNormal;
 out vec3 VertPos;
-flat out int VertTexIndex;
+flat out uint VertTexIndex;
 // set uniform locations
 
 uniform mat4 camProjectionView;
@@ -79,26 +79,26 @@ attributes := int32(normalDirection) << 21
 // 8 bits for the texture index (0..255)
 attributes |= int32(textureIndex) << 24
 */
-void decompressVertex(int compressedValue, out vec3 position, out int normalDir, out int textureIndex)
+void decompressVertex(uint compressedValue, out vec3 position, out uint normalDir, out uint textureIndex)
 {
-    int positionX = compressedValue & int(0x3F);// 0x3F = 0b111111
-    int yPart = compressedValue >> int(6);
-    int positionY = yPart & int(0x3F);
-    int zPart = compressedValue >> int(12);
-    int positionZ = zPart & int(0x3F);
+    uint positionX = compressedValue & uint(0x3F);// 0x3F = 0b111111
+    uint yPart = compressedValue >> uint(6);
+    uint positionY = yPart & uint(0x3F);
+    uint zPart = compressedValue >> uint(12);
+    uint positionZ = zPart & uint(0x3F);
 
-    normalDir = (compressedValue >> int(18)) & int(0x7);// 0x7 = 0b111
-    textureIndex = (compressedValue >> int(21)) & int(0xFF);// 0xFF = 0b11111111
+    normalDir = (compressedValue >> uint(18)) & uint(0x7);// 0x7 = 0b111
+    textureIndex = (compressedValue >> uint(21)) & uint(0xFF);// 0xFF = 0b11111111
     // read bit 30 to determine if this is hovering highlight
     position = vec3(float(positionX), float(positionY), float(positionZ));
-    int isHovering = (compressedValue >> int(29)) & int(0x1);
+    uint isHovering = (compressedValue >> uint(29)) & uint(0x1);
     position.y += float(isHovering) * 0.01;
 }
 
 
 void main() {
     // decompress the vertex
-    int normalDir = -1;
+    uint normalDir = uint(1);
 
     decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex);
 
