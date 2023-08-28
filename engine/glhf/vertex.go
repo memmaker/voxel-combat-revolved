@@ -246,13 +246,16 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 
 		var size int32
 		glType := uint32(gl.FLOAT)
+		isFloat := true
 		switch attr.Type {
 		case Int:
 			size = 1
 			glType = gl.INT
+			isFloat = false
 		case UInt:
 			size = 1
 			glType = gl.UNSIGNED_INT
+			isFloat = false
 		case Float:
 			size = 1
 		case Vec2:
@@ -263,14 +266,25 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 			size = 4
 		}
 
-		gl.VertexAttribPointerWithOffset(
-			uint32(loc),
-			size,
-			glType,
-			false,
-			int32(va.stride),
-			uintptr(va.offset[i]),
-		)
+		if isFloat {
+			gl.VertexAttribPointerWithOffset(
+				uint32(loc),
+				size,
+				glType,
+				false,
+				int32(va.stride),
+				uintptr(va.offset[i]),
+			)
+		} else {
+			gl.VertexAttribIPointerWithOffset(
+				uint32(loc),
+				size,
+				glType,
+				int32(va.stride),
+				uintptr(va.offset[i]),
+			)
+		}
+
 		gl.EnableVertexAttribArray(uint32(loc))
 	}
 
