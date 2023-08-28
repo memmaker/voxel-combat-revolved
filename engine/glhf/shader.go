@@ -35,6 +35,7 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 		uniformLoc: make([]int32, len(uniformFmt)),
 	}
 
+	var errorMessages []string
 	var vshader, fshader uint32
 
 	// vertex shader
@@ -44,7 +45,10 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 		defer free()
 		length := int32(len(vertexShader))
 		gl.ShaderSource(vshader, 1, src, &length)
+		AppendGLErrorMessage(errorMessages, "failed to set vertex shader source: %d")
+
 		gl.CompileShader(vshader)
+		AppendGLErrorMessage(errorMessages, "failed to compile vertex shader: %d")
 
 		var success int32
 		gl.GetShaderiv(vshader, gl.COMPILE_STATUS, &success)
@@ -54,6 +58,9 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 
 			infoLog := make([]byte, logLen)
 			gl.GetShaderInfoLog(vshader, logLen, nil, &infoLog[0])
+			if len(infoLog) > 0 {
+				errorMessages = append(errorMessages, fmt.Sprintf("error compiling vertex shader: %s", string(infoLog)))
+			}
 			return nil, fmt.Errorf("error compiling vertex shader: %s", string(infoLog))
 		}
 
@@ -67,7 +74,10 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 		defer free()
 		length := int32(len(fragmentShader))
 		gl.ShaderSource(fshader, 1, src, &length)
+		AppendGLErrorMessage(errorMessages, "failed to set fragment shader source: %d")
+
 		gl.CompileShader(fshader)
+		AppendGLErrorMessage(errorMessages, "failed to compile fragment shader: %d")
 
 		var success int32
 		gl.GetShaderiv(fshader, gl.COMPILE_STATUS, &success)
@@ -77,6 +87,9 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 
 			infoLog := make([]byte, logLen)
 			gl.GetShaderInfoLog(fshader, logLen, nil, &infoLog[0])
+			if len(infoLog) > 0 {
+				errorMessages = append(errorMessages, fmt.Sprintf("error compiling fragment shader: %s", string(infoLog)))
+			}
 			return nil, fmt.Errorf("error compiling fragment shader: %s", string(infoLog))
 		}
 
@@ -87,8 +100,13 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 	{
 		shader.program.obj = gl.CreateProgram()
 		gl.AttachShader(shader.program.obj, vshader)
+		AppendGLErrorMessage(errorMessages, "failed to attach vertex shader: %d")
+
 		gl.AttachShader(shader.program.obj, fshader)
+		AppendGLErrorMessage(errorMessages, "failed to attach fragment shader: %d")
+
 		gl.LinkProgram(shader.program.obj)
+		AppendGLErrorMessage(errorMessages, "failed to link shader program: %d")
 
 		var success int32
 		gl.GetProgramiv(shader.program.obj, gl.LINK_STATUS, &success)
@@ -98,6 +116,9 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 
 			infoLog := make([]byte, logLen)
 			gl.GetProgramInfoLog(shader.program.obj, logLen, nil, &infoLog[0])
+			if len(infoLog) > 0 {
+				errorMessages = append(errorMessages, fmt.Sprintf("error linking shader program: %s", string(infoLog)))
+			}
 			return nil, fmt.Errorf("error linking shader program: %s", string(infoLog))
 		}
 	}
@@ -110,7 +131,22 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 
 	runtime.SetFinalizer(shader, (*Shader).delete)
 
+	if len(errorMessages) > 0 {
+		println("ERRORS DURING SHADER CREATION:")
+		for _, errorMessage := range errorMessages {
+			println(errorMessage)
+		}
+	}
+
 	return shader, nil
+}
+
+func AppendGLErrorMessage(errorMessages []string, errorMessage string) []string {
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		errorMessages = append(errorMessages, fmt.Sprintf(errorMessage, glError))
+	}
+	return errorMessages
 }
 
 func (s *Shader) delete() {

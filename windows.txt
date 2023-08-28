@@ -1,0 +1,6 @@
+# Needs
+
+GO: https://go.dev/doc/install
+Git: https://gitforwindows.org/
+gcc: https://jmeubank.github.io/tdm-gcc/
+

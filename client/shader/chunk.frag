@@ -22,7 +22,7 @@ float diffuseBrightnessFromGlobalLight(vec3 worldNormal) {
 
     //calculate the cosine of the angle of incidence
     float brightness = dot(worldNormal, global_light_direction) + 0.5;
-    brightness = clamp(brightness, 0, 1);
+    brightness = clamp(brightness, 0.0, 1.0);
 
     return brightness;
 }
@@ -36,14 +36,14 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
     //calculate final color of the pixel, based on:
     // 1. The angle of incidence: brightness
 
-    vec3 worldPosition = vec3(modelTransform * vec4(VertPos, 1));
+    vec3 worldPosition = vec3(modelTransform * vec4(VertPos, 1.0));
 
     //calculate the vector from this pixels surface to the light source
     vec3 surfaceToLight = light_position - worldPosition;
 
     //calculate the cosine of the angle of incidence
     float brightness = dot(worldNormal, surfaceToLight) / (length(surfaceToLight) * length(worldNormal));
-    brightness = clamp(brightness, 0, 1);
+    brightness = clamp(brightness, 0.0, 1.0);
 
     return brightness;
 }
@@ -55,7 +55,7 @@ void main() {
     //calculate the location of this fragment (pixel) in world coordinates
     float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
     float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
-    float brightness = clamp(directional_brightness + point_brightness, 0, 1);
+    float brightness = clamp(directional_brightness + point_brightness, 0.0, 1.0);
 
     //vec4 surfaceColor = vec4(1, 0.2, 0.2, 1);
     // our uv coords are in steps of 1/16
