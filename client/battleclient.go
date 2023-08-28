@@ -113,7 +113,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     window.SetCursorPosCallback(glApp.MousePosCallback)
     window.SetMouseButtonCallback(glApp.MouseButtonCallback)
     window.SetScrollCallback(glApp.ScrollCallback)
-
+    
     fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, settings.Width, settings.Height, settings.FPSCameraMouseSensitivity)
     fpsCamera.SetInvertedY(settings.FPSCameraInvertedMouse)
 

@@ -8,6 +8,8 @@ import (
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
 	"os"
+	"runtime"
+	"unsafe"
 )
 
 type GlApplication struct {
@@ -114,6 +116,7 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.OpenGLDebugContext, glfw.True)
 
 	var err error
 
@@ -125,15 +128,29 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	glfw.SwapInterval(1) // enable (1) vsync
 
 	glhf.Init()
+
+	version := gl.GoStr(gl.GetString(gl.VERSION))
+	fmt.Println("OpenGL version", version)
+
 	gl.DepthFunc(gl.LESS)
 	gl.Enable(gl.DEPTH_TEST)
 
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 
+	if runtime.GOOS != "darwin" {
+		gl.Enable(gl.DEBUG_OUTPUT)
+		gl.DebugMessageCallback(gl.DebugProc(glErrorHandler), gl.Ptr(nil))
+	}
+
 	return win, func() {
 		glfw.Terminate()
 	}
+}
+
+func glErrorHandler(source uint32, gltype uint32, id uint32, severity uint32, length int32, message string, param unsafe.Pointer) {
+	errorMessage := fmt.Sprintf("source: %d, type: %d, id: %d, severity: %d, length: %d, param: %d, message:\n%s", source, gltype, id, severity, length, param, message)
+	println(errorMessage)
 }
 
 func MustLoadTexture(filePath string) *glhf.Texture {
