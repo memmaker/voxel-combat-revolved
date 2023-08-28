@@ -86,7 +86,7 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	}
 
 	if previousPos != newPos {
-		p.SetPositionAndUpdateMap(newPos)
+		p.SetPosition(newPos)
 	}
 }
 

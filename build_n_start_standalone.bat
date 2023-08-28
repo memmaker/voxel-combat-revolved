@@ -1,4 +1,4 @@
-go build -o .\bgclient.exe -tags client .
+go build -tags client .
 
-bgclient.exe
+.\bgclient.exe
 
