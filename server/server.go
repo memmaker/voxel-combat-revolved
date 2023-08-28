@@ -47,6 +47,13 @@ func (b *BattleServer) ListenTCP(endpoint string) {
 	}
 	defer listener.Close()
 	println(fmt.Sprintf("Server started on %s", endpoint))
+
+	endianess, err := util.GetSystemNativeEndianess()
+	if err != nil {
+		println(fmt.Sprintf("[GetSystemNativeEndianess] ERR -> %s", err.Error()))
+	} else {
+		println(fmt.Sprintf("[GetSystemNativeEndianess] %s", endianess.ToString()))
+	}
 	for {
 		con, err := listener.Accept()
 		if err != nil {
