@@ -31,7 +31,7 @@ float diffuseBrightnessFromGlobalLight(vec3 worldNormal) {
 
     //calculate the cosine of the angle of incidence
     float brightness = dot(worldNormal, global_light_direction) + 0.5;
-    brightness = clamp(brightness, 0, 1);
+    brightness = clamp(brightness, 0.0, 1.0);
 
     return brightness;
 }
@@ -45,14 +45,14 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
     //calculate final color of the pixel, based on:
     // 1. The angle of incidence: brightness
 
-    vec3 worldPosition = vec3(modelTransform * vec4(VertPos, 1));
+    vec3 worldPosition = vec3(modelTransform * vec4(VertPos, 1.0));
 
     //calculate the vector from this pixels surface to the light source
     vec3 surfaceToLight = light_position - worldPosition;
 
     //calculate the cosine of the angle of incidence
     float brightness = dot(worldNormal, surfaceToLight) / (length(surfaceToLight) * length(worldNormal));
-    brightness = clamp(brightness, 0, 1);
+    brightness = clamp(brightness, 0.0, 1.0);
 
     return brightness;
 }
@@ -65,7 +65,7 @@ void drawTexturedQuads() {
     //calculate the location of this fragment (pixel) in world coordinates
     float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
     float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
-    float brightness = clamp(directional_brightness + point_brightness, 0, 1);
+    float brightness = clamp(directional_brightness + point_brightness, 0.0, 1.0);
 
     vec4 surfaceColor = texture(tex, vec2(VertUV.x, 1-VertUV.y));// 1-Tex.y because texture is flipped
     if (surfaceColor.a == 0) {
@@ -108,24 +108,24 @@ void drawLine() {
     float linelength = multi;
     float adjustedThickness = VertColor.x;
 
-    float d = 0;
+    float d = 0.0;
     float w = adjustedThickness/2.0 - antialias;
 
     vec3 lineColor = color.rgb;
 
-    if (VertNormal.z < 0)
+    if (VertNormal.z < 0.0)
     lineColor *= 0.75*vec3(pow(abs(VertNormal.z), .5));//*vec3(0.95, 0.75, 0.75);
 
     // Cap at start
-    if (VertUV.x < 0)
+    if (VertUV.x < 0.0)
     d = length(VertUV) - w;
     // Cap at end
     else if (VertUV.x >= linelength)
-    d = length(VertUV - vec2(linelength, 0)) - w;
+    d = length(VertUV - vec2(linelength, 0.0)) - w;
     // Body
     else
     d = abs(VertUV.y) - w;
-    if (d < 0) {
+    if (d < 0.0) {
         fragmentColor = vec4(lineColor, color.a);
     } else {
         d /= antialias;
