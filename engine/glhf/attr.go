@@ -28,6 +28,7 @@ type AttrType int
 // List of all possible attribute types.
 const (
 	Int AttrType = iota
+	UInt
 	Float
 	Vec2
 	Vec3
@@ -47,6 +48,8 @@ const (
 func (at AttrType) Size() int {
 	switch at {
 	case Int:
+		return 4
+	case UInt:
 		return 4
 	case Float:
 		return 4

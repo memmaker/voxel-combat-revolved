@@ -3,7 +3,7 @@
 
 flat in vec3 VertNormal;
 in vec3 VertPos;
-flat in int VertTexIndex;
+flat in uint VertTexIndex;
 
 uniform sampler2D tex;
 
@@ -61,8 +61,8 @@ void main() {
     //vec4 surfaceColor = vec4(1, 0.2, 0.2, 1);
     // our uv coords are in steps of 1/16
     // so we are interpolating in between that interval
-    float xOffset = float(VertTexIndex % 16);// tiles per row
-    float yOffset = float(VertTexIndex / 16);// tiles per column
+    float xOffset = float(VertTexIndex % uint(16));// tiles per row
+    float yOffset = float(VertTexIndex / uint(16));// tiles per column
 
     float u = 0.0;
     float v = 0.0;
