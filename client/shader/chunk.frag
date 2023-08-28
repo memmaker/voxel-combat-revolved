@@ -1,7 +1,7 @@
 #version 330 core
 
 flat in vec3 VertNormal;
-invariant in vec3 VertPos;
+in vec3 VertPos;
 flat in int VertTexIndex;
 
 uniform sampler2D tex;
