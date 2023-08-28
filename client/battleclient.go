@@ -813,8 +813,9 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
             a.AddOrUpdateUnit(acquiredLOSUnit)
         }
         unit.SetBlockPositionAndUpdateStance(destination)
-        // TODO: we don't want to switch here, if the user selected a different unit in the meantime
-        a.SwitchToUnit(unit)
+        if a.selectedUnit == unit {
+            a.SwitchToUnit(unit)
+        }
         a.isBusy = false
     }
     destinationReached := func() bool {

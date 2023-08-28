@@ -200,20 +200,6 @@ func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
 func (u *UnitInstance) UpdateMapPosition() {
     u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
 }
-func (u *UnitInstance) SetPositionAndUpdateMap(pos mgl32.Vec3) {
-    oldBlockPos := u.Transform.GetBlockPosition()
-    newBlockPos := voxel.PositionToGridInt3(pos)
-
-    //println(fmt.Sprintf("[UnitInstance] %s moved to (%0.2f, %0.2f, %0.2f)", u.Name, pos.X(), pos.Y(), pos.Z()))
-
-    u.Transform.SetPosition(pos)
-
-    if oldBlockPos != newBlockPos { // only update if the block position has changed
-        u.UpdateMapPosition()
-    }
-    //println(fmt.Sprintf("[UnitInstance] %s moved to %v", u.Name, pos))
-}
-
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
     return u.Transform.GetBlockPosition().ToBlockCenterVec3().Add(u.GetEyeOffset())
 }
@@ -363,6 +349,10 @@ func (u *UnitInstance) GetForward2DCardinal() voxel.Int3 {
 
 func (u *UnitInstance) GetPosition() mgl32.Vec3 {
     return u.Transform.GetPosition()
+}
+
+func (u *UnitInstance) SetPosition(pos mgl32.Vec3) {
+    u.Transform.SetPosition(pos)
 }
 
 func (u *UnitInstance) IsPlayingIdleAnimation() bool {
