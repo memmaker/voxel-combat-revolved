@@ -8,7 +8,6 @@ import (
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
 	"os"
-	"runtime"
 	"unsafe"
 )
 
@@ -138,10 +137,12 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	gl.Enable(gl.CULL_FACE)
 	gl.CullFace(gl.BACK)
 
+	/*
 	if runtime.GOOS != "darwin" {
 		gl.Enable(gl.DEBUG_OUTPUT)
 		gl.DebugMessageCallback(gl.DebugProc(glErrorHandler), gl.Ptr(nil))
 	}
+	*/
 
 	return win, func() {
 		glfw.Terminate()

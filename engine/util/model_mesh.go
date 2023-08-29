@@ -520,7 +520,7 @@ func (m *MeshNode) HideBone(name string) {
 func (m *MeshNode) HideChildrenOfBoneExcept(isChild bool, name string, exception string) {
 	if isChild && m.name != exception {
 		m.hidden = true
-		println(fmt.Sprintf("[MeshNode] Hiding node %s", m.name))
+		//println(fmt.Sprintf("[MeshNode] Hiding node %s", m.name))
 		return
 	}
 	for _, child := range m.children {

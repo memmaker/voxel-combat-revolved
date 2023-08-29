@@ -9,6 +9,8 @@ func (a *BattleClient) updateDebugInfo() {
 	if !a.showDebugInfo {
 		return
 	}
+	a.debugPositions = a.GetVoxelMap().DebugGetAllOccupiedBlocks()
+
 	//camPos := a.isoCamera.GetPosition()
 
 	selectedBlockString := "Block: none"

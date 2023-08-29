@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -40,7 +39,7 @@ func (w *Weapon) IsReady() bool {
 
 func (w *Weapon) ConsumeAmmo(amount uint) {
 	w.AmmoCount -= amount
-	println(fmt.Sprintf("[Weapon] %s ammo count is now %d", w.Definition.UniqueName, w.AmmoCount))
+	//println(fmt.Sprintf("[Weapon] %s ammo count is now %d", w.Definition.UniqueName, w.AmmoCount))
 }
 
 func (w *Weapon) Reload() {

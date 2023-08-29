@@ -62,7 +62,7 @@ func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 
 	unit := a.newClientUnit(currentUnit)
 
-	currentUnit.AutoSetStanceAndForward()
+	currentUnit.AutoSetStanceAndForwardAndUpdateMap()
 	currentUnit.StartStanceAnimation()
 
 	a.clientUnitMap[unitID] = unit
@@ -172,6 +172,9 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 }
 
 func (a *GameClient[U]) SetLOSLost(observer, unitID uint64) {
+	if a.IsMyUnit(unitID) {
+		return
+	}
 	a.SetLOS(observer, unitID, false)
 	// WHAT'S THIS DOING HERE?
 	// ah, because of client side pathfinding..
@@ -193,11 +196,14 @@ func (a *GameClient[U]) SetLOSAcquired(observer, unitID uint64) {
 
 func (a *GameClient[U]) OnNextPlayer(msg NextPlayerMessage) {
 	println(fmt.Sprintf("[%s] NextPlayer: %v", a.environment, msg))
-	println(fmt.Sprintf("[%s] VoxelMap:", a.environment))
-	a.GetVoxelMap().PrintArea2D(16, 16)
+	//println(fmt.Sprintf("[%s] VoxelMap:", a.environment))
+	//a.GetVoxelMap().PrintArea2D(16, 16)
+	/*
 	for _, unit := range a.GetAllUnits() {
 		println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
+
+	*/
 	if msg.YourTurn {
 		a.ResetUnitsForNextTurn()
 		println(fmt.Sprintf("[%s] It's your turn!", a.environment))

@@ -32,7 +32,7 @@ func (d *DummyClientUnit) SetServerInstance(instance *UnitInstance) {
 	instance.SetVoxelMap(oldVoxelMap)
 
 	d.UnitInstance = instance
-	d.AutoSetStanceAndForward()
+	d.AutoSetStanceAndForwardAndUpdateMap()
 }
 
 type DummyClient struct {
@@ -135,7 +135,7 @@ func (c *DummyClient) makeMove() {
 
 	if !unitLeft {
 		// JUST END TURN FOR NOW
-		println(fmt.Sprintf("[DummyClient] Ending turn..."))
+		//println(fmt.Sprintf("[DummyClient] Ending turn..."))
 		util.MustSend(c.connection.EndTurn())
 		return
 	}

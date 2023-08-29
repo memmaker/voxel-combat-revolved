@@ -37,20 +37,28 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 
 func (a *UnitGotoWaypointBehavior) snapToPosition(blockPosition voxel.Int3) {
 	a.unit.GetModel().SetAnimationLoop(game.AnimationWeaponWalk.Str(), 1.0)
+	a.unit.SetBlockPosition(blockPosition)
+}
+
+func (a *UnitGotoWaypointBehavior) snapToLastPosition(blockPosition voxel.Int3) {
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
 	a.unit.SetBlockPosition(blockPosition)
+	a.unit.AutoSetStanceAndForwardAndUpdateMap()
+	a.unit.UpdateMapPosition()
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
 }
 
 func (a *UnitGotoWaypointBehavior) onWaypointReached() TransitionEvent {
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Waypoint reached: %v", a.unit.GetWaypoint()))
-	a.snapToPosition(a.unit.GetWaypoint())
+
 
 	if a.unit.IsLastWaypoint() {
+		a.snapToLastPosition(a.unit.GetWaypoint())
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
 		return EventLastWaypointReached
 	}
 
+	a.snapToPosition(a.unit.GetWaypoint())
 	a.unit.NextWaypoint()
 	a.startWaypointAnimation()
 	return EventWaypointReached

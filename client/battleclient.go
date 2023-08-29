@@ -56,6 +56,7 @@ type BattleClient struct {
     overwatchPositionsThisTurn []voxel.Int3
     selectedUnit               *Unit
     aspectRatio                float32
+    debugPositions             []voxel.Int3
 }
 
 func (a *BattleClient) state() GameState {
@@ -195,7 +196,7 @@ func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, on
     projectile.SetDestination(destination)
     projectile.SetOnArrival(onArrival)
     a.projectiles = append(a.projectiles, projectile)
-    println(fmt.Sprintf("\n>> Projectile spawned at %v with destination %v", pos, destination))
+    //println(fmt.Sprintf("\n>> Projectile spawned at %v with destination %v", pos, destination))
     return projectile
 }
 
@@ -341,14 +342,16 @@ func (a *BattleClient) drawProjectiles() {
 }
 func (a *BattleClient) drawLines(cam util.Camera) {
     a.lineShader.Begin()
-    a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
+    a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
+    a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
     if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
-        a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
-        a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
+        a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
         a.selector.Draw()
     }
-    for _, drawable := range a.debugObjects {
-        drawable.Draw()
+
+    a.lineShader.SetUniformAttr(3, mgl32.Vec3{0.2, 1, 0.2})
+    for _, debugPositions := range a.debugPositions {
+        a.blockSelector.DrawAt(debugPositions)
     }
     a.lineShader.End()
 }
@@ -645,6 +648,10 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
             projectileArrivalCounter++
             if projectile.UnitHit >= 0 {
                 unit, ok := a.GetClientUnit(uint64(projectile.UnitHit))
+                if !ok {
+                    println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
+                    return
+                }
                 isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
                 if isLethal {
                     unit.PlayDeathAnimation(projectile.Velocity, projectile.BodyPart)
@@ -654,10 +661,6 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 
                 a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
 
-                if !ok {
-                    println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
-                    return
-                }
                 println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
             }
 
@@ -679,8 +682,10 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
         }
         projectileNumber := index + 1
         if projectile.UnitHit >= 0 {
-            hitUnit, _ := a.GetClientUnit(uint64(projectile.UnitHit))
-            if projectile.IsLethal {
+            hitUnit, knownUnit := a.GetClientUnit(uint64(projectile.UnitHit))
+            if !knownUnit {
+                damageReport += fmt.Sprintf("%d. something was hit\n", projectileNumber)
+            } else if projectile.IsLethal {
                 damageReport += fmt.Sprintf("%d. lethal hit on %s (%s)\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart)
             } else {
                 damageReport += fmt.Sprintf("%d. hit on %s (%s) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart, projectile.Damage)
@@ -832,11 +837,14 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
     println(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
-    println("[BattleClient] Map State:")
-    a.GetVoxelMap().PrintArea2D(16, 16)
+    //println("[BattleClient] Map State:")
+    //a.GetVoxelMap().PrintArea2D(16, 16)
+    /*
     for _, unit := range a.GetAllUnits() {
         println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
     }
+
+    */
     if msg.YourTurn {
         a.ResetOverwatch()
         a.ResetUnitsForNextTurn()

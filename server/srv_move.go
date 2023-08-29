@@ -78,7 +78,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		pathPartsPerUser[enemyUserID] = append(pathPartsPerUser[enemyUserID], make([]voxel.Int3, 0))
 	}
 	for index, pos := range foundPath { // simulate movement step by step
-		println(fmt.Sprintf(" -> Checking position %s", pos.ToString()))
+		//println(fmt.Sprintf(" -> Checking position %s", pos.ToString()))
 		// for each player, that is not the controller
 		// check if any unit he controls could spot the moving unit from here
 		// if so, add this position to the current path part

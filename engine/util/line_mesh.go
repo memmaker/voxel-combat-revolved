@@ -27,6 +27,14 @@ func (m *LineMesh) Draw() {
 	m.vertices.End()
 }
 
+func (m *LineMesh) DrawAt(pos voxel.Int3) {
+	drawPos := pos.ToVec3()
+	m.shader.SetUniformAttr(2, mgl32.Translate3D(drawPos.X(), drawPos.Y(), drawPos.Z()))
+	m.vertices.Begin()
+	m.vertices.Draw()
+	m.vertices.End()
+}
+
 func NewLineMesh(shader *glhf.Shader, lines [][2]mgl32.Vec3) *LineMesh {
 	var flatLines []glhf.GlFloat
 	for _, line := range lines {

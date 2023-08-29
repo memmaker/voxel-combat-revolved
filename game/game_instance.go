@@ -111,9 +111,9 @@ func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 }
 
 func (g *GameInstance) NextPlayer() uint64 {
-	println(fmt.Sprintf("[GameInstance] Ending turn for %s", g.currentPlayerFaction().Name))
+	//println(fmt.Sprintf("[GameInstance] Ending turn for %s", g.currentPlayerFaction().Name))
 	g.currentPlayerIndex = (g.currentPlayerIndex + 1) % len(g.players)
-	println(fmt.Sprintf("[GameInstance] Starting turn for %s", g.currentPlayerFaction().Name))
+	//println(fmt.Sprintf("[GameInstance] Starting turn for %s", g.currentPlayerFaction().Name))
 
 	for _, unit := range g.currentPlayerUnits() {
 		if !unit.IsActive() {

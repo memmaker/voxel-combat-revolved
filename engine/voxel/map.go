@@ -381,19 +381,19 @@ func (m *Map) RemoveUnit(unit MapObject) {
 
 func (m *Map) SetUnit(unit MapObject, blockPos Int3) bool {
 	_, isOnMap := m.knownUnitPositions[unit.UnitID()]
-	if isOnMap {
+	if isOnMap { // problem, we always remove the unit, but there are cases where we don't place it back
 		m.RemoveUnit(unit)
-	}
+	} // reason:
 	ok, reason := m.IsUnitPlaceable(unit, blockPos)
 	if ok {
 		offsets := unit.GetOccupiedBlockOffsets(blockPos)
 		occupiedBlocks := make([]Int3, len(offsets))
-		println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.UnitID(), blockPos.ToString(), len(offsets)))
+		//println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.UnitID(), blockPos.ToString(), len(offsets)))
 		for index, offset := range offsets {
 			occupiedBlockPos := blockPos.Add(offset)
 			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
 			block.AddUnit(unit)
-			println(fmt.Sprintf("[Map] - %s", occupiedBlockPos.ToString()))
+			//println(fmt.Sprintf("[Map] - %s", occupiedBlockPos.ToString()))
 			occupiedBlocks[index] = occupiedBlockPos
 		}
 		m.knownUnitPositions[unit.UnitID()] = occupiedBlocks
@@ -681,4 +681,12 @@ func (m *Map) GetTerrainTexture() *glhf.Texture {
 func (m *Map) IsUnitOnMap(u MapObject) bool {
 	_, ok := m.knownUnitPositions[u.UnitID()]
 	return ok
+}
+
+func (m *Map) DebugGetAllOccupiedBlocks() []Int3 {
+	result := make([]Int3, 0)
+	for _, block := range m.knownUnitPositions {
+		result = append(result, block...)
+	}
+	return result
 }

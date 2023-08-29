@@ -350,7 +350,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		//unit.SetForward(voxel.Int3{Z: 1})
 
 		unitID := gameInstance.ServerSpawnUnit(userID, unit) // sets the instance userID
-		unit.AutoSetStanceAndForward()
+		unit.AutoSetStanceAndForwardAndUpdateMap()
 		unit.StartStanceAnimation()
 
 		println(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
@@ -457,11 +457,14 @@ func (b *BattleServer) SendGameOver(instance *game.GameInstance, winner uint64) 
 	println(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.GetID()))
 }
 func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
-	println("[BattleServer] Ending turn. New map state:")
-	gameInstance.GetVoxelMap().PrintArea2D(16, 16)
+	//println("[BattleServer] Ending turn. New map state:")
+	//gameInstance.GetVoxelMap().PrintArea2D(16, 16)
+	/*
 	for _, unit := range gameInstance.GetAllUnits() {
 		println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
 	}
+
+	*/
 
 	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.GetPlayerIDs() {

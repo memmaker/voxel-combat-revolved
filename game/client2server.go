@@ -65,3 +65,6 @@ type CreateGameMessage struct {
 type JoinGameMessage struct {
 	GameID string
 }
+
+type DebugGetServerStateMessage struct {
+}
