@@ -9,7 +9,8 @@ on:
       - "v*.*.*"
 
 jobs:
-  build:
+  build-linux:
+    name: Build Linux Executables
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,12 +33,18 @@ jobs:
 #          sudo apt-get update
 #          sudo apt-get install -y build-essential libxxf86vm-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
 
-      - name: Build
-        run: CGOENABLED=1 go build -o /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/ -tags client ./... && ls -lah /home/runner/work/voxel-combat-revolved/voxel-combat-revolved
+      - name: Build Client
+        run: CGOENABLED=1 go build -o linux_client -tags client .
+        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
-#      - name: Release
-#        uses: softprops/action-gh-release@v1
-#        if: startsWith(github.ref, 'refs/tags/')
-#        with:
-#          files: |
-#            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/battleground
+      - name: Build Server
+        run: CGOENABLED=1 go build -o linux_server -tags server . && ls -lah linux*
+        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_server
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_client
