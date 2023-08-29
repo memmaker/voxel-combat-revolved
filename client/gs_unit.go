@@ -84,27 +84,15 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 			g.engine.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		}
 
-		// line of sight test
-		/*
-			g.engine.lines.Clear()
-			ourEyePos := g.engine.selectedUnit.GetEyePosition()
-			enemies := g.engine.GetVisibleEnemyUnits(g.engine.selectedUnit.UnitID())
-			for _, enemy := range enemies {
-				enemyEyePos := enemy.GetEyePosition()
-				g.engine.lines.AddSimpleLine(ourEyePos, enemyEyePos)
-			}
-			g.engine.lines.UpdateVerticesAndShow()
-		*/
-
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
 		footPos := util.ToGrid(g.engine.selectedUnit.GetPosition())
 		g.engine.SwitchToIsoCamera()
 
 		if !g.noCameraMovement {
 			startCam := g.engine.isoCamera.GetTransform()
-			g.engine.isoCamera.CenterOn(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
-			endCam := g.engine.isoCamera.GetTransform()
-			g.engine.StartCameraAnimation(startCam, endCam, 0.5)
+			g.engine.isoCamera.SetLookTarget(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
+			endCam := g.engine.isoCamera
+			g.engine.StartCameraLookAnimation(startCam, endCam, 0.5)
 		}
 	}
 }
@@ -131,7 +119,10 @@ func (g *GameStateUnit) OnMouseMoved(oldX float64, oldY float64, newX float64, n
 		return
 	}
 	g.lastCursorPos = cursorPos
+	g.updateLOSIndicator(cursorPos)
+}
 
+func (g *GameStateUnit) updateLOSIndicator(cursorPos voxel.Int3) {
 	g.engine.lines.Clear()
 	atLeastOneEnemyInSight := false
 	currentUnit := g.engine.selectedUnit

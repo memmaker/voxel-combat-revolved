@@ -5,7 +5,7 @@
  - Using IMgui (https://github.com/AllenDang/giu) for the editor
  - An enemy mysteriously disappeared (LoS?)
  - Dead unit's animation was reset to ready after moving
- - Still facing diagonally after firing
+ - Still facing diagonally after firing, also enemies are facing diagonally after firing
 
 # Design Guidelines
  - Turn based
@@ -31,7 +31,8 @@
 # Flaws of turn-based XCOM style games in general
  - Boring movement when there is no enemy in sight
  - Nothing to do during the enemy turn
-
+ - General slowness
+ - Too complex, too many or not enough options
 
 
 # Where Phoenix Point failed

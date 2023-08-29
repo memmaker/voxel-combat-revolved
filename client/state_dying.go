@@ -14,7 +14,7 @@ func (a *ActorDyingBehavior) Init(actor *Unit) {
 	a.actor = actor
 	a.actor.Kill()
 	direction := a.actor.hitInfo.ForceOfImpact.Normalize().Mul(-1)
-	a.actor.turnToDirectionForDeathAnimation(direction)
+	a.actor.turnToDirectionForAnimation(direction)
 	a.actor.GetModel().SetAnimation(game.AnimationDeath.Str(), 1.0)
 }
 

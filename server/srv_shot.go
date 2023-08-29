@@ -113,7 +113,7 @@ func NewServerActionSnapShot(g *game.GameInstance, unit *game.UnitInstance, targ
 	}
 	s.createRay = func() (mgl32.Vec3, mgl32.Vec3) {
 		targetLocation := targetsInWorld[rayCalls]
-		camera.FPSLookAt(targetLocation)
+		camera.SetLookTarget(targetLocation)
 		s.lastAimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
@@ -148,6 +148,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 
 	lastAimDir := a.lastAimDirection
 	a.unit.SetForward(voxel.DirectionToGridInt3(lastAimDir))
+	a.unit.UpdateMapPosition()
 
 	mb.AddMessageForAll(game.VisualRangedAttack{
 		Projectiles:       projectiles,

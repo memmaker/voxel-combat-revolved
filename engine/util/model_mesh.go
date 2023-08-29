@@ -203,7 +203,7 @@ func (m *CompoundMesh) StopAnimations() {
 	m.holdAnimation = true
 }
 func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float64) {
-	//println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
+	println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
@@ -211,7 +211,7 @@ func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float6
 	m.holdAnimation = false
 }
 func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
-	//println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
+	println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
@@ -223,7 +223,7 @@ func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
 }
 
 func (m *CompoundMesh) SetAnimationPose(animation string) {
-	//println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
+	println(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
 	m.currentAnimation = animation
 	m.RootNode.SetAnimationPose(animation)
 	m.holdAnimation = true

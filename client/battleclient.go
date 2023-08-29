@@ -267,10 +267,7 @@ func (a *BattleClient) updateUnits(deltaTime float64) {
         unit.Update(deltaTime)
     }
 }
-
-func (a *BattleClient) Draw(elapsed float64) {
-    stopDrawTimer := a.timer.Start("> Draw()")
-
+func (a *BattleClient) camera() util.Camera {
     var camera util.Camera = a.isoCamera
     if a.cameraIsFirstPerson {
         camera = a.fpsCamera
@@ -278,11 +275,16 @@ func (a *BattleClient) Draw(elapsed float64) {
     if a.cameraAnimation != nil {
         camera = a.cameraAnimation
     }
-    a.drawWorld(camera)
+    return camera
+}
+func (a *BattleClient) Draw(elapsed float64) {
+    stopDrawTimer := a.timer.Start("> Draw()")
 
-    a.drawDefaultShader(camera)
+    a.drawWorld(a.camera())
 
-    a.drawLines(camera)
+    a.drawDefaultShader(a.camera())
+
+    a.drawLines(a.camera())
 
     a.draw2D()
     stopDrawTimer()
@@ -444,7 +446,7 @@ func (a *BattleClient) PopState() {
     a.state().Init(true)
 }
 func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
-    rayStart, rayEnd := a.isoCamera.GetPickingRayFromScreenPosition(newX, newY)
+    rayStart, rayEnd := a.camera().GetPickingRayFromScreenPosition(newX, newY)
     //a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
     hitInfo := a.RayCastGround(rayStart, rayEnd)
     if hitInfo.HitUnit() {
@@ -501,7 +503,7 @@ func (a *BattleClient) GetNextUnit(currentUnit *Unit) (*Unit, bool) {
 func (a *BattleClient) SwitchToUnitFirstPerson(unit *Unit, lookAtTarget mgl32.Vec3, accuracy float64) {
     position := unit.GetEyePosition()
     a.fpsCamera.SetPosition(position)
-    a.fpsCamera.FPSLookAt(lookAtTarget)
+    a.fpsCamera.SetLookTarget(lookAtTarget)
 
     a.SwitchToFirstPerson()
 
@@ -531,9 +533,9 @@ func (a *BattleClient) SwitchToFirstPerson() {
 
     a.fpsCamera.ResetFOV()
 
-    startCam := a.isoCamera.GetTransform()
-    endCam := a.fpsCamera.GetTransform()
-    a.StartCameraAnimation(startCam, endCam, 0.5)
+    startCam := a.isoCamera
+    endCam := a.fpsCamera
+    a.StartCameraTransition(startCam, endCam, 0.5)
 
     a.cameraIsFirstPerson = true
     a.freezeIdleAnimations()
@@ -642,6 +644,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
     if knownAttacker {
         attackerUnit = attacker.UnitInstance
         attackerUnit.SetForward(voxel.DirectionToGridInt3(msg.AimDirection))
+        attackerUnit.UpdateMapPosition()
         attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
         attackerUnit.ConsumeAP(msg.APCostForAttacker)
         attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)

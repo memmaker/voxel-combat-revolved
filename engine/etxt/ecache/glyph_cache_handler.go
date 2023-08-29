@@ -15,7 +15,7 @@ import "github.com/memmaker/battleground/engine/etxt/emask"
 type GlyphCacheHandler interface {
 
 	// --- configuration notification methods ---
-	// Update methods (called only if required so overhead can be low).
+    // Update methods (called only if required so overhead can be low).
 	// Passed values must always be non-nil, except for NotifyOtherChange.
 
 	// Notifies that the font in use has changed.

@@ -378,15 +378,16 @@ func (m *Map) RemoveUnit(unit MapObject) {
 	}
 	delete(m.knownUnitPositions, unit.UnitID())
 }
-
 func (m *Map) SetUnit(unit MapObject, blockPos Int3) bool {
+	return m.SetUnitWithOffsets(unit, blockPos, unit.GetOccupiedBlockOffsets(blockPos))
+}
+func (m *Map) SetUnitWithOffsets(unit MapObject, blockPos Int3, offsets []Int3) bool {
 	_, isOnMap := m.knownUnitPositions[unit.UnitID()]
 	if isOnMap { // problem, we always remove the unit, but there are cases where we don't place it back
 		m.RemoveUnit(unit)
 	} // reason:
 	ok, reason := m.IsUnitPlaceable(unit, blockPos)
 	if ok {
-		offsets := unit.GetOccupiedBlockOffsets(blockPos)
 		occupiedBlocks := make([]Int3, len(offsets))
 		//println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.UnitID(), blockPos.ToString(), len(offsets)))
 		for index, offset := range offsets {
