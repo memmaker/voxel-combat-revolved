@@ -2,8 +2,10 @@
  - Cannot look inside buildings with roofs
  - Weird stuff with turn ending and action points, triggered when using overwatch for everyone
  - Really start using those CoRoutines for stuff like animations: https://github.com/SolarLune/gocoro/blob/master/gocoro.go
+ - Using IMgui (https://github.com/AllenDang/giu) for the editor
  - An enemy mysteriously disappeared (LoS?)
  - Dead unit's animation was reset to ready after moving
+ - Still facing diagonally after firing
 
 # Design Guidelines
  - Turn based
@@ -12,9 +14,6 @@
  - Big units
  - Animations
  - Data driven
-
-
-
 
 # Next Steps
  - Mission Objectives
@@ -25,16 +24,15 @@
  - Lighting (Shadows?)
  - Outlines for Bodyparts & Units (Targeting)
 
-# Known issues
- - Model meshes are sometimes outside of the occupied blocks
-   -> Visual glitches, clipping, etc.
-   -> Raycasting will fail on these parts of the model
-   -> Options: Scale the model down or add special logic for that stance..
- - Snapshots are always fired from the center of a block at eye level
-   -> Free aim allows moving the origin within the whole block
-   -> Snapshots could hit the cover in front of the unit and have a more limited angle of attack
- - Diagonal Movement is choppily animated
+# Known low priority issues
+ - Diagonal Movement is choppily animated during climbs and drops
    -> The animation for climbing and dropping expects a cardinal direction
+
+# Flaws of turn-based XCOM style games in general
+ - Boring movement when there is no enemy in sight
+ - Nothing to do during the enemy turn
+
+
 
 # Where Phoenix Point failed
  - Difficulty curve / Balance

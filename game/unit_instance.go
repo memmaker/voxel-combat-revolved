@@ -118,12 +118,12 @@ func (u *UnitInstance) CanFreeAim() bool {
     return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
 }
 func (u *UnitInstance) EndTurn() {
-    println(fmt.Sprintf("[UnitInstance] %s(%d) ended turn. AP=0.", u.GetName(), u.UnitID()))
+    //println(fmt.Sprintf("[UnitInstance] %s(%d) ended turn. AP=0.", u.GetName(), u.UnitID()))
     u.ActionPoints = 0
 }
 
 func (u *UnitInstance) NextTurn() {
-    println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.UnitID(), u.Definition.CoreStats.MaxActionPoints))
+    //println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.UnitID(), u.Definition.CoreStats.MaxActionPoints))
     u.ActionPoints = u.Definition.CoreStats.MaxActionPoints
 }
 
@@ -143,7 +143,7 @@ func (u *UnitInstance) UseMovement(cost float64) {
     apCost := cost * u.APPerMovement()
     u.ActionPoints -= apCost
     //println(fmt.Sprintf("[UnitInstance] %s used %0.2f movement points, %d left", u.Name, cost, u.MovesLeft()))
-    println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP for moving, %0.2f left", u.Name, apCost, u.ActionPoints))
+    //println(fmt.Sprintf("[UnitInstance] %s used %0.2f AP for moving, %0.2f left", u.Name, apCost, u.ActionPoints))
 }
 func (u *UnitInstance) GetStance() HumanoidStance {
     return HumanStanceFromID(u.CurrentStance)
@@ -187,7 +187,7 @@ func (u *UnitInstance) IsActive() bool {
 
 func (u *UnitInstance) SetBlockPositionAndUpdateStance(pos voxel.Int3) {
     u.SetBlockPosition(pos)
-    u.AutoSetStanceAndForward()
+    u.AutoSetStanceAndForwardAndUpdateMap()
 }
 
 func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
@@ -398,28 +398,23 @@ func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
     if forward2d == currentForward {
         return
     }
-    println(fmt.Sprintf("[UnitInstance] %s SetForward(%s)", u.GetName(), forward2d.ToString()))
-    u.voxelMap.RemoveUnit(u)                    // we need to update the map whenever we change the stance or the forward vector
-    u.Transform.SetForward2DDiagonal(forward2d) // this is the official way to set the forward vector
-    u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
+    u.Transform.SetForward2DDiagonal(forward2d)
 }
-func (u *UnitInstance) SetStanceAndForward(stance Stance, forward2d voxel.Int3) {
+func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int3) {
     currentForward := u.Transform.GetForward2DDiagonal()
 
     if u.CurrentStance == stance && forward2d == currentForward {
         return
     }
-    println(fmt.Sprintf("[UnitInstance] %s(%d) SetStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
-    u.voxelMap.RemoveUnit(u) // we need to update the map whenever we change the stance or the forward vector
+    println(fmt.Sprintf("[UnitInstance] %s(%d) UpdateStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
 
     u.Transform.SetForward2DDiagonal(forward2d)
     u.CurrentStance = stance
     u.StartStanceAnimation()
-    u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
 }
 
 func (u *UnitInstance) StartStanceAnimation() {
-    if u.HasModel() {
+    if u.HasModel() && u.IsActive() {
         u.GetModel().SetAnimationLoop(u.GetStance().GetAnimation().Str(), 1.0)
     }
 }
@@ -428,8 +423,12 @@ func getDamageZones() []util.DamageZone {
     allZones := []util.DamageZone{util.ZoneHead, util.ZoneLeftArm, util.ZoneRightArm, util.ZoneLeftLeg, util.ZoneRightLeg, util.ZoneWeapon}
     return allZones
 }
-func (u *UnitInstance) AutoSetStanceAndForward() {
-    u.SetStanceAndForward(AutoChoseStanceAndForward(u.GetVoxelMap(), u.UnitID(), u.GetBlockPosition(), u.GetForward2DCardinal()))
+func (u *UnitInstance) AutoSetStanceAndForwardAndUpdateMap() {
+    if !u.IsActive() {
+        return
+    }
+    u.UpdateStanceAndForward(AutoChoseStanceAndForward(u.GetVoxelMap(), u.UnitID(), u.GetBlockPosition(), u.GetForward2DCardinal()))
+    u.UpdateMapPosition()
 }
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
