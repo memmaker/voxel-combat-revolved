@@ -35,7 +35,9 @@ jobs:
       - name: Build
         run: go build -tags server -v ./...
 
-#      - uses: ncipollo/release-action@v1
-#        with:
-#          artifacts: "battleground"
-#          bodyFile: "readme.md"
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/battleground
