@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/solarlune/gocoro v0.0.0-20230824040254-0c0c4a19d76f // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 )
