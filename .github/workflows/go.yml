@@ -8,6 +8,7 @@ on:
     tags:
       - "v*.*.*"
 
+
 jobs:
 #  build-linux:
 #    name: Build Linux Executables
@@ -49,27 +50,27 @@ jobs:
 #            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_server
 #            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_client
 
-  build-windows:
-    name: Build Windows Executables
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install MinGW
-        uses: egor-tensin/setup-mingw@v2.2.0
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Build Client
-        run: go build -o windows_client -tags client .
-        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
-        env:
-          CGO_ENABLED: 1
+#  build-windows:
+#    name: Build Windows Executables
+#    runs-on: windows-latest
+#    permissions:
+#      contents: write
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - name: Install MinGW
+#        uses: egor-tensin/setup-mingw@v2.2.0
+#
+#      - name: Set up Go
+#        uses: actions/setup-go@v4
+#        with:
+#          go-version: '1.21'
+#
+#      - name: Build Client
+#        run: go build -o windows_client.exe -tags client .
+#        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
+#        env:
+#          CGO_ENABLED: 1
 
 #      - name: Release
 #        uses: softprops/action-gh-release@v1
@@ -77,3 +78,26 @@ jobs:
 #        with:
 #          files: |
 #            D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
+
+
+  build-darwin:
+    name: Build MacOS X Executables
+    runs-on: macos-12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install gcc
+        run: brew install gcc glfw
+
+      - name: Build Client
+        run: go build -o mac_client -tags client .
+#        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
+        env:
+          CGO_ENABLED: 1
