@@ -1,85 +1,11 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-name: Go
+name: Go Block Tactics
 
 on:
   push:
     tags:
       - "v*.*.*"
 
-
 jobs:
-#  build-linux:
-#    name: Build Linux Executables
-#    runs-on: ubuntu-latest
-#    permissions:
-#      contents: write
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Cache APT Packages
-#        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
-#        with:
-#          packages: libxxf86vm-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
-#          version: 1.0
-
-      #      - name: Install dependencies
-      #        run: |
-      #          sudo apt-get update
-      #          sudo apt-get install -y build-essential libxxf86vm-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
-
-#      - name: Set up Go
-#        uses: actions/setup-go@v4
-#        with:
-#          go-version: '1.21'
-#
-#      - name: Build Client
-#        run: CGOENABLED=1 go build -o linux_client -tags client .
-#        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
-#
-#      - name: Build Server
-#        run: CGOENABLED=1 go build -o linux_server -tags server . && ls -lah linux*
-#        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
-#
-#      - name: Release
-#        uses: softprops/action-gh-release@v1
-#        if: startsWith(github.ref, 'refs/tags/')
-#        with:
-#          files: |
-#            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_server
-#            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_client
-
-#  build-windows:
-#    name: Build Windows Executables
-#    runs-on: windows-latest
-#    permissions:
-#      contents: write
-#    steps:
-#      - uses: actions/checkout@v3
-#
-#      - name: Install MinGW
-#        uses: egor-tensin/setup-mingw@v2.2.0
-#
-#      - name: Set up Go
-#        uses: actions/setup-go@v4
-#        with:
-#          go-version: '1.21'
-#
-#      - name: Build Client
-#        run: go build -o windows_client.exe -tags client .
-#        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
-#        env:
-#          CGO_ENABLED: 1
-
-#      - name: Release
-#        uses: softprops/action-gh-release@v1
-#        if: startsWith(github.ref, 'refs/tags/')
-#        with:
-#          files: |
-#            D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
-
-
   build-darwin:
     name: Build MacOS X Executables
     runs-on: macos-12
@@ -93,11 +19,100 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Install gcc
-        run: brew install gcc glfw
+      - name: Install glfw
+        run: brew install glfw
 
       - name: Build Client
         run: go build -o mac_client -tags client .
-#        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
+        working-directory: /Users/runner/work/voxel-combat-revolved/voxel-combat-revolved
         env:
           CGO_ENABLED: 1
+
+      - name: Create Release with binaries
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            /Users/runner/work/voxel-combat-revolved/mac_client
+
+  build-linux:
+    needs: build-darwin
+    name: Build Linux Executables
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache APT Packages
+        uses: awalsh128/cache-apt-pkgs-action@v1.3.0
+        with:
+          packages: libxxf86vm-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
+          version: 1.0
+
+      #      - name: Install dependencies
+      #        run: |
+      #          sudo apt-get update
+      #          sudo apt-get install -y build-essential libxxf86vm-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Client
+        run: CGOENABLED=1 go build -o linux_client -tags client .
+        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
+
+      - name: Build Server
+        run: CGOENABLED=1 go build -o linux_server -tags server . && ls -lah linux*
+        working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_server
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_client
+
+      - name: Add binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+  build-windows:
+    needs: build-darwin
+    name: Build Windows Executables
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install MinGW
+        uses: egor-tensin/setup-mingw@v2.2.0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build Client
+        run: go build -o windows_client.exe -tags client .
+        working-directory: D:\a\voxel-combat-revolved\voxel-combat-revolved
+        env:
+          CGO_ENABLED: 1
+
+      - name: Add binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
+          asset_name: bt_windows_client.exe
+          tag: ${{ github.ref }}
+          overwrite: true
