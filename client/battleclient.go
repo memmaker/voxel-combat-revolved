@@ -125,6 +125,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
         fpsCamera:     fpsCamera,
         timer:         util.NewTimer(),
         settings:      settings,
+        //coroutine: gocoro.NewCoroutine(),
         aspectRatio:   float32(settings.Width) / float32(settings.Height),
     }
     myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
@@ -210,6 +211,17 @@ func (a *BattleClient) Print(text string) {
 
 func (a *BattleClient) Update(elapsed float64) {
     stopUpdateTimer := a.timer.Start("> Update()")
+
+    /*
+       if a.coroutine.Running() {
+           // While the coroutine runs, we call Coroutine.Update(). This allows
+           // the coroutine to execute, but also gives control back to the main
+           // thread when it's yielding so we can do other stuff, like take input
+           // or update a game's screen.
+           a.coroutine.Update()
+       }
+
+    */
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
 
