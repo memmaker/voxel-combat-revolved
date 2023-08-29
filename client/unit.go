@@ -38,8 +38,7 @@ func (p *Unit) GetVelocity() mgl32.Vec3 {
 	return p.velocity
 }
 
-func (p *Unit) GetIdleEvents() TransitionEvent {
-	//p.SetWaypoint()
+func (p *Unit) GetNextEvent() TransitionEvent {
 	if len(p.eventQueue) > 0 {
 		nextEvent := p.eventQueue[0]
 		p.eventQueue = p.eventQueue[1:]
@@ -47,6 +46,12 @@ func (p *Unit) GetIdleEvents() TransitionEvent {
 	}
 	return EventNone
 }
+func (p *Unit) EmitEvent(stateEvent TransitionEvent) {
+	if stateEvent != EventNone {
+		p.eventQueue = append(p.eventQueue, stateEvent)
+	}
+}
+
 func (p *Unit) Update(deltaTime float64) {
 	if p.IsDead() {
 		return
@@ -57,14 +62,20 @@ func (p *Unit) Update(deltaTime float64) {
 	p.GetModel().UpdateAnimations(deltaTime)
 
 	currentState := p.state.GetName()
-	currentEvent := p.state.Execute(deltaTime)
+
+	stateEvent := p.state.Execute(deltaTime)
+
+	p.EmitEvent(stateEvent)
+
+	currentEvent := p.GetNextEvent()
 
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
-		//println(fmt.Sprintf("[%s] Transition from %s to %s", p.GetName(), currentState.ToString(), nextState.ToString()))
+		println(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
 		p.SetState(nextState)
 	}
 }
+
 
 func (p *Unit) applyVelocity(deltaTime float64) {
 	gravity := mgl32.Vec3{0, -9.8, 0}
@@ -110,11 +121,11 @@ func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.Damage
 }
 
 func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
-	p.UnitInstance.Transform.SetForward2D(forceOfImpact.Mul(-1.0).Normalize()) // ok, because this is temporary
-	p.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
-	// Actually, we don't want to change the forward direction on the client permanently
-	// So this has to be reset..
-	// TODO: add the actual hit animation
+	p.hitInfo = HitInfo{
+		ForceOfImpact: forceOfImpact,
+		BodyPart:      bodyPart,
+	}
+	p.eventQueue = append(p.eventQueue, EventHit)
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
@@ -160,10 +171,14 @@ func (p *Unit) TurnTowardsWaypoint() {
 	d := p.GetWaypoint().Sub(p.GetBlockPosition())
 	direction := voxel.Int3{X: d.X, Y: 0, Z: d.Z}
 	//println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
-	p.SetForward(direction)
+	p.turnToDiagonalDirectionForAnimation(direction)
 }
-func (p *Unit) turnToDirectionForDeathAnimation(direction mgl32.Vec3) {
+func (p *Unit) turnToDirectionForAnimation(direction mgl32.Vec3) {
 	p.UnitInstance.Transform.SetForward2D(direction) // ok, because this is temporary
+}
+
+func (p *Unit) turnToDiagonalDirectionForAnimation(direction voxel.Int3) {
+	p.UnitInstance.Transform.SetForward2DDiagonal(direction) // ok, because this is temporary
 }
 
 func (p *Unit) IsDead() bool {
@@ -208,6 +223,19 @@ func (p *Unit) Description() string {
 
 func (p *Unit) GetLastWaypoint() voxel.Int3 {
 	return p.currentPath[len(p.currentPath)-1]
+}
+
+func (p *Unit) GetLastDirection() voxel.Int3 {
+	if len(p.currentPath) == 0 {
+		return p.GetForward2DCardinal()
+	}
+	last := p.currentPath[len(p.currentPath)-1]
+	prev := p.GetBlockPosition()
+	if len(p.currentPath) > 1 {
+		prev = p.currentPath[len(p.currentPath)-2]
+	}
+	
+	return voxel.Int3{X: last.X - prev.X, Y: last.Y - prev.Y, Z: last.Z - prev.Z}
 }
 
 func (p *Unit) IsIdle() bool {

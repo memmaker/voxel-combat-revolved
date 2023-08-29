@@ -20,6 +20,10 @@ func NewActorTransitionTable() *TransitionTable {
 	t.AddTransition(UnitGotoWaypoint, EventLastWaypointReached, ActorStateIdle)
 	//t.AddTransition(ActorStateWaiting, EventFinishedWaiting, ActorStateIdle)
 
+	// hits
+	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventHit, ActorStateHit)
+	t.AddTransition(ActorStateHit, EventAnimationFinished, ActorStateIdle)
+
 	// dying & death
 	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventLethalHit, ActorStateDying)
 	t.AddTransition(ActorStateDying, EventAnimationFinished, ActorStateDead)
@@ -31,10 +35,34 @@ var ActorTransitionTable = NewActorTransitionTable()
 
 type TransitionEvent int
 
+func (e TransitionEvent) ToString() any {
+	switch e {
+	case EventNone:
+		return "None"
+	case EventNewPath:
+		return "NewPath"
+	case EventFinishedWaiting:
+		return "FinishedWaiting"
+	case EventHit:
+		return "Hit"
+	case EventLethalHit:
+		return "LethalHit"
+	case EventAnimationFinished:
+		return "AnimationFinished"
+	case EventLastWaypointReached:
+		return "LastWaypointReached"
+	case EventWaypointReached:
+		return "WaypointReached"
+	default:
+		return "Unknown"
+	}
+}
+
 const (
 	EventNone TransitionEvent = iota
 	EventNewPath
 	EventFinishedWaiting
+	EventHit
 	EventLethalHit
 	EventAnimationFinished
 	EventLastWaypointReached
@@ -65,6 +93,7 @@ const (
 	ActorStateWaiting
 	UnitGotoWaypoint
 	ActorStateDying
+	ActorStateHit
 	ActorStateDead
 	// Also change NewTransitionTable() below, if you add new states at the end or the beginning
 )
@@ -119,6 +148,7 @@ var BehaviorTable = map[ActorState]func() AnimationState{
 	ActorStateIdle:    func() AnimationState { return &ActorIdleBehavior{} },
 	UnitGotoWaypoint:  func() AnimationState { return &UnitGotoWaypointBehavior{} },
 	ActorStateWaiting: func() AnimationState { return &ActorWaitingBehavior{} },
+	ActorStateHit: func() AnimationState { return &ActorHitBehavior{} },
 	ActorStateDying:   func() AnimationState { return &ActorDyingBehavior{} },
 	ActorStateDead:    func() AnimationState { return &ActorDeadBehavior{} },
 }

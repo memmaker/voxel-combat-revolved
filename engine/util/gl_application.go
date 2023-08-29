@@ -71,7 +71,7 @@ func (a *GlApplication) Run() {
 		gl.ClearColor(0, 0, 0, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// Update
+        // Update
 		time = glfw.GetTime()
 		elapsed := time - previousTime
 		previousTime = time

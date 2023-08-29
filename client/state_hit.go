@@ -1,0 +1,63 @@
+package client
+
+import (
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/game"
+	"github.com/solarlune/gocoro"
+	"time"
+)
+
+type ActorHitBehavior struct {
+	unit                 *Unit
+	originalDirection    mgl32.Quat
+	forwardAfterHit      mgl32.Quat
+	hitAnimationFinished bool
+	lerper               *util.Lerper[mgl32.Quat]
+	coroutine            gocoro.Coroutine
+}
+
+func (a *ActorHitBehavior) GetName() ActorState {
+	return ActorStateHit
+}
+
+func (a *ActorHitBehavior) Init(actor *Unit) {
+	a.unit = actor
+	a.coroutine = gocoro.NewCoroutine()
+	should(a.coroutine.Run(a.GetHitScript))
+}
+
+func (a *ActorHitBehavior) Execute(deltaTime float64) TransitionEvent {
+	if a.lerper != nil {
+		a.lerper.Update(deltaTime)
+		return EventNone
+	} else if a.coroutine.Running() {
+		a.coroutine.Update()
+		return EventNone
+	}
+
+	return EventAnimationFinished
+}
+
+func (a *ActorHitBehavior) GetHitScript(exe *gocoro.Execution) {
+	a.originalDirection = a.unit.Transform.GetRotation()
+
+	direction := a.unit.hitInfo.ForceOfImpact.Normalize().Mul(-1)
+	a.unit.turnToDirectionForAnimation(direction)
+
+	a.unit.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
+	should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation))
+
+	should(exe.YieldTime(time.Millisecond * 500))
+
+	a.forwardAfterHit = a.unit.Transform.GetRotation()
+	a.lerper = NewForwardLerper(a.unit, a.forwardAfterHit, a.originalDirection, 0.5)
+
+	should(exe.YieldFunc(a.lerper.IsDone))
+	a.lerper = nil
+}
+
+func NewForwardLerper(actor *Unit, start, finish mgl32.Quat, duration float64) *util.Lerper[mgl32.Quat] {
+	setValue := func(v mgl32.Quat) { actor.Transform.SetRotation(v) }
+	return util.NewLerper[mgl32.Quat](util.LerpQuatMgl, setValue, start, finish, duration)
+}

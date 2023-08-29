@@ -14,6 +14,18 @@ type ISOCamera struct {
 	camDistance   float32
 }
 
+func (c *ISOCamera) SetTransform(transform Transform) {
+	c.Transform = &transform
+}
+
+func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
+	// normalize x and y to -1..1
+	normalizedX := (float32(x)/float32(c.windowWidth))*2 - 1
+	normalizedY := ((float32(y)/float32(c.windowHeight))*2 - 1) * -1
+
+	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
+}
+
 func (c *ISOCamera) GetProjectionViewMatrix() mgl32.Mat4 {
 	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
 }
@@ -73,12 +85,17 @@ func (c *ISOCamera) MoveInDirection(delta float32, dir [2]int) {
 	c.updateTransform()
 }
 
-func (c *ISOCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
-	// normalize x and y to -1..1
-	normalizedX := (float32(x)/float32(c.windowWidth))*2 - 1
-	normalizedY := ((float32(y)/float32(c.windowHeight))*2 - 1) * -1
+func (c *ISOCamera) GetLookTarget() mgl32.Vec3 {
+	return c.lookTarget
+}
 
-	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
+func (c *ISOCamera) SetLookTarget(targetPos mgl32.Vec3) {
+	//end := NewTransform(targetPos.Sub(c.relativeLookTarget), c.GetRotation(), mgl32.Vec3{1, 1, 1})
+	//c.StartAnimation(*c.Transform, *end, 0.5)
+	// TESTCASE #1
+	//c.cameraPos = targetPos.Sub(c.relativeLookTarget)
+	c.lookTarget = targetPos
+	c.updateTransform()
 }
 
 func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
@@ -94,15 +111,6 @@ func (c *ISOCamera) ZoomOut(deltaTime float64, amount float64) {
 	if c.camDistance > 50 {
 		c.camDistance = 50
 	}
-	c.updateTransform()
-}
-
-func (c *ISOCamera) CenterOn(targetPos mgl32.Vec3) {
-	//end := NewTransform(targetPos.Sub(c.relativeLookTarget), c.GetRotation(), mgl32.Vec3{1, 1, 1})
-	//c.StartAnimation(*c.Transform, *end, 0.5)
-	// TESTCASE #1
-	//c.cameraPos = targetPos.Sub(c.relativeLookTarget)
-	c.lookTarget = targetPos
 	c.updateTransform()
 }
 

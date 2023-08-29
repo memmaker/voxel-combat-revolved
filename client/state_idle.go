@@ -14,5 +14,5 @@ func (a *ActorIdleBehavior) Init(actor *Unit) {
 }
 
 func (a *ActorIdleBehavior) Execute(deltaTime float64) TransitionEvent {
-	return a.actor.GetIdleEvents()
+	return a.actor.GetNextEvent()
 }

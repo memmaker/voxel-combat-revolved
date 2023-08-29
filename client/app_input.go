@@ -75,17 +75,9 @@ func (a *BattleClient) pollInput(deltaTime float64) (bool, [2]int) {
 	}
 
 	if a.Window.GetKey(glfw.KeyE) == glfw.Press {
-		if a.cameraIsFirstPerson {
-
-		} else {
-			a.isoCamera.RotateRight(deltaTime)
-		}
+		a.state().OnUpperRightAction(deltaTime)
 	} else if a.Window.GetKey(glfw.KeyQ) == glfw.Press {
-		if a.cameraIsFirstPerson {
-
-		} else {
-			a.isoCamera.RotateLeft(deltaTime)
-		}
+		a.state().OnUpperLeftAction(deltaTime)
 	}
 
 	return cameraMoved, movementVector
@@ -100,14 +92,16 @@ func (a *BattleClient) handleScrollEvents(xoff float64, yoff float64) {
 	})
 }
 func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-
+	/*
 	if key == glfw.KeyE && action == glfw.Press {
-		a.state().OnUpperRightAction()
+			a.state().OnUpperRightAction(0)
 	}
 
 	if key == glfw.KeyQ && action == glfw.Press {
-		a.state().OnUpperLeftAction()
+			a.state().OnUpperLeftAction(0)
 	}
+
+	*/
 	if key == glfw.KeyF10 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
 		a.SwitchToEditMap()

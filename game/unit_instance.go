@@ -200,6 +200,12 @@ func (u *UnitInstance) SetBlockPosition(pos voxel.Int3) {
 func (u *UnitInstance) UpdateMapPosition() {
     u.voxelMap.SetUnit(u, u.Transform.GetBlockPosition())
 }
+
+func (u *UnitInstance) ForceMapPosition(pos voxel.Int3, direction voxel.Int3) {
+    stance, forward := AutoChoseStanceAndForward(u.GetVoxelMap(), u.UnitID(), pos, direction)
+    offsets := HumanStanceFromID(stance).GetOccupiedBlockOffsets(forward)
+    u.voxelMap.SetUnitWithOffsets(u, pos, offsets)
+}
 func (u *UnitInstance) GetEyePosition() mgl32.Vec3 {
     return u.Transform.GetBlockPosition().ToBlockCenterVec3().Add(u.GetEyeOffset())
 }
@@ -394,11 +400,11 @@ func (u *UnitInstance) GetExactAP() float64 {
 
 // this is the official way to set the forward vector
 func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
-    currentForward := u.Transform.GetForward2DDiagonal()
+    currentForward := u.Transform.GetForward2DCardinal()
     if forward2d == currentForward {
         return
     }
-    u.Transform.SetForward2DDiagonal(forward2d)
+    u.Transform.SetForward2DCardinal(forward2d)
 }
 func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int3) {
     currentForward := u.Transform.GetForward2DDiagonal()

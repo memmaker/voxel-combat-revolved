@@ -160,6 +160,13 @@ func (t *Transform) GetForward2DDiagonal() voxel.Int3 {
     cardinalForward := gridForward.ToDiagonalDirection()
     return cardinalForward
 }
+
+func (t *Transform) GetForward2DCardinal() voxel.Int3 {
+    forward := t.GetForward()
+    gridForward := voxel.DirectionToGridInt3(forward)
+    cardinalForward := gridForward.ToCardinalDirection()
+    return cardinalForward
+}
 func (t *Transform) GetScale() mgl32.Vec3 {
     return t.scale
 }
@@ -171,6 +178,9 @@ func (t *Transform) setYRotationAngle(angle float32) {
 
 func (t *Transform) SetForward2DDiagonal(forward voxel.Int3) {
     t.SetForward2D(forward.ToDiagonalDirection().ToVec3())
+}
+func (t *Transform) SetForward2DCardinal(forward voxel.Int3) {
+    t.SetForward2D(forward.ToCardinalDirection().ToVec3())
 }
 func (t *Transform) SetForward2D(forward mgl32.Vec3) {
     forward = mgl32.Vec3{forward.X(), 0, forward.Z()}

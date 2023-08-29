@@ -15,8 +15,13 @@ func (a *BattleClient) handleCameraAnimation(elapsed float64) bool {
 	return true
 }
 
-func (a *BattleClient) StartCameraAnimation(start, end util.Transform, duration float64) {
+func (a *BattleClient) StartCameraTransition(start, end util.Camera, duration float64) {
 	if a.settings.EnableCameraAnimations {
-		a.cameraAnimation = util.NewCameraAnimation(start, end, duration, a.WindowWidth, a.WindowHeight)
+		a.cameraAnimation = util.NewCameraTransition(start, end, duration, a.WindowWidth, a.WindowHeight)
+	}
+}
+func (a *BattleClient) StartCameraLookAnimation(start util.Transform, end util.Camera, duration float64) {
+	if a.settings.EnableCameraAnimations {
+		a.cameraAnimation = util.NewCameraLookAnimation(start, end, duration, a.WindowWidth, a.WindowHeight)
 	}
 }

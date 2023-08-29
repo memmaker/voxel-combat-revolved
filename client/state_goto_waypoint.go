@@ -16,35 +16,39 @@ type UnitGotoWaypointBehavior struct {
 
 func should(err error) {
 	if err != nil {
-		println(fmt.Sprintf("[MovementScript] Error: %v", err))
+		println(fmt.Sprintf("[Script] Error: %v", err))
 	}
 }
-func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(unit *Unit) func(exe *gocoro.Execution) {
-	return func(exe *gocoro.Execution) {
-		for {
-			// do we need to start some special animation and thus wait for its completion?
-			if a.startAndWaitForAnimation() {
-				should(exe.YieldFunc(unit.GetModel().IsHoldingAnimation))
-				// reposition after climb & drop animation
-				wp := a.unit.GetWaypoint()
-				fp := a.unit.GetBlockPosition()
-				resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
-				a.snapToPosition(resolvedPosition)
-			}
+func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) {
+	// we start by setting the new map position, so that the user can go on
+	// with selecting the next unit and has the correct map state
 
-			// move until we reach a waypoint
-			unit.MoveTowardsWaypoint()
-			should(exe.YieldFunc(unit.HasReachedWaypoint))
+	a.unit.ForceMapPosition(a.unit.GetLastWaypoint(), a.unit.GetLastDirection())
 
-			// we reached a waypoint
-			if unit.IsLastWaypoint() {
-				a.snapToLastPosition(unit.GetWaypoint())
-				unit.SetVelocity(mgl32.Vec3{0, 0, 0})
-				break // end loop
-			} else { // not last waypoint
-				a.snapToPosition(unit.GetWaypoint())
-				unit.NextWaypoint()
-			}
+	for {
+		// do we need to start some special animation and thus wait for its completion?
+		if a.startAndWaitForAnimation() {
+			should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation))
+			// reposition after climb & drop animation
+			wp := a.unit.GetWaypoint()
+			fp := a.unit.GetBlockPosition()
+			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
+			a.snapToPosition(resolvedPosition)
+		}
+		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Start movement from %v to %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
+		// move until we reach a waypoint
+		a.unit.MoveTowardsWaypoint()
+		should(exe.YieldFunc(a.unit.HasReachedWaypoint))
+
+		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
+		// we reached a waypoint
+		if a.unit.IsLastWaypoint() {
+			a.snapToLastPosition(a.unit.GetWaypoint())
+			a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
+			break // end loop
+		} else { // not last waypoint
+			a.snapToPosition(a.unit.GetWaypoint())
+			a.unit.NextWaypoint()
 		}
 	}
 }
@@ -67,7 +71,6 @@ func (a *UnitGotoWaypointBehavior) snapToLastPosition(blockPosition voxel.Int3) 
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] Snapping to blockPosition: %v", blockPosition))
 	a.unit.SetBlockPosition(blockPosition)
 	a.unit.AutoSetStanceAndForwardAndUpdateMap()
-	a.unit.UpdateMapPosition()
 	//println(fmt.Sprintf("[UnitGotoWaypointBehavior] New block position: %v, New FootPosition: %v", a.unit.GetBlockPosition(), a.unit.GetPosition()))
 }
 
@@ -97,5 +100,5 @@ func (a *UnitGotoWaypointBehavior) GetName() ActorState {
 func (a *UnitGotoWaypointBehavior) Init(unit *Unit) {
 	a.unit = unit
 	a.coroutine = gocoro.NewCoroutine()
-	should(a.coroutine.Run(a.GetUnitMovementScript(unit)))
+	should(a.coroutine.Run(a.GetUnitMovementScript))
 }

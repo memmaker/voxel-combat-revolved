@@ -173,3 +173,26 @@ func EaseOutSine(x float64) float64 {
 func RandomChoice(choices []voxel.Int3) voxel.Int3 {
 	return choices[rand.Intn(len(choices))]
 }
+
+/*
+function easeInOutExpo(x: number): number {
+return x === 0
+  ? 0
+  : x === 1
+  ? 1
+  : x < 0.5 ? Math.pow(2, 20 * x - 10) / 2
+  : (2 - Math.pow(2, -20 * x + 10)) / 2;
+}
+*/
+
+func EaseInOutExpo(x float64) float64 {
+	if x == 0 {
+		return 0
+	} else if x == 1 {
+		return 1
+	} else if x < 0.5 {
+		return math.Pow(2, 20*x-10) / 2
+	} else {
+		return (2 - math.Pow(2, -20*x+10)) / 2
+	}
+}

@@ -17,6 +17,12 @@ type Camera interface {
 	SetPosition(position mgl32.Vec3)
 	SetRotation(rotation mgl32.Quat)
 	GetTransform() Transform
+	SetTransform(transform Transform)
+	GetPickingRayFromScreenPosition(x, y float64) (mgl32.Vec3, mgl32.Vec3)
+	RotateRight(deltaTime float64)
+	RotateLeft(deltaTime float64)
+	GetLookTarget() mgl32.Vec3
+	SetLookTarget(target mgl32.Vec3)
 }
 type CamAnimator struct {
 	currentAnimation *CameraAnimation
@@ -62,7 +68,6 @@ func (c *PerspectiveTransform) GetFrustumPlanes() []mgl32.Vec4 {
 		c4.Mul(c.farPlaneDist).Sub(c3),  // back
 	}
 }
-
 func (c *PerspectiveTransform) GetNearPlaneDist() float32 {
 	return c.nearPlaneDist
 }
@@ -118,18 +123,64 @@ type CameraAnimation struct {
 	end            Transform
 	duration       float64
 	animationTimer float64
+	endCamera      Camera
+	endLookTarget  mgl32.Vec3
+}
+
+func (c *CameraAnimation) SetLookTarget(target mgl32.Vec3) {
+	c.endLookTarget = target
+}
+
+func (c *CameraAnimation) SetTransform(transform Transform) {
+	c.Transform = &transform
+}
+
+func (c *CameraAnimation) GetLookTarget() mgl32.Vec3 {
+	return c.endLookTarget
+}
+
+func (c *CameraAnimation) RotateRight(deltaTime float64) {
+	c.endCamera.RotateRight(deltaTime)
+	c.end = c.endCamera.GetTransform()
+}
+
+func (c *CameraAnimation) RotateLeft(deltaTime float64) {
+	c.endCamera.RotateLeft(deltaTime)
+	c.end = c.endCamera.GetTransform()
+}
+
+func (c *CameraAnimation) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
+	// normalize x and y to -1..1
+	normalizedX := (float32(x)/float32(c.windowWidth))*2 - 1
+	normalizedY := ((float32(y)/float32(c.windowHeight))*2 - 1) * -1
+
+	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
 }
 
 func (c *CameraAnimation) GetProjectionViewMatrix() mgl32.Mat4 {
 	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
 }
 
-// NewCameraAnimation idea is, that this should also satisfy the Camera interface
-func NewCameraAnimation(start, end Transform, duration float64, width, height int) *CameraAnimation {
+// NewCameraTransition idea is, that this should also satisfy the Camera interface
+func NewCameraTransition(start, end Camera, duration float64, width, height int) *CameraAnimation {
+	c := &CameraAnimation{
+		PerspectiveTransform: NewDefaultPerspectiveTransform("Camera Animation", width, height),
+		start:                start.GetTransform(),
+		end:                  end.GetTransform(),
+		endCamera:            end,
+		duration:             duration,
+	}
+	c.init()
+	return c
+}
+
+func NewCameraLookAnimation(start Transform, end Camera, duration float64, width, height int) *CameraAnimation {
 	c := &CameraAnimation{
 		PerspectiveTransform: NewDefaultPerspectiveTransform("Camera Animation", width, height),
 		start:                start,
-		end:                  end,
+		end:           end.GetTransform(),
+		endCamera:     end,
+		endLookTarget: end.GetLookTarget(),
 		duration:             duration,
 	}
 	c.init()
@@ -157,7 +208,7 @@ func (c *CameraAnimation) Update(delta float64) {
 	c.animationTimer += delta
 	percent := Clamp(c.animationTimer/c.duration, 0, 1)
 
-	easingFactor := float32(EaseOutSine(percent))
+	easingFactor := float32(EaseOutQuart(percent))
 
 	currentPosition := Lerp3(c.start.GetPosition(), c.end.GetPosition(), float64(easingFactor))
 	currentRotation := c.end.GetRotation()

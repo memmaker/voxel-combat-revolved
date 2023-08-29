@@ -18,7 +18,29 @@ type FPSCamera struct {
 	lookSensitivity  float32
 	invertedY        bool
 	parent           Transformer
+	lookTarget       mgl32.Vec3
 }
+
+func (c *FPSCamera) SetTransform(transform Transform) {
+	c.Transform = &transform
+}
+
+func (c *FPSCamera) RotateRight(deltaTime float64) {
+
+}
+
+func (c *FPSCamera) RotateLeft(deltaTime float64) {
+
+}
+
+func (c *FPSCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32.Vec3, mgl32.Vec3) {
+	// normalize x and y to -1..1
+	normalizedX := (float32(x)/float32(c.windowWidth))*2 - 1
+	normalizedY := ((float32(y)/float32(c.windowHeight))*2 - 1) * -1
+
+	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
+}
+
 
 func (c *FPSCamera) GetProjectionViewMatrix() mgl32.Mat4 {
 	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
@@ -127,11 +149,16 @@ func (c *FPSCamera) UpDown(delta float32) mgl32.Vec3 {
 	return mgl32.Vec3{0, 1, 0}.Mul(delta)
 }
 
-func (c *FPSCamera) FPSLookAt(position mgl32.Vec3) {
+func (c *FPSCamera) SetLookTarget(position mgl32.Vec3) {
+	c.lookTarget = position
 	front := position.Sub(c.GetPosition()).Normalize()
 	c.rotatex = mgl32.RadToDeg(float32(math.Atan2(float64(front.Z()), float64(front.X()))))
 	c.rotatey = mgl32.RadToDeg(float32(math.Asin(float64(front.Y()))))
 	c.updateTransform()
+}
+
+func (c *FPSCamera) GetLookTarget() mgl32.Vec3 {
+	return c.lookTarget
 }
 
 func (c *FPSCamera) GetRotation() (float32, float32) {

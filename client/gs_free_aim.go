@@ -56,9 +56,9 @@ func (g *GameStateFreeAim) OnKeyPressed(key glfw.Key) {
 		g.engine.fpsCamera.ResetFOV()
 	} else if key == glfw.KeyTab {
 		startCam := g.engine.fpsCamera.GetTransform()
-		g.engine.fpsCamera.FPSLookAt(g.aimAtNextTarget())
-		endCam := g.engine.fpsCamera.GetTransform()
-		g.engine.StartCameraAnimation(startCam, endCam, 0.5)
+		g.engine.fpsCamera.SetLookTarget(g.aimAtNextTarget())
+		endCam := g.engine.fpsCamera
+		g.engine.StartCameraLookAnimation(startCam, endCam, 0.5)
 	}
 }
 func (g *GameStateFreeAim) aimAtNextTarget() mgl32.Vec3 {
@@ -128,11 +128,11 @@ func (g *GameStateFreeAim) Init(bool) {
 
 }
 
-func (g *GameStateFreeAim) OnUpperRightAction() {
+func (g *GameStateFreeAim) OnUpperRightAction(float64) {
 
 }
 
-func (g *GameStateFreeAim) OnUpperLeftAction() {
+func (g *GameStateFreeAim) OnUpperLeftAction(float64) {
 
 }
 
