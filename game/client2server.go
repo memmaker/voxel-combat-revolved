@@ -46,6 +46,9 @@ type FreeAimActionMessage struct {
 	TargetAngles [][2]float32
 	CamPos       mgl32.Vec3
 }
+type DebugRequest struct {
+    Command string
+}
 type MapLoadedMessage struct {
 }
 type PlacementMode string

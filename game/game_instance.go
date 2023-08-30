@@ -97,7 +97,6 @@ type GameInstance struct {
 	overwatch      map[voxel.Int3][]*UnitInstance
 	pressureMatrix map[uint64]map[uint64]float64
 }
-
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
 }

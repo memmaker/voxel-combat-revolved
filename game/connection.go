@@ -141,3 +141,8 @@ func (c *ServerConnection) MapLoaded() error {
 func (c *ServerConnection) ReloadAction(unitID uint64) error {
 	return c.send("Reload", UnitMessage{GameUnitID: unitID})
 }
+
+func (c *ServerConnection) DebugRequest(command string) error {
+    message := DebugRequest{Command: command}
+    return c.send("DebugRequest", message)
+}

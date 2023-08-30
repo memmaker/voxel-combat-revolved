@@ -135,14 +135,6 @@ func (p *Unit) Draw(shader *glhf.Shader) {
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	return p.UnitInstance.GetModel().RootNode.GetTransformMatrix()
 }
-func (p *Unit) HasReachedWaypoint() bool {
-	footPosition := p.GetPosition()
-	waypoint := p.GetWaypoint().ToBlockCenterVec3()
-	dist := waypoint.Sub(footPosition).Len()
-
-	reached := dist < PositionalTolerance
-	return reached
-}
 
 func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
@@ -267,7 +259,7 @@ func (p *Unit) IsInTheAir() bool {
 	if !p.GetVoxelMap().IsSolidBlockAt(blockPosBelow.X, blockPosBelow.Y, blockPosBelow.Z) {
 		return true
 	}
-	return footHeight > (float32(currentBlock.Y) + PositionalTolerance)
+	return footHeight > (float32(currentBlock.Y) + game.PositionalTolerance)
 }
 
 func (p *Unit) GetForward() mgl32.Vec3 {
@@ -278,9 +270,12 @@ func (p *Unit) IsAtLocation(destination voxel.Int3) bool {
 	targetPos := destination.ToBlockCenterVec3()
 	currentPos := p.GetPosition()
 	dist := targetPos.Sub(currentPos).Len()
-	return dist < PositionalTolerance
+	return dist < game.PositionalTolerance
 }
 
+func (p *Unit) HasReachedWaypoint() bool {
+	return p.IsAtLocation(p.GetWaypoint())
+}
 func NewClientUnit(instance *game.UnitInstance) *Unit {
 	// load model of unit
 	a := &Unit{

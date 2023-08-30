@@ -3,6 +3,7 @@ package client
 import (
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/memmaker/battleground/engine/util"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -102,6 +103,10 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	}
 
 	*/
+	if key == glfw.KeyF9 && action == glfw.Press {
+		//a.player.SetHeight(1.9 * 0.5)
+		util.MustSend(a.server.DebugRequest(""))
+	}
 	if key == glfw.KeyF10 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
 		a.SwitchToEditMap()
