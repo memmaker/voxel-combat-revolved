@@ -23,7 +23,7 @@ jobs:
         run: brew install glfw
 
       - name: Build Client
-        run: go build -o mac_client -tags client .
+        run: go build -o bt_mac_client -tags client . && ls -lah
         working-directory: /Users/runner/work/voxel-combat-revolved/voxel-combat-revolved
         env:
           CGO_ENABLED: 1
@@ -33,7 +33,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            /Users/runner/work/voxel-combat-revolved/mac_client
+            /Users/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_mac_client
 
   build-linux:
     needs: build-darwin
@@ -61,11 +61,11 @@ jobs:
           go-version: '1.21'
 
       - name: Build Client
-        run: CGOENABLED=1 go build -o linux_client -tags client .
+        run: CGOENABLED=1 go build -o bt_linux_client -tags client .
         working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
       - name: Build Server
-        run: CGOENABLED=1 go build -o linux_server -tags server . && ls -lah linux*
+        run: CGOENABLED=1 go build -o bt_linux_server -tags server . && ls -lah linux*
         working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
       - name: Release
@@ -73,8 +73,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_server
-            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/linux_client
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_server
+            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_client
 
       - name: Add binaries to release
         uses: svenstaro/upload-release-action@v2

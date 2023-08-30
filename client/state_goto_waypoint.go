@@ -36,9 +36,12 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 			a.snapToPosition(resolvedPosition)
 		}
 		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Start movement from %v to %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
+
 		// move until we reach a waypoint
-		a.unit.MoveTowardsWaypoint()
-		should(exe.YieldFunc(a.unit.HasReachedWaypoint))
+		should(exe.YieldFunc(func() bool {
+			a.unit.MoveTowardsWaypoint()
+			return a.unit.HasReachedWaypoint()
+		}))
 
 		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
 		// we reached a waypoint
