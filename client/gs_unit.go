@@ -47,18 +47,22 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if !g.engine.actionbar.HandleKeyEvent(key) {
 		if key == glfw.KeyTab {
 			g.nextUnit()
+			return
 		}
 	}
 	if key == glfw.KeyF1 {
 		g.engine.showDebugInfo = !g.engine.showDebugInfo
 		if !g.engine.showDebugInfo {
 			g.engine.textLabel = nil
+			return
 		} else {
 			g.engine.timer.Reset()
+			return
 		}
 	}
 	if key == glfw.KeyF2 {
 		g.engine.debugToggleWireFrame()
+		return
 	}
 }
 

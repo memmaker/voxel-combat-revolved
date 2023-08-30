@@ -691,3 +691,11 @@ func (m *Map) DebugGetAllOccupiedBlocks() []Int3 {
 	}
 	return result
 }
+
+func (m *Map) DebugGetOccupiedBlocks(id uint64) []Int3 {
+	blocks, exists := m.knownUnitPositions[id]
+	if !exists {
+		return []Int3{}
+	}
+	return blocks
+}

@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/game"
 )
 
 type Projectile struct {
@@ -59,7 +60,7 @@ func (p *Projectile) Update(delta float64) {
 	oldPos := p.GetPosition()
 	newPos := oldPos.Add(p.velocity.Mul(float32(delta)))
 	p.SetPosition(newPos)
-	arrived := newPos.Sub(p.destination).Len() < PositionalTolerance
+	arrived := newPos.Sub(p.destination).Len() < game.PositionalTolerance
 	traveled := newPos.Sub(p.startPos).Len()
 	distance := p.startPos.Sub(p.destination).Len()
 	tooFar := traveled > distance

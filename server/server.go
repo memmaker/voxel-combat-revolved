@@ -146,6 +146,11 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		if FromJson(message, &reloadMsg) {
 			b.Reload(id, reloadMsg.UnitID())
 		}
+	case "DebugRequest":
+		var debugRequestMsg game.DebugRequest
+		if FromJson(message, &debugRequestMsg) {
+			b.DebugRequest(id, debugRequestMsg)
+		}
 	case "EndTurn":
 		b.EndTurn(id)
 	}
@@ -516,26 +521,13 @@ func (b *BattleServer) AddWeapon(weaponDefinition game.WeaponDefinition) {
 }
 
 func (b *BattleServer) Reload(userID uint64, unitID uint64) {
-	user, exists := b.connectedClients[userID]
+	user, gameInstance, exists := b.getUserAndGame(userID)
 	if !exists {
-		println(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", userID))
 		return
 	}
 
-	gameID := user.activeGame
-	if gameID == "" {
-		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
-		return
-	}
-
-	gameInstance, exists := b.runningGames[gameID]
-	if !exists {
-		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
-		return
-	}
-
-	unit, exists := gameInstance.GetUnit(unitID)
-	if !exists {
+	unit, unitExists := gameInstance.GetUnit(unitID)
+	if !unitExists {
 		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
 		return
 	}
@@ -553,6 +545,39 @@ func (b *BattleServer) Reload(userID uint64, unitID uint64) {
 	unit.Reload()
 
 	b.respond(user, "Reload", game.UnitMessage{GameUnitID: unit.UnitID()})
+}
+
+func (b *BattleServer) DebugRequest(userID uint64, msg game.DebugRequest) {
+	user, gameInstance, exists := b.getUserAndGame(userID)
+	if !exists {
+		return
+	}
+
+	debugState := gameInstance.DebugGetCompleteState()
+	b.respond(user, "DebugResponse", debugState)
+}
+
+func (b *BattleServer) getUserAndGame(userID uint64) (*UserConnection, *game.GameInstance, bool) {
+	user, exists := b.connectedClients[userID]
+	if !exists {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "User does not exist"})
+		return nil, nil, false
+	}
+
+	gameID := user.activeGame
+
+	if gameID == "" {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "You are not in a game"})
+		return nil, nil, false
+	}
+
+	gameInstance, exists := b.runningGames[gameID]
+	if !exists {
+		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
+		return nil, nil, false
+	}
+
+	return user, gameInstance, true
 }
 
 func NewBattleServer() *BattleServer {

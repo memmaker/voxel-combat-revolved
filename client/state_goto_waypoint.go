@@ -28,7 +28,7 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 	for {
 		// do we need to start some special animation and thus wait for its completion?
 		if a.startAndWaitForAnimation() {
-			should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation))
+			should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation)) // this can fail, becaus the unit might have switched to an idle loop, without this triggering
 			// reposition after climb & drop animation
 			wp := a.unit.GetWaypoint()
 			fp := a.unit.GetBlockPosition()

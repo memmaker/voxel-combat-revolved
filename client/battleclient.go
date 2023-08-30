@@ -610,7 +610,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
         if util.FromJson(messageAsJson, &msg) {
             a.OnReload(msg)
         }
-
+    case "DebugResponse":
+        var msg game.CompleteGameState
+        if util.FromJson(messageAsJson, &msg) {
+            a.OnDebugGameStateRececeivedFromServer(msg)
+        }
     }
     a.state().OnServerMessage(msgType, messageAsJson)
 }
@@ -837,9 +841,9 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
         if a.selectedUnit == unit {
             a.SwitchToUnit(unit)
         }
-        a.isBusy = false
+        a.isBusy = false // this never happens under some circumstances
     }
-    destinationReached := func() bool {
+    destinationReached := func() bool { // problem: we are hanging here..
         return unit.IsAtLocation(destination)
     }
     a.scheduleWaitForCondition(destinationReached, changeLOS)
@@ -902,7 +906,7 @@ func (a *BattleClient) freezeIdleAnimations() {
 
 func (a *BattleClient) resumeIdleAnimations() {
     for _, unit := range a.GetAllUnits() {
-        if unit.IsActive() {
+        if unit.IsActive() && unit.IsPlayingIdleAnimation() {
             clientUnit, _ := a.GetClientUnit(unit.UnitID())
             clientUnit.StartStanceAnimation()
         }
@@ -986,4 +990,31 @@ func (a *BattleClient) SetSelectedUnit(unit *Unit) {
     a.unitSelector.SetBlockPosition(unit.GetBlockPosition())
 
     a.UpdateActionbarFor(unit)
+}
+
+func (a *BattleClient) OnDebugGameStateRececeivedFromServer(msg game.CompleteGameState) {
+    serverUnitsState := msg.AllUnits
+    anyDifferences := false
+    clientUnitsState := a.DebugGetCompleteState().AllUnits
+    println(fmt.Sprintf("[BattleClient] Client state with %d units.", len(clientUnitsState)))
+    for _, unitState := range clientUnitsState {
+        unitID := unitState.ID
+        serverUnitState, ok := serverUnitsState[unitID]
+        if !ok {
+            println(fmt.Sprintf("[BattleClient] Unit %d not found in server state", unitID))
+            continue
+        }
+        isTheSame, reasonForDifference := unitState.Equals(serverUnitState)
+        if !isTheSame {
+            println(fmt.Sprintf("[BattleClient] Unit %d has non-matching state:\n%s", unitID, reasonForDifference))
+            println(unitState.Diff(serverUnitState))
+            anyDifferences = true
+        }
+    }
+
+    if anyDifferences {
+        println("[BattleClient] Client state DIFFERS from server state")
+    } else {
+        println("[BattleClient] Client state MATCHES server state")
+    }
 }

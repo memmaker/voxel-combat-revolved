@@ -203,16 +203,20 @@ func (m *CompoundMesh) StopAnimations() {
 	m.holdAnimation = true
 }
 func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float64) {
-	println(fmt.Sprintf("[CompoundMesh] Setting animation loop %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
+	if m.currentAnimation != animationName {
+		println(fmt.Sprintf("[CompoundMesh] Changing animation loop %s", animationName))
+	}
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
 	m.loopAnimation = true
 	m.holdAnimation = false
 }
 func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
-	println(fmt.Sprintf("[CompoundMesh] Setting animation %s", animationName))
 	m.SetAnimationSpeed(speedFactor)
+	if m.currentAnimation != animationName {
+		println(fmt.Sprintf("[CompoundMesh] Changing animation %s", animationName))
+	}
 	m.currentAnimation = animationName
 	m.RootNode.SetAnimation(animationName)
 	// need millisec accuracy
