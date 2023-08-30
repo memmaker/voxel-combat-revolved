@@ -138,7 +138,7 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 func (p *Unit) HasReachedWaypoint() bool {
 	footPosition := p.GetPosition()
 	waypoint := p.GetWaypoint().ToBlockCenterVec3()
-	dist := footPosition.Sub(waypoint).Len()
+	dist := waypoint.Sub(footPosition).Len()
 
 	reached := dist < PositionalTolerance
 	return reached
