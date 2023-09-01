@@ -1,11 +1,14 @@
 # Annoying Bugs / Issues / Code Smells
  - Cannot look inside buildings with roofs
- - Weird stuff with turn ending and action points, triggered when using overwatch for everyone
- - Really start using those CoRoutines for stuff like animations: https://github.com/SolarLune/gocoro/blob/master/gocoro.go
- - Using IMgui (https://github.com/AllenDang/giu) for the editor
- - An enemy mysteriously disappeared (LoS?)
- - Dead unit's animation was reset to ready after moving
- - Still facing diagonally after firing, also enemies are facing diagonally after firing
+ - Own unit not visually dying, when hin by enemy units during fps view
+ - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
+
+# Particles
+ - We probably want to use TransformFeedback:
+ - https://mathweb.ucsd.edu/~sbuss/MathCG2/OpenGLsoft/ParticlesTransformFeedback/PTFexplain.html
+ - https://ogldev.org/www/tutorial28/tutorial28.html
+ - https://www.youtube.com/watch?v=ro4bDXcISms
+ - https://www.youtube.com/watch?v=OYYZQ1yiXOE
 
 # Design Guidelines
  - Turn based
@@ -19,6 +22,7 @@
  - Mission Objectives
  - Melee
  - Line Drawing (Paths & Line Of Sight)
+ - Make shots look good
  - Grenades: Arc drawing (Grenade throwing)
  - Explosions & Blood: Particle effects (Explosions & blood)
  - Lighting (Shadows?)
@@ -31,8 +35,9 @@
 # Flaws of turn-based XCOM style games in general
  - Boring movement when there is no enemy in sight
  - Nothing to do during the enemy turn
+ - Stormtrooper effect: No one hits anything
  - General slowness
- - Too complex, too many or not enough options
+ - Too complex or not complex enough, too many or not enough options
 
 
 # Where Phoenix Point failed
@@ -212,7 +217,9 @@ https://www.minetest.net/
  - Hands vs. Throws (What you pick before vs. what you use during the fight)
 
 
-# Never Forget:
+# Basic Knowledge
+ - Buffer Objects are just blocks of memory on the GPU
+ - Arrays have attributes and use an active buffer object
  - Transformation matrices are calculated in SRT order
  - MGL matrix multiplication is column major, so the matrices are multiplied from right to left
  - A camera view matrix is the inverse of a transformation matrix

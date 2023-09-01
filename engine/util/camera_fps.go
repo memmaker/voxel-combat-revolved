@@ -21,6 +21,10 @@ type FPSCamera struct {
 	lookTarget       mgl32.Vec3
 }
 
+func (c *FPSCamera) GetUp() mgl32.Vec3 {
+	return c.cameraUp
+}
+
 func (c *FPSCamera) SetTransform(transform Transform) {
 	c.Transform = &transform
 }

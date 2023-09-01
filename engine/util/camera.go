@@ -23,6 +23,7 @@ type Camera interface {
 	RotateLeft(deltaTime float64)
 	GetLookTarget() mgl32.Vec3
 	SetLookTarget(target mgl32.Vec3)
+	GetUp() mgl32.Vec3
 }
 type CamAnimator struct {
 	currentAnimation *CameraAnimation
@@ -125,6 +126,10 @@ type CameraAnimation struct {
 	animationTimer float64
 	endCamera      Camera
 	endLookTarget  mgl32.Vec3
+}
+
+func (c *CameraAnimation) GetUp() mgl32.Vec3 {
+	return c.endCamera.GetUp()
 }
 
 func (c *CameraAnimation) SetLookTarget(target mgl32.Vec3) {

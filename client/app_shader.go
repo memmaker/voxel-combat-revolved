@@ -31,7 +31,66 @@ var (
 
 	//go:embed shader/default.frag
 	defaultFragmentShaderSource string
+
+	//go:embed shader/quad_particle.geom
+	quadParticleGeometryShaderSource string
+
+	//go:embed shader/quad_particle.vert
+	quadParticleVertexShaderSource string
+
+	//go:embed shader/quad_particle.frag
+	quadParticleFragmentShaderSource string
+
+	//go:embed shader/transform_feedback.vert
+	transformFeedbackVertexShaderSource string
 )
+
+func loadTransformFeedbackShader() *glhf.Shader {
+	vertexFormat := glhf.AttrFormat{
+		{Name: "inputPosition", Type: glhf.Vec3},
+	}
+	uniformFormat := glhf.AttrFormat{}
+
+	tfShader, shaderErr := glhf.NewShader(
+		vertexFormat,
+		uniformFormat,
+		transformFeedbackVertexShaderSource,
+		"",
+		"",
+		[]string{"outputPosition"},
+	)
+	if shaderErr != nil {
+		panic(shaderErr)
+	}
+
+	return tfShader
+}
+
+func loadParticleShader() *glhf.Shader {
+	vertexFormat := glhf.AttrFormat{
+		{Name: "inputPosition", Type: glhf.Vec3},
+	}
+	uniformFormat := glhf.AttrFormat{
+		glhf.Attr{Name: "projection", Type: glhf.Mat4},
+		glhf.Attr{Name: "modelView", Type: glhf.Mat4},
+		glhf.Attr{Name: "camPos", Type: glhf.Vec3},
+		glhf.Attr{Name: "camUp", Type: glhf.Vec3},
+	}
+
+	particleShader, shaderErr := glhf.NewShader(
+		vertexFormat,
+		uniformFormat,
+		quadParticleVertexShaderSource,
+		quadParticleGeometryShaderSource,
+		quadParticleFragmentShaderSource,
+		nil,
+	)
+	if shaderErr != nil {
+		panic(shaderErr)
+	}
+
+	return particleShader
+}
 
 func (a *BattleClient) loadGuiShader() *glhf.Shader {
 	var (
@@ -46,7 +105,7 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 		shader *glhf.Shader
 	)
 	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, guiVertexShaderSource, guiFragmentShaderSource)
+	shader, err = glhf.NewBasicShader(vertexFormat, uniformFormat, guiVertexShaderSource, guiFragmentShaderSource)
 
 	if err != nil {
 		panic(err)
@@ -108,7 +167,7 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 		shader *glhf.Shader
 	)
 	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, defaultVertexShaderSource, defaultFragmentShaderSource)
+	shader, err = glhf.NewBasicShader(vertexFormat, uniformFormat, defaultVertexShaderSource, defaultFragmentShaderSource)
 
 	if err != nil {
 		panic(err)
@@ -141,7 +200,7 @@ func (a *BattleClient) loadLineShader() *glhf.Shader {
 		shader *glhf.Shader
 	)
 	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, lineVertexShaderSource, lineFragmentShaderSource)
+	shader, err = glhf.NewBasicShader(vertexFormat, uniformFormat, lineVertexShaderSource, lineFragmentShaderSource)
 
 	if err != nil {
 		panic(err)
@@ -171,7 +230,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	)
 
 	var err error
-	shader, err = glhf.NewShader(vertexFormat, uniformFormat, chunkVertexShaderSource, chunkFragmentShaderSource)
+	shader, err = glhf.NewBasicShader(vertexFormat, uniformFormat, chunkVertexShaderSource, chunkFragmentShaderSource)
 
 	if err != nil {
 		panic(err)

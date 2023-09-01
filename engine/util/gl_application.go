@@ -144,7 +144,7 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	}
 	*/
 
-	return win, func() {
+    return win, func() {
 		glfw.Terminate()
 	}
 }
