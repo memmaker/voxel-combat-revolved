@@ -57,6 +57,9 @@ type BattleClient struct {
     selectedUnit               *Unit
     aspectRatio                float32
     debugPositions             []voxel.Int3
+    transformFeedbackShader    *glhf.Shader
+    particleShader             *glhf.Shader
+    particles                  *TestParticleSystem
 }
 
 func (a *BattleClient) state() GameState {
@@ -133,6 +136,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
     myApp.guiShader = myApp.loadGuiShader()
+    myApp.transformFeedbackShader = loadTransformFeedbackShader()
+    myApp.particleShader = loadParticleShader()
     myApp.defaultShader = myApp.loadDefaultShader()
     myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
     myApp.textRenderer = etxt.NewOpenGLTextRenderer(myApp.guiShader)
@@ -156,6 +161,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
     myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
     myApp.lines = NewLineDrawer(myApp.defaultShader)
+    myApp.particles = NewTestParticleSystem(myApp.transformFeedbackShader, myApp.particleShader)
 
     myApp.SwitchToBlockSelector()
     /* Old Crosshair
@@ -167,6 +173,10 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     crosshair := NewCrosshair(myApp.defaultShader, myApp.fpsCamera)
     myApp.SetCrosshair(crosshair)
     myApp.SetConnection(con)
+
+    // DEBUG TEST STUFF
+
+
 
     return myApp
 }
@@ -287,6 +297,9 @@ func (a *BattleClient) Draw(elapsed float64) {
     a.drawLines(a.camera())
 
     a.draw2D()
+
+    a.particles.Draw(a.camera())
+
     stopDrawTimer()
 }
 

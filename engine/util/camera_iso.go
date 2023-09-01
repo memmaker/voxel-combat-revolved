@@ -14,6 +14,10 @@ type ISOCamera struct {
 	camDistance   float32
 }
 
+func (c *ISOCamera) GetUp() mgl32.Vec3 {
+	return c.up
+}
+
 func (c *ISOCamera) SetTransform(transform Transform) {
 	c.Transform = &transform
 }

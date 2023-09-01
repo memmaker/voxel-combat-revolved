@@ -17,12 +17,15 @@ type Shader struct {
 	uniformLoc []int32
 }
 
-// NewShader creates a new shader program from the specified vertex shader and fragment shader
+func NewBasicShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader string) (*Shader, error) {
+	return NewShader(vertexFmt, uniformFmt, vertexShader, "", fragmentShader, nil)
+}
+
+// NewShader creates a new shader program from the specified vertex, geometry and fragment shader
 // sources.
-//
 // Note that vertexShader and fragmentShader parameters must contain the source code, they're
 // not filenames.
-func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader string) (*Shader, error) {
+func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, geometryShader, fragmentShader string, outputVariables []string) (*Shader, error) {
 	shader := &Shader{
 		program: binder{
 			restoreLoc: gl.CURRENT_PROGRAM,
@@ -36,7 +39,7 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 	}
 
 	var errorMessages []string
-	var vshader, fshader uint32
+	var vshader, gshader, fshader uint32
 
 	// vertex shader
 	{
@@ -67,8 +70,37 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 		defer gl.DeleteShader(vshader)
 	}
 
+	// geometry shader
+	if geometryShader != "" {
+		gshader = gl.CreateShader(gl.GEOMETRY_SHADER)
+		src, free := gl.Strs(geometryShader)
+		defer free()
+		length := int32(len(geometryShader))
+		gl.ShaderSource(gshader, 1, src, &length)
+		AppendGLErrorMessage(errorMessages, "failed to set geometry shader source: %d")
+
+		gl.CompileShader(gshader)
+		AppendGLErrorMessage(errorMessages, "failed to compile geometry shader: %d")
+
+		var success int32
+		gl.GetShaderiv(gshader, gl.COMPILE_STATUS, &success)
+		if success == gl.FALSE {
+			var logLen int32
+			gl.GetShaderiv(gshader, gl.INFO_LOG_LENGTH, &logLen)
+
+			infoLog := make([]byte, logLen)
+			gl.GetShaderInfoLog(gshader, logLen, nil, &infoLog[0])
+			if len(infoLog) > 0 {
+				errorMessages = append(errorMessages, fmt.Sprintf("error compiling geometry shader: %s", string(infoLog)))
+			}
+			return nil, fmt.Errorf("error compiling geometry shader: %s", string(infoLog))
+		}
+
+		defer gl.DeleteShader(gshader)
+	}
+
 	// fragment shader
-	{
+	if fragmentShader != "" {
 		fshader = gl.CreateShader(gl.FRAGMENT_SHADER)
 		src, free := gl.Strs(fragmentShader)
 		defer free()
@@ -102,8 +134,22 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, fragmentShader st
 		gl.AttachShader(shader.program.obj, vshader)
 		AppendGLErrorMessage(errorMessages, "failed to attach vertex shader: %d")
 
-		gl.AttachShader(shader.program.obj, fshader)
-		AppendGLErrorMessage(errorMessages, "failed to attach fragment shader: %d")
+		if geometryShader != "" {
+			gl.AttachShader(shader.program.obj, gshader)
+			AppendGLErrorMessage(errorMessages, "failed to attach geometry shader: %d")
+		}
+
+		if fragmentShader != "" {
+			gl.AttachShader(shader.program.obj, fshader)
+			AppendGLErrorMessage(errorMessages, "failed to attach fragment shader: %d")
+		}
+
+		if outputVariables != nil && len(outputVariables) > 0 {
+			cstrs, free := gl.Strs(outputVariables...)
+			gl.TransformFeedbackVaryings(shader.program.obj, int32(len(outputVariables)), cstrs, gl.INTERLEAVED_ATTRIBS)
+			AppendGLErrorMessage(errorMessages, "failed to set transform feedback varyings: %d")
+			free()
+		}
 
 		gl.LinkProgram(shader.program.obj)
 		AppendGLErrorMessage(errorMessages, "failed to link shader program: %d")
@@ -261,3 +307,4 @@ func (s *Shader) Begin() {
 func (s *Shader) End() {
 	s.program.restore()
 }
+
