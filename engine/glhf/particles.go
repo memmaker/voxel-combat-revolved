@@ -7,12 +7,17 @@ import (
 )
 
 type ParticleProperties struct {
-    Position                          mgl32.Vec3
+    Position, PositionVariation mgl32.Vec3
     Velocity, VelocityVariation       mgl32.Vec3
     //RotationVariation                 float32
     ColorBegin, ColorEnd              mgl32.Vec4
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
+}
+
+func (p ParticleProperties) WithPosition(newPos mgl32.Vec3) ParticleProperties {
+    p.Position = newPos
+    return p
 }
 
 type Particle struct {
@@ -189,7 +194,9 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
 func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []GlFloat {
     return []GlFloat{
         // position x,y,z
-        GlFloat(props.Position.X()), GlFloat(props.Position.Y()), GlFloat(props.Position.Z()),
+        GlFloat(props.Position.X() + props.PositionVariation.X()*(rand.Float32()-0.5)),
+        GlFloat(props.Position.Y() + props.PositionVariation.Y()*(rand.Float32()-0.5)),
+        GlFloat(props.Position.Z() + props.PositionVariation.Z()*(rand.Float32()-0.5)),
         // lifetime left
         GlFloat(props.Lifetime),
         // velocity X
