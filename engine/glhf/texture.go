@@ -12,6 +12,12 @@ type Texture struct {
 	tex           binder
 	width, height int
 	smooth        bool
+    itemSizeX     int
+    itemSizeY     int
+    itemPaddingX  int
+    itemPaddingY  int
+    itemMarginX   int
+    itemMarginY   int
 }
 
 func NewSolidColorTexture(color [3]uint8) *Texture {
@@ -169,14 +175,39 @@ func (t *Texture) End() {
 	t.tex.restore()
 }
 
-func (t *Texture) GetUV(index byte, width, height int) (GlFloat, GlFloat, GlFloat, GlFloat) {
+func (t *Texture) GetUV(index uint16) (GlFloat, GlFloat, GlFloat, GlFloat) {
+    width := t.itemSizeX
+    height := t.itemSizeY
+
 	xCount := int(t.width / width)
 
-	topLeftU := GlFloat((int(index)%xCount)*width) / GlFloat(t.width)
-	topLeftV := GlFloat((int(index)/xCount)*height) / GlFloat(t.height)
+    leftBorder := t.itemMarginX + ((int(index) % xCount) * (width + t.itemPaddingX))
+    topBorder := t.itemMarginY + ((int(index) / xCount) * (height + t.itemPaddingY))
 
-	bottomRightU := GlFloat(((int(index)%xCount)+1)*width) / GlFloat(t.width)
-	bottomRightV := GlFloat(((int(index)/xCount)+1)*height) / GlFloat(t.height)
+    topLeftU := GlFloat(leftBorder) / GlFloat(t.width)
+    topLeftV := GlFloat(topBorder) / GlFloat(t.height)
+
+    bottomRightU := GlFloat(leftBorder+width) / GlFloat(t.width)
+    bottomRightV := GlFloat(topBorder+height) / GlFloat(t.height)
 
 	return topLeftU, topLeftV, bottomRightU, bottomRightV
+}
+
+func (t *Texture) SetAtlasItemSize(width int, height int) {
+    t.itemSizeX = width
+    t.itemSizeY = height
+}
+
+func (t *Texture) SetPaddingBetweenItems(x, y int) {
+    t.itemPaddingX = x
+    t.itemPaddingY = y
+}
+
+func (t *Texture) GetAtlasItemSize() (int, int) {
+    return t.itemSizeX, t.itemSizeY
+}
+
+func (t *Texture) SetAtlasMargin(x int, y int) {
+    t.itemMarginX = x
+    t.itemMarginY = y
 }

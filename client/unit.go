@@ -137,8 +137,6 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 	unitTransform := p.UnitInstance.Transform
 	trans := unitTransform.GetTranslationMatrix()
 	transInv := trans.Inv()
-	//rot := unitTransform.GetRotationMatrix()
-
 	// undo translation, apply rotation, reapply translation
 	return trans.Mul4(p.clientOnlyRotation.Mat4()).Mul4(transInv)
 }

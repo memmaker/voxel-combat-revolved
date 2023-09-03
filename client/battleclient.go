@@ -4,13 +4,13 @@ import (
     "fmt"
     "github.com/go-gl/gl/v4.1-core/gl"
     "github.com/go-gl/mathgl/mgl32"
-    "github.com/memmaker/battleground/engine/etxt"
     "github.com/memmaker/battleground/engine/glhf"
     "github.com/memmaker/battleground/engine/gui"
     "github.com/memmaker/battleground/engine/util"
     "github.com/memmaker/battleground/engine/voxel"
     "github.com/memmaker/battleground/game"
     "os"
+    "strings"
 )
 
 type BattleClient struct {
@@ -25,8 +25,7 @@ type BattleClient struct {
     lineShader                 *glhf.Shader
     guiShader                  *glhf.Shader
     defaultShader              *glhf.Shader
-    textLabel                  *etxt.TextMesh
-    textRenderer               *etxt.OpenGLTextRenderer
+    textLabel                  *util.BitmapFontMesh
     lastHitInfo                *game.RayCastHit
     projectiles                []*Projectile
     debugObjects               []PositionDrawable
@@ -112,6 +111,7 @@ type ParticleName int
 
 const (
     ParticlesBlood ParticleName = iota
+    ParticlesExplosion
 )
 
 func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, settings ClientSettings) *BattleClient {
@@ -139,16 +139,30 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
         //coroutine: gocoro.NewCoroutine(),
         particleProps: map[ParticleName]glhf.ParticleProperties{
             ParticlesBlood: {
-                Position:          mgl32.Vec3{1, 2, 1},
-                PositionVariation: mgl32.Vec3{0.5, 0.5, 0.5},
-                Velocity:          mgl32.Vec3{0, 0, 0},
+                Origin:               mgl32.Vec3{1, 2, 1},
+                PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
+                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0, 0, 0} },
+                VelocityVariation:    mgl32.Vec3{0.1, 0.1, 0.1},
+                SizeBegin:            0.1,
+                SizeVariation:        0.05,
+                SizeEnd:              0.05,
+                Lifetime:             0.2,
+                ColorBegin:           mgl32.Vec4{0.7, 0.01, 0.01, 1},
+                ColorEnd:             mgl32.Vec4{0.4, 0.01, 0.01, 1},
+            },
+            ParticlesExplosion: {
+                Origin:            mgl32.Vec3{1, 2, 1},
+                PositionVariation: mgl32.Vec3{0.02, 0.02, 0.02},
+                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 {
+                    return pos.Sub(origin).Normalize().Mul(20)
+                },
                 VelocityVariation: mgl32.Vec3{0.1, 0.1, 0.1},
                 SizeBegin:         0.1,
                 SizeVariation:     0.05,
-                SizeEnd:           0.05,
-                Lifetime:          0.2,
-                ColorBegin:        mgl32.Vec4{0.7, 0.01, 0.01, 1},
-                ColorEnd:          mgl32.Vec4{0.4, 0.01, 0.01, 1},
+                SizeEnd:           0.5,
+                Lifetime:          0.5,
+                ColorBegin:        mgl32.Vec4{1, 1, 1, 1},
+                ColorEnd:          mgl32.Vec4{0.2, 0.01, 0.01, 1},
             },
         },
         aspectRatio:   float32(settings.Width) / float32(settings.Height),
@@ -162,13 +176,19 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.particleShader = loadParticleShader()
     myApp.defaultShader = myApp.loadDefaultShader()
     myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
-    myApp.textRenderer = etxt.NewOpenGLTextRenderer(myApp.guiShader)
     myApp.DrawFunc = myApp.Draw
     myApp.UpdateFunc = myApp.Update
     myApp.KeyHandler = myApp.handleKeyEvents
     myApp.MousePosHandler = myApp.handleMousePosEvents
     myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
     myApp.ScrollHandler = myApp.handleScrollEvents
+
+    fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
+    //fontTextureAtlas := util.MustLoadTexture("./assets/fonts/The_Decision_8.png")
+    mapperFunc := func(r int32) uint16 { return atlasIndex[r] }
+
+    myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, mapperFunc)
+    myApp.textLabel.SetScale(2)
 
     myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.defaultShader)
     selectorColor := mgl32.Vec3{1, 1, 1}
@@ -194,7 +214,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     getProjectionFunc := func() mgl32.Mat4 {
         return myApp.camera().GetProjectionMatrix()
     }
-    myApp.particles = glhf.NewParticleSystem(50, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
+    myApp.particles = glhf.NewParticleSystem(5000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
     //myApp.particles.Emit(2)
     glError = gl.GetError()
     if glError != gl.NO_ERROR {
@@ -254,7 +274,10 @@ func (a *BattleClient) SetCrosshair(crosshair *Crosshair) {
 }
 
 func (a *BattleClient) Print(text string) {
-    a.textLabel = a.textRenderer.DrawText(text)
+    // split text into lines
+    // to lower
+    lines := strings.Split(text, "\n")
+    a.textLabel.SetText(lines)
 }
 
 func (a *BattleClient) Update(elapsed float64) {
@@ -270,6 +293,8 @@ func (a *BattleClient) Update(elapsed float64) {
        }
 
     */
+    //properties := a.particleProps[ParticlesBlood].WithOrigin(a.groundSelector.GetPosition())
+    //a.particles.Emit(properties, 1)
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
 
@@ -985,7 +1010,7 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
     // TODO: UpdateMapPosition blood particles
     // TODO: AddFlat blood decals on unit skin
-    bloodProps := a.particleProps[ParticlesBlood].WithPosition(entryWoundPosition)
+    bloodProps := a.particleProps[ParticlesBlood].WithOrigin(entryWoundPosition)
     a.particles.Emit(bloodProps, 10)
 }
 

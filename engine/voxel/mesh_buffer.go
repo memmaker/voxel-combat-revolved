@@ -47,7 +47,7 @@ func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureInd
 	compressedVertexTL := m.Compress(tl, normal, textureIndex, extraBits[3]) // we use 29 of 32 bits, only 18 are different between the vertices
 
 	// quad info:
-	// 4x Position (x,y,z) => 4x3x6 bits = 72 bits
+    // 4x Origin (x,y,z) => 4x3x6 bits = 72 bits
 	// 1x FaceType (normal) => 1x3 bits = 3 bits
 	// 1x TextureIndex => 1x8 bits = 8 bits
 	// -> 83 bits

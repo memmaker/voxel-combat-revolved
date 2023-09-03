@@ -53,7 +53,7 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyF1 {
 		g.engine.showDebugInfo = !g.engine.showDebugInfo
 		if !g.engine.showDebugInfo {
-			g.engine.textLabel = nil
+			g.engine.textLabel.Clear()
 			return
 		} else {
 			g.engine.timer.Reset()

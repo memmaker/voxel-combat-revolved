@@ -26,6 +26,17 @@ func LoadGLTFWithTextures(filename string) *CompoundMesh {
     return result
 }
 
+func LoadGLTFWithTexturesAndExtrusion(filename string) *CompoundMesh {
+    result := LoadGLTF(filename, nil)
+    doc, err := gltf.Open(filename)
+    if err != nil {
+        println(err.Error())
+        return nil
+    }
+    result.textures = tryLoadTextures(doc)
+    return result
+}
+
 func LoadGLTF(filename string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
     doc, err := gltf.Open(filename)
     if err != nil {
@@ -209,13 +220,13 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
         indicesAccessor := doc.Accessors[*subMesh.Indices]
         uvsAccessor := doc.Accessors[indexOfUVs]
 
-        var vertBuffer [][3]float32
+        var posBuffer [][3]float32
         var colorBuffer [][4]uint8
         var indicesBuffer []uint32
         var normalsBuffer [][3]float32
         var uvBuffer [][2]float32
         var err error
-        vertBuffer, err = modeler.ReadPosition(doc, positionAccessor, vertBuffer)
+        posBuffer, err = modeler.ReadPosition(doc, positionAccessor, posBuffer)
         if err != nil {
             println(err)
             return nil
@@ -244,7 +255,7 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
         }
         // merge them..
         var meshVertices []glhf.GlFloat
-        for i := 0; i < len(vertBuffer); i++ {
+        for i := 0; i < len(posBuffer); i++ {
             /*
             	{Name: "position", Type: glhf.Vec3},
             	{Name: "texCoord", Type: glhf.Vec2},
@@ -264,9 +275,9 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
             meshVertices = append(
                 meshVertices,
 
-                glhf.GlFloat(vertBuffer[i][0]),
-                glhf.GlFloat(vertBuffer[i][1]),
-                glhf.GlFloat(vertBuffer[i][2]),
+                glhf.GlFloat(posBuffer[i][0]),
+                glhf.GlFloat(posBuffer[i][1]),
+                glhf.GlFloat(posBuffer[i][2]),
 
                 glhf.GlFloat(uvBuffer[i][0]),
                 glhf.GlFloat(uvBuffer[i][1]),
