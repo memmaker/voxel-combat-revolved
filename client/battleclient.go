@@ -61,6 +61,7 @@ type BattleClient struct {
     transformFeedbackShader    *glhf.Shader
     particleShader             *glhf.Shader
     particles                  *glhf.ParticleSystem
+    particleProps              map[ParticleName]glhf.ParticleProperties
 }
 
 func (a *BattleClient) state() GameState {
@@ -107,6 +108,12 @@ type ClientInitializer struct {
     ControllingUserID uint64
 }
 
+type ParticleName int
+
+const (
+    ParticlesBlood ParticleName = iota
+)
+
 func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, settings ClientSettings) *BattleClient {
     window, terminateFunc := util.InitOpenGL(initInfos.Title, settings.Width, settings.Height)
     glApp := &util.GlApplication{
@@ -130,6 +137,20 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
         timer:         util.NewTimer(),
         settings:      settings,
         //coroutine: gocoro.NewCoroutine(),
+        particleProps: map[ParticleName]glhf.ParticleProperties{
+            ParticlesBlood: {
+                Position:          mgl32.Vec3{1, 2, 1},
+                PositionVariation: mgl32.Vec3{0.5, 0.5, 0.5},
+                Velocity:          mgl32.Vec3{0, 0, 0},
+                VelocityVariation: mgl32.Vec3{0.1, 0.1, 0.1},
+                SizeBegin:         0.1,
+                SizeVariation:     0.05,
+                SizeEnd:           0.05,
+                Lifetime:          0.2,
+                ColorBegin:        mgl32.Vec4{0.7, 0.01, 0.01, 1},
+                ColorEnd:          mgl32.Vec4{0.4, 0.01, 0.01, 1},
+            },
+        },
         aspectRatio:   float32(settings.Width) / float32(settings.Height),
     }
     myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
@@ -167,7 +188,13 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     if glError != gl.NO_ERROR {
         println("to do stuff before the particle system", glError)
     }
-    myApp.particles = glhf.NewParticleSystem(10, myApp.transformFeedbackShader, myApp.particleShader, myApp.camera().GetViewMatrix, myApp.camera().GetProjectionMatrix)
+    getViewFunc := func() mgl32.Mat4 {
+        return myApp.camera().GetViewMatrix()
+    }
+    getProjectionFunc := func() mgl32.Mat4 {
+        return myApp.camera().GetProjectionMatrix()
+    }
+    myApp.particles = glhf.NewParticleSystem(50, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
     //myApp.particles.Emit(2)
     glError = gl.GetError()
     if glError != gl.NO_ERROR {
@@ -303,13 +330,13 @@ func (a *BattleClient) Draw(elapsed float64) {
 
     a.drawWorld(a.camera())
 
-    a.drawDefaultShader(a.camera())
-
     a.drawLines(a.camera())
 
-    a.draw2D()
-
     a.particles.Draw(elapsed)
+
+    a.drawGUI()
+
+    a.drawDefaultShader(a.camera())
 
     stopDrawTimer()
 }
@@ -394,7 +421,7 @@ func (a *BattleClient) drawLines(cam util.Camera) {
     a.lineShader.End()
 }
 
-func (a *BattleClient) draw2D() {
+func (a *BattleClient) drawGUI() {
     a.guiShader.Begin()
 
     if a.textLabel != nil {
@@ -958,6 +985,8 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
     // TODO: UpdateMapPosition blood particles
     // TODO: AddFlat blood decals on unit skin
+    bloodProps := a.particleProps[ParticlesBlood].WithPosition(entryWoundPosition)
+    a.particles.Emit(bloodProps, 10)
 }
 
 func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {

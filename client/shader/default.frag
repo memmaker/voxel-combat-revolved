@@ -92,10 +92,11 @@ void drawCircle() {
     // to (-1..-1 -> 1..1)
     vec2 uvCentered = vec2((VertUV.x - 0.5) * 2.0, (VertUV.y - 0.5) * 2.0);
     float distance = 1.0 - length(uvCentered);// 0..2
-
+    /*
     if (distance < 0.0) {
         discard;
     }
+    */
     fragmentColor = vec4(smoothstep(0.0, fade, distance));
     fragmentColor *= vec4(smoothstep(thickness, thickness - fade, distance));
     //fragmentColor *= vec4(VertColor, 1.0);
