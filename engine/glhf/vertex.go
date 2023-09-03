@@ -5,7 +5,7 @@ import (
 	"runtime"
 
 	"github.com/faiface/mainthread"
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/pkg/errors"
 )
 
@@ -26,8 +26,8 @@ type VertexSlice[V any] struct {
 // MakeVertexSlice allocates a new vertex array with specified capacity and returns a VertexSlice
 // that points to it's first len elements.
 //
-// Note, that a vertex array is specialized for a specific shader and can't be used with another
-// shader.
+// Note, that a vertex array is specialized for a specific transformFeedbackShader and can't be used with another
+// transformFeedbackShader.
 func MakeVertexSlice(shader *Shader, len, cap int) *VertexSlice[GlFloat] {
 	if len > cap {
 		panic("failed to make vertex slice: len > cap")
@@ -126,7 +126,7 @@ func (vs *VertexSlice[V]) SetVertexData(data []V) {
 		fmt.Println(len(data)/vs.Stride(), vs.Len())
 		panic("set vertex data: wrong length of vertices")
 	}
-	vs.va.setVertexDataWithOffset(vs.startIndex, vs.endIndex, data)
+	vs.va.setVertexDataWithOffset(vs.startIndex, data)
 }
 
 // VertexData returns the contents of the VertexSlice.
@@ -241,7 +241,16 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 	emptyData := make([]byte, cap*va.stride) // creaty an empty buffer of the right size
 	gl.BufferData(gl.ARRAY_BUFFER, len(emptyData), gl.Ptr(emptyData), gl.STATIC_DRAW)
 
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("BufferData:", glError)
+	}
 	va.setAttributesForArray()
+
+	glError = gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("setAttributesForArray:", glError)
+	}
 
 	va.vao.restore()
 
@@ -252,7 +261,7 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 
 func (va *vertexArray[V]) setAttributesForArray() {
 	for i, attr := range va.format {
-		loc := gl.GetAttribLocation(va.shader.program.obj, gl.Str(attr.Name+"\x00")) // get variable location index from shader
+		loc := gl.GetAttribLocation(va.shader.program.obj, gl.Str(attr.Name+"\x00")) // get variable location index from transformFeedbackShader
 
 		var size int32
 		glType := uint32(gl.FLOAT)
@@ -284,10 +293,14 @@ func (va *vertexArray[V]) setAttributesForArray() {
 			startLocation := uint32(loc)
 			for matrixOffset := uint32(0); matrixOffset < 4; matrixOffset++ {
 				gl.VertexAttribPointerWithOffset(startLocation+matrixOffset, size, gl.FLOAT, false, int32(va.stride), uintptr(matrixOffset*uint32(size)*SizeOfFloat32))
-				gl.VertexAttribDivisor(startLocation+matrixOffset, 1)
+				gl.VertexAttribDivisor(startLocation+matrixOffset, 0)
 				gl.EnableVertexAttribArray(startLocation + matrixOffset)
 			}
 		} else if isFloat {
+			glError := gl.GetError()
+			if glError != gl.NO_ERROR {
+				println("Before VertexAttribPointerWithOffset:", glError)
+			}
 			gl.VertexAttribPointerWithOffset(
 				uint32(loc),
 				size,
@@ -296,7 +309,15 @@ func (va *vertexArray[V]) setAttributesForArray() {
 				int32(va.stride),
 				uintptr(va.offset[i]),
 			)
+			glError = gl.GetError()
+			if glError != gl.NO_ERROR {
+				println("After VertexAttribPointerWithOffset:", glError)
+			}
 			gl.EnableVertexAttribArray(uint32(loc)) // Enable and use this attribute for rendering the associated array
+			glError = gl.GetError()
+			if glError != gl.NO_ERROR {
+				println("EnableVertexAttribArray:", glError)
+			}
 		} else {
 			gl.VertexAttribIPointerWithOffset(
 				uint32(loc),
@@ -344,13 +365,17 @@ func (va *vertexArray[V]) draw(startIndex, endIndex int) {
 
 func (va *vertexArray[V]) drawFromFeedback() {
 	gl.DrawTransformFeedback(va.primitiveType, va.vbo.obj)
+	err := gl.GetError()
+	if err != gl.NO_ERROR {
+		println("draw from feedback error:", err)
+	}
 }
 func (va *vertexArray[V]) multiDraw(startIndices, counts []int32) {
 	gl.MultiDrawArrays(va.primitiveType, &startIndices[0], &counts[0], int32(len(startIndices)))
 }
 
-func (va *vertexArray[V]) setVertexDataWithOffset(i, j int, data []V) {
-	if j-i == 0 {
+func (va *vertexArray[V]) setVertexDataWithOffset(i int, data []V) {
+	if len(data) == 0 {
 		// avoid setting 0 bytes of buffer data
 		return
 	}

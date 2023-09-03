@@ -45,11 +45,46 @@ var (
 	transformFeedbackVertexShaderSource string
 )
 
+// v1 particles need for every instance:
+// position, 3 floats
+// lifetimeLeft, 1 float
+// velocity, 3 floats
+// size begin, 1 float
+
+/*
+{Name: "position", Type: glhf.Vec3},
+{Name: "lifetimeLeft", Type: glhf.Float},
+{Name: "velocity", Type: glhf.Vec3},
+{Name: "sizeBegin", Type: glhf.Float},
+*/
+
+// and as uniform:
+// color begin, end
+// size end
+// lifetime
+
+/* particle shader
+glhf.Attr{Name: "lifetime", Type: glhf.Float},
+glhf.Attr{Name: "colorBeginEnd", Type: glhf.Vec2},
+glhf.Attr{Name: "sizeEnd", Type: glhf.Float},
+*/
+
+type TransformFeedbackUniforms int32
+type ParticleUniforms int32
+
+const (
+	TransformFeedbackUniformDeltaTime = TransformFeedbackUniforms(0)
+)
 func loadTransformFeedbackShader() *glhf.Shader {
 	vertexFormat := glhf.AttrFormat{
-		{Name: "inputPosition", Type: glhf.Vec3},
+		{Name: "position", Type: glhf.Vec3},
+		{Name: "lifetimeLeft", Type: glhf.Float},
+		{Name: "velocity", Type: glhf.Vec3},
+		{Name: "sizeBegin", Type: glhf.Float},
 	}
-	uniformFormat := glhf.AttrFormat{}
+	uniformFormat := glhf.AttrFormat{
+		glhf.Attr{Name: "deltaTime", Type: glhf.Float},
+	}
 
 	tfShader, shaderErr := glhf.NewShader(
 		vertexFormat,
@@ -57,7 +92,7 @@ func loadTransformFeedbackShader() *glhf.Shader {
 		transformFeedbackVertexShaderSource,
 		"",
 		"",
-		[]string{"outputPosition"},
+		[]string{"VS_OUT.position\x00", "VS_OUT.lifetimeLeft\x00", "VS_OUT.velocity\x00", "VS_OUT.sizeBegin\x00"},
 	)
 	if shaderErr != nil {
 		panic(shaderErr)
@@ -68,13 +103,19 @@ func loadTransformFeedbackShader() *glhf.Shader {
 
 func loadParticleShader() *glhf.Shader {
 	vertexFormat := glhf.AttrFormat{
-		{Name: "inputPosition", Type: glhf.Vec3},
+		{Name: "position", Type: glhf.Vec3},
+		{Name: "lifetimeLeft", Type: glhf.Float},
+		{Name: "velocity", Type: glhf.Vec3},
+		{Name: "sizeBegin", Type: glhf.Float},
 	}
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "projection", Type: glhf.Mat4},
 		glhf.Attr{Name: "modelView", Type: glhf.Mat4},
-		glhf.Attr{Name: "camPos", Type: glhf.Vec3},
-		glhf.Attr{Name: "camUp", Type: glhf.Vec3},
+
+		glhf.Attr{Name: "lifetime", Type: glhf.Float},
+		glhf.Attr{Name: "colorBegin", Type: glhf.Vec4},
+		glhf.Attr{Name: "colorEnd", Type: glhf.Vec4},
+		glhf.Attr{Name: "sizeEnd", Type: glhf.Float},
 	}
 
 	particleShader, shaderErr := glhf.NewShader(

@@ -1,9 +1,23 @@
-#version 330 core
+#version 410 core
 
-in vec3 inputPosition;
-out vec3 outputPosition;
+uniform float deltaTime;
 
+in vec3 position;
+in float lifetimeLeft;
+in vec3 velocity;
+in float sizeBegin;
+
+out VS_OUT {
+    vec3 position;
+    float lifetimeLeft;
+    vec3 velocity;
+    float sizeBegin;
+} vs_out;
 
 void main() {
-    outputPosition = vec3(inputPosition.x + 0.01, inputPosition.y, inputPosition.z);
+    vs_out.position = position + (velocity * deltaTime);
+    vs_out.lifetimeLeft = max(lifetimeLeft - deltaTime, 0.0);
+
+    vs_out.velocity = velocity;
+    vs_out.sizeBegin = sizeBegin;
 }
