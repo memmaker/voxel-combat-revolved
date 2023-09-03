@@ -106,7 +106,8 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	if key == glfw.KeyF7 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
 
-		a.particles.Emit(a.particleProps[ParticlesBlood], 10)
+		properties := a.particleProps[ParticlesExplosion].WithOrigin(a.groundSelector.GetPosition())
+		a.particles.Emit(properties, 1000)
 	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)

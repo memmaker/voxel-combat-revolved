@@ -14,7 +14,7 @@ type MeshCollider struct {
 	velocity         mgl32.Vec3
 	VertexCount      int
 	VertexIndices    []uint32
-	VertexFormatSize uint32
+	VertexFormatComponents uint32
 }
 
 func (m *MeshCollider) SetName(name string) {
@@ -36,7 +36,7 @@ func (m *MeshCollider) IterateTrianglesTransformed(callback func(triangle [3]mgl
 		{Name: "normal", Type: glhf.Vec3},
 	*/
 
-	stride := uint32(m.VertexFormatSize)
+	stride := uint32(m.VertexFormatComponents)
 	if m.VertexIndices != nil {
 		for i := 0; i < len(m.VertexIndices); i += 3 {
 			a := transformVertex(m.VertexData[m.VertexIndices[i]*stride+0], m.VertexData[m.VertexIndices[i]*stride+1], m.VertexData[m.VertexIndices[i]*stride+2])

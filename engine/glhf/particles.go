@@ -7,16 +7,17 @@ import (
 )
 
 type ParticleProperties struct {
-    Position, PositionVariation mgl32.Vec3
-    Velocity, VelocityVariation       mgl32.Vec3
+    Origin, PositionVariation mgl32.Vec3
+    VelocityVariation         mgl32.Vec3
+    VelocityFromPosition      func(origin, pos mgl32.Vec3) mgl32.Vec3
     //RotationVariation                 float32
     ColorBegin, ColorEnd              mgl32.Vec4
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
 }
 
-func (p ParticleProperties) WithPosition(newPos mgl32.Vec3) ParticleProperties {
-    p.Position = newPos
+func (p ParticleProperties) WithOrigin(newPos mgl32.Vec3) ParticleProperties {
+    p.Origin = newPos
     return p
 }
 
@@ -47,8 +48,10 @@ type ParticleSystem struct {
     primitiveType           uint32
     xfbo                    uint32
 
-    getProjection func() mgl32.Mat4
-    getView       func() mgl32.Mat4
+    getProjection        func() mgl32.Mat4
+    getView              func() mgl32.Mat4
+    lastParticleLifetime float32
+    flatData             []GlFloat
 }
 
 // idea: use transform feedback, so we have two buffers and can swap them
@@ -63,6 +66,7 @@ func NewParticleSystem(particleCount int, tfShader, particleShader *Shader, getV
         getProjection:           getProj,
         getView:                 getView,
         frontIsSource:           true,
+        flatData: make([]GlFloat, particleCount*(particleShader.VertexFormat().Size()/SizeOfFloat32)),
     }
     v.initializeBuffers(particleCount)
     return v
@@ -98,6 +102,11 @@ func (v *ParticleSystem) initializeBuffers(particleCount int) {
     }
 }
 func (v *ParticleSystem) Draw(deltaTime float64) {
+    if v.lastParticleLifetime < 0.00 {
+        return
+    }
+    v.lastParticleLifetime -= float32(deltaTime)
+
     v.doTransfer(v.currentBackBuffer(), v.currentFrontBuffer(), deltaTime)
     v.draw(v.currentFrontBuffer())
     v.frontIsSource = !v.frontIsSource
@@ -162,22 +171,35 @@ func (v *ParticleSystem) draw(drawBuffer *vertexArray[GlFloat]) {
     v.particleShader.End()
 }
 func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
-    offset := v.currentOffset
+    if props.Lifetime > v.lastParticleLifetime {
+        v.lastParticleLifetime = props.Lifetime
+    }
+    vertexOffset := v.currentOffset
     if count >= v.maxVertexCount {
         count = v.maxVertexCount
-        offset = 0
+        vertexOffset = 0
     }
+
     buffer := v.currentBackBuffer()
-    flatData := make([]GlFloat, 0)
+    flatStride := v.particleShader.VertexFormat().Size() / SizeOfFloat32 // distance between two particles in a list of GlFloats == number of floats per particle/vertex
+
+    flatOffset := vertexOffset * flatStride
+    flatCount := count * flatStride
     for index := 0; index < count; index++ {
-        flatData = append(flatData, v.createParticle(props, index)...)
+        flatIndex := (flatOffset + index*flatStride) % len(v.flatData)
+        particle := v.createParticle(props, index)
+        for i := 0; i < flatStride; i++ {
+            v.flatData[flatIndex+i] = particle[i]
+        }
     }
     buffer.begin()
-    if offset+count > v.maxVertexCount {
-        buffer.setVertexDataWithOffset(offset, flatData[:v.maxVertexCount-offset])
-        buffer.setVertexDataWithOffset(0, flatData[v.maxVertexCount-offset:])
+    if vertexOffset+count > v.maxVertexCount {
+        flatSpaceAtTheEnd := (v.maxVertexCount - vertexOffset) * flatStride
+        flatRemainingSpace := flatCount - flatSpaceAtTheEnd
+        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatSpaceAtTheEnd])
+        buffer.setVertexDataWithOffset(0, v.flatData[0:flatRemainingSpace])
     } else {
-        buffer.setVertexDataWithOffset(offset, flatData)
+        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatCount])
     }
     buffer.end()
 
@@ -188,23 +210,27 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
     v.particleShader.SetUniformAttr(5, props.SizeEnd)
     v.particleShader.End()
 
-    v.currentOffset = (offset + count) % v.maxVertexCount
+    v.currentOffset = (vertexOffset + count) % v.maxVertexCount
 }
 
 func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []GlFloat {
+    x := props.Origin.X() + props.PositionVariation.X()*(rand.Float32()-0.5)
+    y := props.Origin.Y() + props.PositionVariation.Y()*(rand.Float32()-0.5)
+    z := props.Origin.Z() + props.PositionVariation.Z()*(rand.Float32()-0.5)
+    velocity := props.VelocityFromPosition(props.Origin, mgl32.Vec3{x, y, z})
     return []GlFloat{
         // position x,y,z
-        GlFloat(props.Position.X() + props.PositionVariation.X()*(rand.Float32()-0.5)),
-        GlFloat(props.Position.Y() + props.PositionVariation.Y()*(rand.Float32()-0.5)),
-        GlFloat(props.Position.Z() + props.PositionVariation.Z()*(rand.Float32()-0.5)),
+        GlFloat(x),
+        GlFloat(y),
+        GlFloat(z),
         // lifetime left
         GlFloat(props.Lifetime),
         // velocity X
-        GlFloat(props.Velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5)),
+        GlFloat(velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5)),
         // velocity Y
-        GlFloat(props.Velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5)),
+        GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5)),
         // velocity Z
-        GlFloat(props.Velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5)),
+        GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5)),
         // size begin
         GlFloat(props.SizeBegin + props.SizeVariation*(rand.Float32()-0.5)),
     }

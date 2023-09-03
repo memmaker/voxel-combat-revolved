@@ -71,7 +71,7 @@ func (a *ActionBar) SetActions(actions []ActionItem) {
 	for actionIndex, action := range actions {
 		drawX := glhf.GlFloat(xOffset + itemSize*float64(actionIndex) + paddingBetween*float64(actionIndex))
 		drawY := glhf.GlFloat(yPos)
-		leftU, topV, rightU, bottomV := a.texture.GetUV(action.TextureIndex, a.itemSizeX, a.itemSizeY)
+		leftU, topV, rightU, bottomV := a.texture.GetUV(uint16(action.TextureIndex))
 		// append pos x, pos y, tex u, tex v
 		vertexData = append(vertexData, []glhf.GlFloat{
 			// first triangle

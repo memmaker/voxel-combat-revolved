@@ -130,11 +130,11 @@ func (m *MeshNode) GetCurrentAnimation() *SimpleAnimationData {
 }
 
 func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
-	vertexFormatSize := uint32(shader.VertexFormat().Size() / 4)
+    vertexFormatComponents := uint32(shader.VertexFormat().Size() / 4)
 	if m.mesh != nil {
 		for _, subMesh := range m.mesh.SubMeshes {
 			m.drawPairs = append(m.drawPairs, &DrawPair{TextureIndex: subMesh.TextureIndex, VertexData: subMesh.ToVertexSlice(shader)})
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatSize: vertexFormatSize, TransformFunc: m.GetTransformMatrix})
+            m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatComponents: vertexFormatComponents, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
@@ -144,10 +144,10 @@ func (m *MeshNode) ConvertVertexData(shader *glhf.Shader) {
 }
 
 func (m *MeshNode) CreateColliders() {
-	vertexFormatSize := uint32(11)
+    vertexFormatComponents := uint32(11)
 	if m.mesh != nil {
 		for _, subMesh := range m.mesh.SubMeshes {
-			m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatSize: vertexFormatSize, TransformFunc: m.GetTransformMatrix})
+            m.colliders = append(m.colliders, &MeshCollider{VertexData: subMesh.VertexData, VertexCount: subMesh.VertexCount, VertexIndices: subMesh.Indices, VertexFormatComponents: vertexFormatComponents, TransformFunc: m.GetTransformMatrix})
 		}
 		m.mesh = nil
 	}
