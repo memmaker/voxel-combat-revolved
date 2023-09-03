@@ -359,9 +359,9 @@ func (a *BattleClient) Draw(elapsed float64) {
 
     a.particles.Draw(elapsed)
 
-    a.drawGUI()
-
     a.drawDefaultShader(a.camera())
+
+    a.drawGUI()
 
     stopDrawTimer()
 }
@@ -414,7 +414,9 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
     }
 
     if a.cameraIsFirstPerson && a.crosshair != nil && !a.crosshair.IsHidden() {
+        gl.DepthMask(false)
         a.crosshair.Draw()
+        gl.DepthMask(true)
     } else {
         a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
         a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
