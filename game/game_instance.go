@@ -383,7 +383,8 @@ func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damag
 	projectileBaseDamage = attacker.GetWeapon().AdjustDamageForDistance(float32(distance), projectileBaseDamage)
 
 	projectileBaseDamage = int(math.Ceil(float64(projectileBaseDamage) * damageModifier))
-	// state changes here
+
+    // state changes here
 	// 1. apply damage
 	lethal := g.ApplyDamage(attacker, hitUnit, projectileBaseDamage, rayHitInfo.BodyPart)
 	// 2. change unit orientation

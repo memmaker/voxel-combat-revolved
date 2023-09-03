@@ -11,17 +11,18 @@ import (
 
 type Unit struct {
 	*game.UnitInstance
-	velocity         mgl32.Vec3
-	currentWaypoint  int
-	animationSpeed   float32
-	waypointTimer    float64
-	state            AnimationState
-	transition       *TransitionTable
-	hitInfo          HitInfo
-	removeActor      bool
-	eventQueue       []TransitionEvent
-	currentPath      []voxel.Int3
-	controlledByUser bool
+	velocity           mgl32.Vec3
+	currentWaypoint    int
+	animationSpeed     float32
+	waypointTimer      float64
+	state              AnimationState
+	transition         *TransitionTable
+	hitInfo            HitInfo
+	removeActor        bool
+	eventQueue         []TransitionEvent
+	currentPath        []voxel.Int3
+	controlledByUser   bool
+	clientOnlyRotation mgl32.Quat
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -133,7 +134,13 @@ func (p *Unit) Draw(shader *glhf.Shader) {
 }
 
 func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
-	return p.UnitInstance.GetModel().RootNode.GetTransformMatrix()
+	unitTransform := p.UnitInstance.Transform
+	trans := unitTransform.GetTranslationMatrix()
+	transInv := trans.Inv()
+	//rot := unitTransform.GetRotationMatrix()
+
+	// undo translation, apply rotation, reapply translation
+	return trans.Mul4(p.clientOnlyRotation.Mat4()).Mul4(transInv)
 }
 
 func (p *Unit) SetPath(path []voxel.Int3) {
@@ -166,9 +173,17 @@ func (p *Unit) TurnTowardsWaypoint() {
 	p.turnToDiagonalDirectionForAnimation(direction)
 }
 func (p *Unit) turnToDirectionForAnimation(direction mgl32.Vec3) {
-	p.UnitInstance.Transform.SetForward2D(direction) // ok, because this is temporary
+	currentForwards := p.GetForward()
+	direction = mgl32.Vec3{direction.X(), 0, direction.Z()}
+	p.clientOnlyRotation = mgl32.QuatBetweenVectors(currentForwards, direction)
 }
 
+func (p *Unit) setClientOnlyRotation(direction mgl32.Quat) {
+	p.clientOnlyRotation = direction
+}
+func (p *Unit) resetClientOnlyRotation() {
+	p.clientOnlyRotation = mgl32.QuatIdent()
+}
 func (p *Unit) turnToDiagonalDirectionForAnimation(direction voxel.Int3) {
 	p.UnitInstance.Transform.SetForward2DDiagonal(direction) // ok, because this is temporary
 }
@@ -276,6 +291,10 @@ func (p *Unit) IsAtLocation(destination voxel.Int3) bool {
 func (p *Unit) HasReachedWaypoint() bool {
 	return p.IsAtLocation(p.GetWaypoint())
 }
+
+func (p *Unit) GetClientOnlyRotation() mgl32.Quat {
+	return p.clientOnlyRotation
+}
 func NewClientUnit(instance *game.UnitInstance) *Unit {
 	// load model of unit
 	a := &Unit{
@@ -283,7 +302,9 @@ func NewClientUnit(instance *game.UnitInstance) *Unit {
 		animationSpeed:  4,
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
+		clientOnlyRotation: mgl32.QuatIdent(),
 	}
+	instance.Transform.SetParent(a)
 	a.SetState(ActorStateIdle)
 	return a
 }

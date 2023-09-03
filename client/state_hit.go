@@ -10,7 +10,6 @@ import (
 
 type ActorHitBehavior struct {
 	unit                 *Unit
-	originalDirection    mgl32.Quat
 	forwardAfterHit      mgl32.Quat
 	hitAnimationFinished bool
 	lerper               *util.Lerper[mgl32.Quat]
@@ -40,8 +39,6 @@ func (a *ActorHitBehavior) Execute(deltaTime float64) TransitionEvent {
 }
 
 func (a *ActorHitBehavior) GetHitScript(exe *gocoro.Execution) {
-	a.originalDirection = a.unit.Transform.GetRotation()
-
 	direction := a.unit.hitInfo.ForceOfImpact.Normalize().Mul(-1)
 	a.unit.turnToDirectionForAnimation(direction)
 
@@ -50,14 +47,14 @@ func (a *ActorHitBehavior) GetHitScript(exe *gocoro.Execution) {
 
 	should(exe.YieldTime(time.Millisecond * 500))
 
-	a.forwardAfterHit = a.unit.Transform.GetRotation()
-	a.lerper = NewForwardLerper(a.unit, a.forwardAfterHit, a.originalDirection, 0.5)
+	a.forwardAfterHit = a.unit.GetClientOnlyRotation()
+	a.lerper = NewForwardLerper(a.unit, a.forwardAfterHit, mgl32.QuatIdent(), 0.5)
 
 	should(exe.YieldFunc(a.lerper.IsDone))
 	a.lerper = nil
 }
 
 func NewForwardLerper(actor *Unit, start, finish mgl32.Quat, duration float64) *util.Lerper[mgl32.Quat] {
-	setValue := func(v mgl32.Quat) { actor.Transform.SetRotation(v) }
+	setValue := func(v mgl32.Quat) { actor.setClientOnlyRotation(v) }
 	return util.NewLerper[mgl32.Quat](util.LerpQuatMgl, setValue, start, finish, duration)
 }
