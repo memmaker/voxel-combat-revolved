@@ -1,8 +1,10 @@
 package client
 
 import (
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
 	"log"
 	"os"
@@ -103,6 +105,21 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	}
 
 	*/
+	if key == glfw.KeyF7 && action == glfw.Press {
+		//a.player.SetHeight(1.9 * 0.5)
+		testProps := glhf.ParticleProperties{
+			Position:          mgl32.Vec3{1, 2, 1},
+			Velocity:          mgl32.Vec3{0, 0, 0},
+			VelocityVariation: mgl32.Vec3{1, 0, 1},
+			SizeBegin:         1,
+			SizeVariation:     0.0,
+			SizeEnd:           0.1,
+			Lifetime:          10,
+			ColorBegin:        mgl32.Vec4{0, 1, 0, 1},
+			ColorEnd:          mgl32.Vec4{1, 0, 0, 1},
+		}
+		a.particles.Emit(testProps, 2)
+	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
 		util.MustSend(a.server.DebugRequest(""))

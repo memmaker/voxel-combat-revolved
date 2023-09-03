@@ -2,6 +2,7 @@ package client
 
 import (
     "fmt"
+    "github.com/go-gl/gl/v4.1-core/gl"
     "github.com/go-gl/mathgl/mgl32"
     "github.com/memmaker/battleground/engine/etxt"
     "github.com/memmaker/battleground/engine/glhf"
@@ -59,7 +60,7 @@ type BattleClient struct {
     debugPositions             []voxel.Int3
     transformFeedbackShader    *glhf.Shader
     particleShader             *glhf.Shader
-    particles                  *TestParticleSystem
+    particles                  *glhf.ParticleSystem
 }
 
 func (a *BattleClient) state() GameState {
@@ -161,7 +162,17 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
     myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
     myApp.lines = NewLineDrawer(myApp.defaultShader)
-    myApp.particles = NewTestParticleSystem(myApp.transformFeedbackShader, myApp.particleShader)
+
+    glError := gl.GetError()
+    if glError != gl.NO_ERROR {
+        println("to do stuff before the particle system", glError)
+    }
+    myApp.particles = glhf.NewParticleSystem(10, myApp.transformFeedbackShader, myApp.particleShader, myApp.camera().GetViewMatrix, myApp.camera().GetProjectionMatrix)
+    //myApp.particles.Emit(2)
+    glError = gl.GetError()
+    if glError != gl.NO_ERROR {
+        println("failed to create NewParticleSystem:", glError)
+    }
 
     myApp.SwitchToBlockSelector()
     /* Old Crosshair
@@ -298,7 +309,7 @@ func (a *BattleClient) Draw(elapsed float64) {
 
     a.draw2D()
 
-    a.particles.Draw(a.camera())
+    a.particles.Draw(elapsed)
 
     stopDrawTimer()
 }

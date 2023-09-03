@@ -15,7 +15,7 @@ func (af AttrFormat) Size() int {
 	return total
 }
 
-// Attr represents an arbitrary OpenGL attribute, such as a vertex attribute or a shader
+// Attr represents an arbitrary OpenGL attribute, such as a vertex attribute or a transformFeedbackShader
 // uniform attribute.
 type Attr struct {
 	Name string
