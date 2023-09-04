@@ -1,6 +1,11 @@
 package glhf
 
 import (
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
 	"runtime"
 
 	"github.com/faiface/mainthread"
@@ -210,4 +215,32 @@ func (t *Texture) GetAtlasItemSize() (int, int) {
 func (t *Texture) SetAtlasMargin(x int, y int) {
     t.itemMarginX = x
     t.itemMarginY = y
+}
+
+func (t *Texture) SaveAsPNG(filename string) {
+	t.tex.bind()
+	pixels := t.Pixels(0, 0, t.width, t.height)
+	t.tex.restore()
+	
+	outImage := image.NewNRGBA(image.Rect(0, 0, t.width, t.height))
+	for x := 0; x < t.width; x++ {
+		for y := 0; y < t.height; y++ {
+			outImage.Set(x, y, color.NRGBA{
+				R: pixels[(y*t.width+x)*4],
+				G: pixels[(y*t.width+x)*4+1],
+				B: pixels[(y*t.width+x)*4+2],
+				A: pixels[(y*t.width+x)*4+3],
+			})
+		}
+	}
+
+	file, err := os.Create(filename)
+	if err != nil {
+		println(fmt.Sprintf("could not create %s", filename))
+	}
+	err = png.Encode(file, outImage)
+	if err != nil {
+		println(fmt.Sprintf("could not encode %s", filename))
+	}
+	file.Close()
 }

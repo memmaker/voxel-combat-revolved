@@ -10,11 +10,11 @@ type BitmapFontMesh struct {
     pos                     mgl32.Vec3
     shader                  *glhf.Shader
     texture                 *glhf.Texture
-    characterToTextureIndex func(character int32) uint16
+    characterToTextureIndex func(character rune) uint16
     scale                   int
 }
 
-func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(character int32) uint16) *BitmapFontMesh {
+func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(character rune) uint16) *BitmapFontMesh {
     b := &BitmapFontMesh{
         shader:                  shader,
         texture:                 texture,
@@ -24,7 +24,7 @@ func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(c
     return b
 }
 
-func (t *BitmapFontMesh) SetAtlasFontMapper(mapper func(character int32) uint16) {
+func (t *BitmapFontMesh) SetAtlasFontMapper(mapper func(character rune) uint16) {
     t.characterToTextureIndex = mapper
 }
 func (t *BitmapFontMesh) SetScale(scale int) {
@@ -57,8 +57,6 @@ func (t *BitmapFontMesh) SetText(text []string) {
             }
             leftU, topV, rightU, bottomV := t.texture.GetUV(t.characterToTextureIndex(character))
 
-            curDrawPos = curDrawPos.Add(mgl32.Vec3{float32(charWidth + paddingBetweenCharacters), 0, 0})
-
             rawVertices = append(rawVertices, []glhf.GlFloat{
                 // first triangle
                 // Top-left
@@ -76,6 +74,8 @@ func (t *BitmapFontMesh) SetText(text []string) {
                 // Top-right
                 glhf.GlFloat(curDrawPos.X()) + gWidth, glhf.GlFloat(curDrawPos.Y()), rightU, topV,
             }...)
+
+            curDrawPos = curDrawPos.Add(mgl32.Vec3{float32(charWidth + paddingBetweenCharacters), 0, 0})
         }
 
         curDrawPos = mgl32.Vec3{t.pos.X(), curDrawPos.Y() + float32(charHeight+paddingBetweenLines), t.pos.Z()}
