@@ -5,7 +5,8 @@ in vec2 VertUV;// tl: 0,0 tr: 1,0 bl: 0,1 br: 1,1
 in vec3 VertColor;
 in vec3 VertNormal;
 
-uniform mat4 camProjectionView;
+uniform mat4 camView;
+uniform mat4 camProjection;
 uniform mat4 modelTransform;
 
 uniform int drawMode;

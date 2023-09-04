@@ -164,19 +164,21 @@ const (
 	ShaderDrawColoredFadingQuads = int32(2)
 	ShaderDrawCircle             = int32(3)
 	ShaderDrawLine               = int32(4)
+	ShaderDrawBillboards         = int32(5)
 )
 const (
-	ShaderProjectionViewMatrix = 0
-	ShaderModelMatrix          = 1
-	ShaderDrawMode             = 2
-	ShaderDrawColor            = 3
-	ShaderThickness            = 4
-	ShaderViewport             = 5
-	ShaderGlobalLightDirection = 6
-	ShaderGlobalLightColor     = 7
-	ShaderLightPosition        = 8
-	ShaderLightColor           = 9
-	ShaderMultiPurpose         = 10
+	ShaderViewMatrix           = 0
+	ShaderProjectionMatrix     = 1
+	ShaderModelMatrix          = 2
+	ShaderDrawMode             = 3
+	ShaderDrawColor            = 4
+	ShaderThickness            = 5
+	ShaderViewport             = 6
+	ShaderGlobalLightDirection = 7
+	ShaderGlobalLightColor     = 8
+	ShaderLightPosition        = 9
+	ShaderLightColor           = 10
+	ShaderMultiPurpose         = 11
 )
 
 func (a *BattleClient) loadDefaultShader() *glhf.Shader {
@@ -188,22 +190,23 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 			{Name: "normal", Type: glhf.Vec3},
 		}
 		uniformFormat = glhf.AttrFormat{
-			glhf.Attr{Name: "camProjectionView", Type: glhf.Mat4}, // 0
-			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4},    // 1
+			glhf.Attr{Name: "camView", Type: glhf.Mat4},        // 0
+			glhf.Attr{Name: "camProjection", Type: glhf.Mat4},  // 1
+			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4}, // 2
 
-			glhf.Attr{Name: "drawMode", Type: glhf.Int}, // 2
-			glhf.Attr{Name: "color", Type: glhf.Vec4},   // 3
+			glhf.Attr{Name: "drawMode", Type: glhf.Int}, // 3
+			glhf.Attr{Name: "color", Type: glhf.Vec4},   // 4
 
-			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 4
+			glhf.Attr{Name: "thickness", Type: glhf.Float}, // 5
 
-			glhf.Attr{Name: "viewport", Type: glhf.Vec2}, // 5
+			glhf.Attr{Name: "viewport", Type: glhf.Vec2}, // 6
 
-			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 6
-			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 7
+			glhf.Attr{Name: "global_light_direction", Type: glhf.Vec3}, // 7
+			glhf.Attr{Name: "global_light_color", Type: glhf.Vec3},     // 8
 
-			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 8
-			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 9
-			glhf.Attr{Name: "multi", Type: glhf.Float},         // 10
+			glhf.Attr{Name: "light_position", Type: glhf.Vec3}, // 9
+			glhf.Attr{Name: "light_color", Type: glhf.Vec3},    // 10
+			glhf.Attr{Name: "multi", Type: glhf.Float},         // 11
 		}
 		shader *glhf.Shader
 	)
@@ -215,7 +218,8 @@ func (a *BattleClient) loadDefaultShader() *glhf.Shader {
 	}
 
 	shader.Begin()
-	shader.SetUniformAttr(ShaderProjectionViewMatrix, a.isoCamera.GetProjectionViewMatrix())
+	shader.SetUniformAttr(ShaderViewMatrix, a.isoCamera.GetViewMatrix())
+	shader.SetUniformAttr(ShaderProjectionMatrix, a.isoCamera.GetProjectionMatrix())
 
 	lightPos := mgl32.Vec3{1, 5, 0}
 	shader.SetUniformAttr(ShaderLightPosition, lightPos)
@@ -278,10 +282,10 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	}
 
 	shader.Begin()
-	shader.SetUniformAttr(ShaderProjectionViewMatrix, a.isoCamera.GetProjectionViewMatrix())
+	shader.SetUniformAttr(0, a.isoCamera.GetProjectionViewMatrix())
 
 	model := mgl32.Ident4()
-	shader.SetUniformAttr(ShaderModelMatrix, model)
+	shader.SetUniformAttr(1, model)
 
 	lightPos := mgl32.Vec3{1, 5, 0}
 	shader.SetUniformAttr(2, lightPos)

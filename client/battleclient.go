@@ -183,10 +183,13 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
     myApp.ScrollHandler = myApp.handleScrollEvents
 
-    fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
-    //fontTextureAtlas := util.MustLoadTexture("./assets/fonts/The_Decision_8.png")
-    mapperFunc := func(r int32) uint16 { return atlasIndex[r] }
+    //fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
+    fontTextureAtlas := util.MustLoadTexture("./assets/fonts/quadratica.png")
+    fontTextureAtlas.SetAtlasItemSize(8, 14)
+    atlasIndex := ReadAtlasIndex("./assets/fonts/quadratica.idx")
+    //fontTextureAtlas.SaveAsPNG("./assets/fonts/quadratica.png")
 
+    mapperFunc := func(r rune) uint16 { return atlasIndex[r] }
     myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, mapperFunc)
     myApp.textLabel.SetScale(2)
 
@@ -237,6 +240,43 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 
 
     return myApp
+}
+
+func WriteAtlasIndex(index map[rune]uint16, filename string) {
+    file, err := os.Create(filename)
+    if err != nil {
+        println("could not create atlas index file")
+        return
+    }
+    defer file.Close()
+    for k, v := range index {
+        _, writeErr := file.WriteString(fmt.Sprintf("%d:%d\n", k, v))
+        if writeErr != nil {
+            println("could not write to atlas index file")
+            return
+        }
+    }
+}
+
+func ReadAtlasIndex(filename string) map[rune]uint16 {
+    index := map[rune]uint16{}
+    file, err := os.Open(filename)
+    if err != nil {
+        println("could not open atlas index file")
+        return index
+    }
+    defer file.Close()
+    var k rune
+    var v uint16
+    for {
+        _, scanError := fmt.Fscanf(file, "%d:%d\n", &k, &v)
+        if scanError != nil {
+            println("could not scan atlas index file")
+            break
+        }
+        index[k] = v
+    }
+    return index
 }
 
 func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
@@ -369,9 +409,9 @@ func (a *BattleClient) Draw(elapsed float64) {
 func (a *BattleClient) drawWorld(cam util.Camera) {
     a.chunkShader.Begin()
 
-    a.chunkShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
+    a.chunkShader.SetUniformAttr(0, cam.GetProjectionViewMatrix())
 
-    a.GetVoxelMap().Draw(ShaderModelMatrix, cam.GetFrustumPlanes())
+    a.GetVoxelMap().Draw(1, cam.GetFrustumPlanes())
 
     a.chunkShader.End()
 }
@@ -379,7 +419,8 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 func (a *BattleClient) drawDefaultShader(cam util.Camera) {
     a.defaultShader.Begin()
 
-    a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
+    a.defaultShader.SetUniformAttr(ShaderViewMatrix, cam.GetViewMatrix())
+    a.defaultShader.SetUniformAttr(ShaderProjectionMatrix, cam.GetProjectionMatrix())
     a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
     for _, unit := range a.GetAllClientUnits() {
@@ -398,7 +439,6 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
     if a.lines != nil {
         a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
-        a.defaultShader.SetUniformAttr(ShaderProjectionViewMatrix, cam.GetProjectionViewMatrix())
         a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
         a.defaultShader.SetUniformAttr(ShaderViewport, mgl32.Vec2{float32(a.WindowWidth), float32(a.WindowHeight)})
         a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawLine)

@@ -69,7 +69,7 @@ func (c *Crosshair) localMatrix() mgl32.Mat4 {
 	return translation.Mul4(quaternion).Mul4(scale)
 }
 func (c *Crosshair) Draw() {
-	c.shader.SetUniformAttr(ShaderProjectionViewMatrix, c.camera.GetProjectionMatrix())
+	c.shader.SetUniformAttr(ShaderViewMatrix, mgl32.Ident4())
 	c.shader.SetUniformAttr(ShaderModelMatrix, c.localMatrix())
 	c.shader.SetUniformAttr(ShaderDrawMode, ShaderDrawCircle)
 

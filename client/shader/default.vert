@@ -5,7 +5,8 @@ in vec2 texCoord;
 in vec3 vertexColor;
 in vec3 normal;
 
-uniform mat4 camProjectionView;
+uniform mat4 camView;
+uniform mat4 camProjection;
 uniform mat4 modelTransform;
 
 uniform int drawMode;
@@ -31,6 +32,7 @@ varying vec2 v_uv;
 */
 // still missing: linelength, uv
 void drawLine() {
+    mat4 camProjectionView = camProjection * camView;
     mat4 projViewModel = camProjectionView * modelTransform;
 
     float antialias = 1.0;// hard-coded for now
@@ -113,11 +115,44 @@ void drawLine() {
 {Name: "vertexColor", Type: glhf.Vec3}, -> vec3 previous   //previous point on line
 {Name: "normal", Type: glhf.Vec3}, -> vec3 next       //next point on line
 */
+void drawBillboard() {
+    mat4 modelView = camView * modelTransform; // camProjectionView should be a view matrix only for this drawmode
+
+    VertUV = texCoord;
+    VertColor = vertexColor;
+    VertNormal = normal;
+
+    // First colunm.
+    modelView[0][0] = 1.0;
+    modelView[0][1] = 0.0;
+    modelView[0][2] = 0.0;
+
+    int spherical = 1;
+
+    if (spherical == 1)
+    {
+        // Second colunm.
+        modelView[1][0] = 0.0;
+        modelView[1][1] = 1.0;
+        modelView[1][2] = 0.0;
+    }
+
+    // Thrid colunm.
+    modelView[2][0] = 0.0;
+    modelView[2][1] = 0.0;
+    modelView[2][2] = 1.0;
+
+    vec4 P = modelView * vec4(position, 1.0);
+    gl_Position = camProjection * P;
+}
 
 void main() {
     if (drawMode == 4) {
         drawLine();// will set VertUV, VertNormal, VertColor.X = thickness
+    } else if (drawMode == 5) { // billboards
+        drawBillboard();
     } else {
+        mat4 camProjectionView = camProjection * camView;
         gl_Position = camProjectionView * modelTransform * vec4(position, 1.0);
         VertUV = texCoord;
         VertColor = vertexColor;
@@ -126,5 +161,4 @@ void main() {
 
     // pass-through for fragment shader
     VertPos = position;
-
 }

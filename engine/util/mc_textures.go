@@ -157,6 +157,7 @@ func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.T
 		println(fmt.Sprintf("[Atlas] %U %d -> %s", glyph, textureIndex, dirEntry))
 		textureIndex++
 	}
+	/*
 	// debug write the atlas to a file
 	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
 	if err != nil {
@@ -167,6 +168,8 @@ func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.T
 		println("could not encode debug_atlas.png")
 	}
 	file.Close()
+	*/
+
 	texture := glhf.NewTexture(atlasWidth, atlasHeight, false, pixels.Pix)
 	texture.SetAtlasItemSize(glyphWidth, glyphHeight)
 	return texture, indices
