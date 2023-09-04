@@ -39,7 +39,7 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	} else if key == glfw.KeyF5 {
 		g.engine.SaveMapToDisk()
 	} else if key == glfw.KeyF9 {
-		g.engine.GetVoxelMap().LoadFromDisk("assets/maps/map.bin")
+		g.engine.GetVoxelMap().LoadFromSource(g.engine.GetAssets().LoadMap("map"))
 		g.engine.GetVoxelMap().GenerateAllMeshes()
 	} else if key == glfw.KeyF1 {
 		g.switchToBlocks()

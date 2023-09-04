@@ -339,11 +339,12 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 			return
 		}
 	}
+	assetLoader := gameInstance.GetAssets()
 	// we are now adding the units to game world
 	for _, unitRequest := range msg.Units {
 		unitChoice := unitRequest
 		spawnedUnitDef := b.availableUnits[unitChoice.UnitTypeID]
-		unit := game.NewUnitInstance(unitChoice.Name, spawnedUnitDef)
+		unit := game.NewUnitInstance(assetLoader, unitChoice.Name, spawnedUnitDef)
 		chosenWeapon, weaponIsOK := b.availableWeapons[unitChoice.Weapon]
 		if weaponIsOK {
 			unit.SetWeapon(game.NewWeapon(chosenWeapon))

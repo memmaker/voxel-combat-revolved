@@ -23,7 +23,7 @@ type CompoundMesh struct {
 	holdAnimation    bool
 }
 
-func (m *CompoundMesh) ConvertVertexData(shader *glhf.Shader) {
+func (m *CompoundMesh) UploadVertexData(shader *glhf.Shader) {
 	m.RootNode.ConvertVertexData(shader)
 }
 

@@ -1,6 +1,7 @@
 package voxel
 
 import (
+    "bytes"
 	"compress/gzip"
 	"encoding/binary"
 	"fmt"
@@ -49,7 +50,7 @@ func NewMap(width, height, depth int32) *Map {
 	return m
 }
 
-func NewMapFromFile(filename string, shader *glhf.Shader, texture *glhf.Texture) *Map {
+func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
 	m := &Map{
 		chunks:             make([]*Chunk, 0),
 		width:              0,
@@ -59,7 +60,7 @@ func NewMapFromFile(filename string, shader *glhf.Shader, texture *glhf.Texture)
 		chunkShader:        shader,
 		terrainTexture:     texture,
 	}
-	m.LoadFromDisk(filename)
+    m.LoadFromSource(source)
 	return m
 }
 
@@ -105,13 +106,9 @@ func (m *Map) SaveToDisk() {
 	outfile.Close()
 }
 
-func (m *Map) LoadFromDisk(filename string) {
-	file, err := os.Open(filename)
-	if err != nil {
-		panic(err)
-	}
-
-	gzipReader, err := gzip.NewReader(file)
+func (m *Map) LoadFromSource(source []byte) {
+    reader := bytes.NewReader(source)
+    gzipReader, err := gzip.NewReader(reader)
 	if err != nil {
 		panic(err)
 	}

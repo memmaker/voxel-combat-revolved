@@ -129,7 +129,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	createGameSequence := func() {
 		util.MustSend(con.Login("creator"))
 		util.WaitForTrue(&loginSuccess)
-		util.MustSend(con.CreateGame("./assets/maps/map.bin", "fx's test game", game.PlacementModeRandom, true))
+		util.MustSend(con.CreateGame("map", "fx's test game", game.PlacementModeRandom, true))
 		util.WaitForTrue(&createSuccess)
 		util.MustSend(con.SelectFaction("X-Com"))
 		util.WaitForTrue(&factionSuccess)

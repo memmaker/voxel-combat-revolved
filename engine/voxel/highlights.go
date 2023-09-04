@@ -7,8 +7,8 @@ import (
 )
 
 // idea:
-// have a "manager" for all the highlights we need.
-// it basically records positions and colors and then renders them as one mesh with quads
+// decals are basically the same as my highlights, just being able to be attached to any face
+
 type Highlight int
 
 const (

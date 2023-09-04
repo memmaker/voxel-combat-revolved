@@ -16,7 +16,7 @@ func NewBattleServer() *server.BattleServer {
 
 	battleServer := server.NewBattleServer()
 
-	battleServer.AddMap("Dev Map", "./assets/maps/map.bin")
+	battleServer.AddMap("Dev Map", "map")
 	/*
 		humanoid := []voxel.Int3{
 			{0, 0, 0},
@@ -67,15 +67,15 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        0,
 				CoreStats: defaultCoreStats,
-				ModelFile: "./assets/models/human.glb",
+				ModelFile: "human",
 				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "./assets/textures/skins/steve.png",
+					TextureFile: "steve",
 				},
 			},
 			{
 				ID:        1,
 				CoreStats: defaultCoreStats,
-				ModelFile: "./assets/models/walker_3x3.glb",
+				ModelFile: "walker_3x3",
 				//				OccupiedBlockOffsets: threeByThree,
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "",
@@ -90,15 +90,15 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        2,
 				CoreStats: defaultCoreStats,
-				ModelFile: "./assets/models/human.glb",
+				ModelFile: "human",
 				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "./assets/textures/skins/deep_monster2.png",
+					TextureFile: "deep_monster2",
 				},
 			},
 			{
 				ID:        3,
 				CoreStats: defaultCoreStats,
-				ModelFile: "./assets/models/deep_monster_3x3.glb",
+				ModelFile: "deep_monster_3x3",
 				//				OccupiedBlockOffsets: threeByThree,
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "",

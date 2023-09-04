@@ -145,3 +145,9 @@ func (c *ISOCamera) updateTransform() {
 func (c *ISOCamera) DebugString() string {
 	return fmt.Sprintf("CameraPos: %v\nLookTarget: %v\nCamDir: %v\nCamDist: %0.2f\nRotationAngle: %0.2f\n", c.GetPosition(), c.lookTarget, c.backwards, c.camDistance, c.rotationAngle)
 }
+
+func (c *ISOCamera) SetScreenSize(width int, height int) {
+	c.windowWidth = width
+	c.windowHeight = height
+	c.updateTransform()
+}

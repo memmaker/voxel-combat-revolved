@@ -9,9 +9,11 @@ import (
 
 func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
+	assetLoader := NewAssets()
 	g := &GameInstance{
 		id:             gameID,
 		mapFile:        mapFile,
+		assets:   assetLoader,
 		players:        make([]uint64, 0),
 		playerFactions: make(map[uint64]*Faction),
 		losMatrix:      make(map[uint64]map[uint64]bool),
@@ -19,8 +21,8 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
-		voxelMap:       voxel.NewMapFromFile(mapFile, nil, nil),
-		mapMeta:        NewMapMetadataFromFile(mapFile + ".meta"),
+		voxelMap: voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
+		mapMeta:  assetLoader.LoadMapMetadata(mapFile),
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 	}
 	g.rules = NewDefaultRuleset(g)
@@ -77,6 +79,7 @@ type GameInstance struct {
 	public  bool
 
 	rules *Ruleset
+	assets *Assets
 
 	// game instance state
 	currentPlayerIndex int
@@ -464,4 +467,8 @@ func (g *GameInstance) IndexOfPlayer(id uint64) int {
 		}
 	}
 	return -1
+}
+
+func (g *GameInstance) GetAssets() *Assets {
+	return g.assets
 }
