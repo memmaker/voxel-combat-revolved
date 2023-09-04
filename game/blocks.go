@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
+	"sort"
 )
 
 const VoidName = "!void"
@@ -32,7 +33,7 @@ type BlockLibrary struct {
 }
 
 // TODO: Use texture atlas data to fill the library
-func NewBlockLibrary(blockNames []string, indexMap map[string]byte) *BlockLibrary {
+func NewBlockLibrary(blockNames []string, indexMap util.BlockIndex) *BlockLibrary {
 	b := &BlockLibrary{
 		nameToId: make(map[string]byte),
 		blocks: map[byte]*BlockDefinition{
@@ -175,5 +176,8 @@ func GetDebugBlockNames() []string {
 		"target",
 		"tnt",
 	}
+	sort.SliceStable(listOfBlocks, func(i, j int) bool {
+		return listOfBlocks[i] < listOfBlocks[j]
+	})
 	return listOfBlocks
 }

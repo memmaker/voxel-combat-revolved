@@ -186,12 +186,10 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     //fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
     fontTextureAtlas := util.MustLoadTexture("./assets/fonts/quadratica.png")
     fontTextureAtlas.SetAtlasItemSize(8, 14)
-    atlasIndex := ReadAtlasIndex("./assets/fonts/quadratica.idx")
+    atlasIndex := util.NewBitmapFontIndexFromFile("./assets/fonts/quadratica.idx")
     //fontTextureAtlas.SaveAsPNG("./assets/fonts/quadratica.png")
-
-    mapperFunc := func(r rune) uint16 { return atlasIndex[r] }
-    myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, mapperFunc)
-    myApp.textLabel.SetScale(2)
+    myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
+    myApp.textLabel.SetScale(1)
 
     myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.defaultShader)
     selectorColor := mgl32.Vec3{1, 1, 1}
@@ -201,7 +199,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.blockSelector = NewBlockSelector(myApp.lineShader)
     myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
     myApp.bulletModel.ConvertVertexData(myApp.defaultShader)
-    guiAtlas, guiIconIndices := util.CreateAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
+    guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
     myApp.guiIcons = guiIconIndices
     myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
     myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
@@ -240,43 +238,6 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 
 
     return myApp
-}
-
-func WriteAtlasIndex(index map[rune]uint16, filename string) {
-    file, err := os.Create(filename)
-    if err != nil {
-        println("could not create atlas index file")
-        return
-    }
-    defer file.Close()
-    for k, v := range index {
-        _, writeErr := file.WriteString(fmt.Sprintf("%d:%d\n", k, v))
-        if writeErr != nil {
-            println("could not write to atlas index file")
-            return
-        }
-    }
-}
-
-func ReadAtlasIndex(filename string) map[rune]uint16 {
-    index := map[rune]uint16{}
-    file, err := os.Open(filename)
-    if err != nil {
-        println("could not open atlas index file")
-        return index
-    }
-    defer file.Close()
-    var k rune
-    var v uint16
-    for {
-        _, scanError := fmt.Fscanf(file, "%d:%d\n", &k, &v)
-        if scanError != nil {
-            println("could not scan atlas index file")
-            break
-        }
-        index[k] = v
-    }
-    return index
 }
 
 func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {

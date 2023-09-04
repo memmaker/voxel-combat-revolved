@@ -21,7 +21,6 @@ type Map struct {
 
 	spawnCounter    int
 	textureCallback func(block *Block, side FaceType) byte
-	selectionIndex  byte
 }
 
 func (m *Map) SetSize(width, height, depth int32) {
@@ -662,9 +661,8 @@ func (m *Map) getTextureIndexForSide(block *Block, side FaceType) byte {
 	return block.ID - 1
 }
 
-func (m *Map) SetTextureIndexCallback(callback func(block *Block, side FaceType) byte, selectionIndex byte) {
+func (m *Map) SetTextureIndexCallback(callback func(block *Block, side FaceType) byte) {
 	m.textureCallback = callback
-	m.selectionIndex = selectionIndex
 }
 
 func (m *Map) ClearAllChunks() {

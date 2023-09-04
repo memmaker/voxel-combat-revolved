@@ -1,21 +1,15 @@
 package util
 
 import (
-	"bytes"
-	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/voxel"
 	_ "github.com/spakin/netpbm"
 	"image"
-	"image/color"
 	"image/png"
-	"math"
 	"os"
 	"path"
 	"sort"
-	"strings"
 )
 
 // plan:
@@ -23,8 +17,39 @@ import (
 // 2. add the bitmaps to one 256x256 bitmap atlas
 // 3. return the atlas
 // 4. allow for resolving the name to the index
+type BlockIndex map[string]byte
 
-func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, map[string]byte) {
+func (i BlockIndex) WriteAtlasIndex(filename string) {
+    file, err := os.Create(filename)
+    if err != nil {
+        println("could not create debug_atlas.png")
+    }
+    for name, index := range i {
+        file.WriteString(fmt.Sprintf("%s %d\n", name, index))
+    }
+    file.Close()
+}
+
+func NewBlockIndexFromFile(filename string) BlockIndex {
+    file, err := os.Open(filename)
+    if err != nil {
+        println("could not open index file")
+        return nil
+    }
+    defer file.Close()
+    indices := map[string]byte{}
+    var index byte
+    var name string
+    for {
+        _, scanErr := fmt.Fscanf(file, "%s %d\n", &name, &index)
+        if scanErr != nil {
+            break
+        }
+        indices[name] = index
+    }
+    return indices
+}
+func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, BlockIndex) {
 	indices := map[string]byte{}
 	pixels := image.NewNRGBA(image.Rect(0, 0, 256, 256)) // iterate over the files in the directory
 	textureIndex := 0
@@ -75,123 +100,7 @@ func CreateAtlasFromDirectory(directory string, whiteList []string) (*glhf.Textu
 	return texture, indices
 }
 
-func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.Texture, map[rune]uint16) {
-	// 967 files
-	// 8x14 pixels
-
-	// 8*16 = 128
-	// 14*16 = 224
-	indices := map[rune]uint16{}
-	textureIndex := uint16(0)
-	entries, readError := os.ReadDir(directory)
-	if readError != nil {
-		println(fmt.Sprintf("[Atlas] Error reading directory %s", directory))
-		return nil, nil
-	}
-	fileCount := len(entries)
-	squareCount := math.Ceil(math.Sqrt(float64(fileCount)))
-
-	padding := int(0)
-
-	atlasWidth := int(math.Ceil(squareCount * float64(glyphWidth+padding)))
-	atlasHeight := int(math.Ceil(squareCount * float64(glyphHeight+padding)))
-
-	if atlasWidth%4 != 0 {
-		atlasWidth += 4 - (atlasWidth % 4)
-	}
-
-	if atlasHeight%4 != 0 {
-		atlasHeight += 4 - (atlasHeight % 4)
-	}
-
-	pixels := image.NewNRGBA(image.Rect(0, 0, atlasWidth, atlasHeight)) // iterate over the files in the directory
-	var drawColor color.Color
-	for _, dirEntry := range entries {
-		extension := strings.ToLower(path.Ext(dirEntry.Name()))
-		if extension != ".pbm" {
-			continue
-		}
-		nameWithoutExtension := strings.TrimSuffix(dirEntry.Name(), extension)
-		hexString := nameWithoutExtension
-
-		glyph := runeFromHexString(hexString)
-
-		texturePath := path.Join(directory, dirEntry.Name())
-		file, err := os.Open(texturePath)
-		if err != nil {
-			println(fmt.Sprintf("[Atlas] Error loading %s from %s", dirEntry, texturePath))
-			continue
-		}
-		img, _, err := image.Decode(file)
-		if err != nil {
-			continue
-		}
-		file.Close()
-		if glyphWidth != img.Bounds().Dx() {
-			println(fmt.Sprintf("[Atlas] Error loading %s from %s: width mismatch", dirEntry, texturePath))
-			continue
-		}
-		if glyphHeight != img.Bounds().Dy() {
-			println(fmt.Sprintf("[Atlas] Error loading %s from %s: height mismatch", dirEntry, texturePath))
-			continue
-		}
-
-		texturesPerRow := uint16(atlasWidth / glyphWidth) // 256 / 16 = 16
-		// copy the image into the atlas
-		tilePosX := textureIndex % texturesPerRow
-		tilePosY := textureIndex / texturesPerRow
-		offsetX := tilePosX * (uint16(glyphWidth) + uint16(padding))
-		offsetY := tilePosY * (uint16(glyphHeight) + uint16(padding))
-		for x := 0; x < glyphWidth; x++ {
-			for y := 0; y < glyphHeight; y++ {
-				r, _, _, _ := img.At(x, y).RGBA()
-
-				drawColor = color.Transparent
-				if r < 0x8000 { // black
-					drawColor = color.White
-				}
-				pixels.Set(int(offsetX)+x, int(offsetY)+y, drawColor)
-			}
-		}
-		indices[glyph] = textureIndex
-		println(fmt.Sprintf("[Atlas] %U %d -> %s", glyph, textureIndex, dirEntry))
-		textureIndex++
-	}
-	/*
-	// debug write the atlas to a file
-	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
-	if err != nil {
-		println("could not create debug_atlas.png")
-	}
-	err = png.Encode(file, pixels)
-	if err != nil {
-		println("could not encode debug_atlas.png")
-	}
-	file.Close()
-	*/
-
-	texture := glhf.NewTexture(atlasWidth, atlasHeight, false, pixels.Pix)
-	texture.SetAtlasItemSize(glyphWidth, glyphHeight)
-	return texture, indices
-}
-
-func runeFromHexString(hexString string) rune {
-	if len(hexString) < 8 {
-		for i := len(hexString); i < 8; i++ {
-			hexString = "0" + hexString
-		}
-	}
-	codePointAsBytes, _ := hex.DecodeString(hexString)
-	var glyph rune
-	reader := bytes.NewReader(codePointAsBytes)
-	readError := binary.Read(reader, binary.BigEndian, &glyph)
-	if readError != nil {
-		println(fmt.Sprintf("[runeFromHexString] Error reading %s", hexString))
-	}
-	return glyph
-}
-
-func createIndicesDirectory(directory string, whiteList []string) map[string]byte {
+func createIndicesDirectory(directory string, whiteList []string) BlockIndex {
 	indices := map[string]byte{}
 	textureIndex := 0
 	for _, blockName := range whiteList {
@@ -206,7 +115,7 @@ func createIndicesDirectory(directory string, whiteList []string) map[string]byt
 	return indices
 }
 
-func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, map[string]byte) {
+func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, BlockIndex) {
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
 	})
@@ -215,10 +124,10 @@ func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*gl
 		allFaceTextureNames = append(allFaceTextureNames, tryMCStyleFaceNames(directory, blocksNeeded[i])...)
 	}
 
-	return CreateAtlasFromDirectory(directory, allFaceTextureNames)
+    return CreateFixed256PxAtlasFromDirectory(directory, allFaceTextureNames)
 }
 
-func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) map[string]byte {
+func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) BlockIndex {
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
 	})
@@ -248,7 +157,7 @@ func tryMCStyleFaceNames(directory, blockName string) []string {
 func getMCSuffixes() []string {
 	return []string{"_top", "_bottom", "_side", "_sides", "_front", "_back", "_side1", "_side2", "_side3"}
 }
-func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffixes map[string]byte) byte {
+func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffixes BlockIndex) byte {
 	switch face {
 	case voxel.Top:
 		if textureIndex, ok := availableSuffixes[blockname+"_top"]; ok {

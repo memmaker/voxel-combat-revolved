@@ -221,10 +221,10 @@ func (t *Texture) SaveAsPNG(filename string) {
 	t.tex.bind()
 	pixels := t.Pixels(0, 0, t.width, t.height)
 	t.tex.restore()
-	
+
 	outImage := image.NewNRGBA(image.Rect(0, 0, t.width, t.height))
-	for x := 0; x < t.width; x++ {
-		for y := 0; y < t.height; y++ {
+	for y := 0; y < t.height; y++ {
+		for x := 0; x < t.width; x++ {
 			outImage.Set(x, y, color.NRGBA{
 				R: pixels[(y*t.width+x)*4],
 				G: pixels[(y*t.width+x)*4+1],
