@@ -218,3 +218,9 @@ func (c *FPSCamera) DebugAim() string {
 	pos := c.GetPosition()
 	return fmt.Sprintf("Pos: (%0.2f, %0.2f, %0.2f) Aim: (%0.2f, %0.2f)", pos.X(), pos.Y(), pos.Z(), c.rotatex, c.rotatey)
 }
+
+func (c *FPSCamera) SetScreenSize(width int, height int) {
+	c.windowWidth = width
+	c.windowHeight = height
+	c.updateTransform()
+}

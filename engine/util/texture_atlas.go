@@ -17,9 +17,9 @@ import (
 // 2. add the bitmaps to one 256x256 bitmap atlas
 // 3. return the atlas
 // 4. allow for resolving the name to the index
-type BlockIndex map[string]byte
+type NameIndex map[string]byte
 
-func (i BlockIndex) WriteAtlasIndex(filename string) {
+func (i NameIndex) WriteAtlasIndex(filename string) {
     file, err := os.Create(filename)
     if err != nil {
         println("could not create debug_atlas.png")
@@ -30,7 +30,7 @@ func (i BlockIndex) WriteAtlasIndex(filename string) {
     file.Close()
 }
 
-func NewBlockIndexFromFile(filename string) BlockIndex {
+func NewBlockIndexFromFile(filename string) NameIndex {
     file, err := os.Open(filename)
     if err != nil {
         println("could not open index file")
@@ -49,7 +49,7 @@ func NewBlockIndexFromFile(filename string) BlockIndex {
     }
     return indices
 }
-func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, BlockIndex) {
+func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, NameIndex) {
 	indices := map[string]byte{}
 	pixels := image.NewNRGBA(image.Rect(0, 0, 256, 256)) // iterate over the files in the directory
 	textureIndex := 0
@@ -100,7 +100,7 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 	return texture, indices
 }
 
-func createIndicesDirectory(directory string, whiteList []string) BlockIndex {
+func createIndicesDirectory(directory string, whiteList []string) NameIndex {
 	indices := map[string]byte{}
 	textureIndex := 0
 	for _, blockName := range whiteList {
@@ -115,7 +115,7 @@ func createIndicesDirectory(directory string, whiteList []string) BlockIndex {
 	return indices
 }
 
-func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, BlockIndex) {
+func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*glhf.Texture, NameIndex) {
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
 	})
@@ -127,7 +127,7 @@ func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*gl
     return CreateFixed256PxAtlasFromDirectory(directory, allFaceTextureNames)
 }
 
-func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) BlockIndex {
+func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) NameIndex {
 	sort.SliceStable(blocksNeeded, func(i, j int) bool {
 		return blocksNeeded[i] < blocksNeeded[j]
 	})
@@ -157,7 +157,7 @@ func tryMCStyleFaceNames(directory, blockName string) []string {
 func getMCSuffixes() []string {
 	return []string{"_top", "_bottom", "_side", "_sides", "_front", "_back", "_side1", "_side2", "_side3"}
 }
-func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffixes BlockIndex) byte {
+func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffixes NameIndex) byte {
 	switch face {
 	case voxel.Top:
 		if textureIndex, ok := availableSuffixes[blockname+"_top"]; ok {

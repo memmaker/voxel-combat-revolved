@@ -7,7 +7,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"math"
-	"os"
 	"unsafe"
 )
 
@@ -16,6 +15,7 @@ type GlApplication struct {
 	TerminateFunc      func()
 	UpdateFunc         func(elapsed float64)
 	DrawFunc           func(elapsed float64)
+    ResizeHandler      func(width int, height int)
 	KeyHandler         func(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey)
 	MousePosHandler    func(xpos float64, ypos float64)
 	MouseButtonHandler func(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey)
@@ -50,7 +50,21 @@ func (a *GlApplication) ScrollCallback(w *glfw.Window, xoff float64, yoff float6
 		a.ScrollHandler(xoff, yoff)
 	}
 }
-
+func (a *GlApplication) ToggleFullscren() {
+    var newWidth, newHeight int
+    if a.Window.GetMonitor() == nil {
+        monitor := glfw.GetPrimaryMonitor()
+        vidMode := monitor.GetVideoMode()
+        a.Window.SetMonitor(monitor, 0, 0, vidMode.Width, vidMode.Height, vidMode.RefreshRate)
+        newWidth = vidMode.Width
+        newHeight = vidMode.Height
+    } else {
+        a.Window.SetMonitor(nil, 0, 0, a.WindowWidth, a.WindowHeight, 0)
+        newWidth = a.WindowWidth
+        newHeight = a.WindowHeight
+    }
+    a.OnResize(newWidth, newHeight)
+}
 func (a *GlApplication) MouseButtonCallback(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if a.MouseButtonHandler != nil {
 		a.MouseButtonHandler(button, action, mods)
@@ -102,7 +116,13 @@ func (a *GlApplication) Run() {
 	}
 }
 
-func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
+func (a *GlApplication) OnResize(width int, height int) {
+    if a.ResizeHandler != nil {
+        a.ResizeHandler(width, height)
+    }
+}
+
+func InitOpenGLWindow(title string, width, height int, fullScreen bool) (*glfw.Window, func()) {
 	var win *glfw.Window
 	glErr := glfw.Init()
 	if glErr != nil {
@@ -118,8 +138,13 @@ func InitOpenGL(title string, width, height int) (*glfw.Window, func()) {
 	glfw.WindowHint(glfw.OpenGLDebugContext, glfw.True)
 
 	var err error
+    var monitor *glfw.Monitor
+    if fullScreen {
+        monitor = glfw.GetPrimaryMonitor()
+        width, height = monitor.GetVideoMode().Width, monitor.GetVideoMode().Height
+    }
 
-	win, err = glfw.CreateWindow(width, height, title, nil, nil)
+    win, err = glfw.CreateWindow(width, height, title, monitor, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -154,18 +179,6 @@ func glErrorHandler(source uint32, gltype uint32, id uint32, severity uint32, le
 	println(errorMessage)
 }
 
-func MustLoadTexture(filePath string) *glhf.Texture {
-	file, err := os.Open(filePath)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	texture, err := NewTextureFromReader(file, false)
-	if err != nil {
-		panic(err)
-	}
-	return texture
-}
 
 func Get2DPixelCoordOrthographicProjectionMatrix(width, height int) mgl32.Mat4 {
 	// we want 0,0 to be at the top left

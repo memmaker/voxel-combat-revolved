@@ -65,7 +65,7 @@ jobs:
         working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
       - name: Build Server
-        run: CGOENABLED=1 go build -o bt_linux_server -tags server . && ls -lah linux*
+        run: CGOENABLED=1 go build -o bt_linux_server -tags server .
         working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
       - name: Release

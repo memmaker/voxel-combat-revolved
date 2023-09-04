@@ -51,7 +51,10 @@ func (i ActionItem) WithBounds(rectangle Rectangle) ActionItem {
 func NewActionBar(shader *glhf.Shader, textureAtlas *glhf.Texture, screenWidth, screenHeight, atlasItemSizeX, atlasItemSizeY int) *ActionBar {
 	return &ActionBar{shader: shader, texture: textureAtlas, itemSizeX: atlasItemSizeX, itemSizeY: atlasItemSizeY, screenWidth: screenWidth, screenHeight: screenHeight}
 }
-
+func (a *ActionBar) SetScreenSize(width, height int) {
+    a.screenWidth = width
+    a.screenHeight = height
+}
 func (a *ActionBar) SetActions(actions []ActionItem) {
 	a.isHidden = false
 	a.actions = make([]ActionItem, len(actions))

@@ -72,7 +72,7 @@ func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSele
 		shader:    shader,
 		hide:      true,
 	}
-	mesh.ConvertVertexData(shader)
+	mesh.UploadVertexData(shader)
 	mesh.RootNode.SetParent(groundSelector)
 	return groundSelector
 }

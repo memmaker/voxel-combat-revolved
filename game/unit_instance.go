@@ -157,8 +157,8 @@ func (u *UnitInstance) GetOccupiedBlockOffsets(atPos voxel.Int3) []voxel.Int3 {
     return stance.GetOccupiedBlockOffsets(chosenForward)
 }
 
-func NewUnitInstance(name string, unitDef *UnitDefinition) *UnitInstance {
-    compoundMesh := util.LoadGLTF(unitDef.ModelFile, nil)
+func NewUnitInstance(loader *Assets, name string, unitDef *UnitDefinition) *UnitInstance {
+    compoundMesh := loader.LoadMeshWithoutTextures(unitDef.ModelFile)
     compoundMesh.RootNode.CreateColliders()
     u := &UnitInstance{
         Transform:     util.NewScaledTransform(name, 1.0),

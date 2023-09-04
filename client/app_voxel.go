@@ -130,10 +130,7 @@ func (a *BattleClient) LoadMap(filename string) {
 	listOfBlocks := game.GetDebugBlockNames()
 	var loadedMap *voxel.Map
 
-	terrainTexture := util.MustLoadTexture("./assets/textures/blocks/star_odyssey_01.png")
-	terrainTexture.SetAtlasItemSize(16, 16)
-	indexMap := util.NewBlockIndexFromFile("./assets/textures/blocks/star_odyssey_01.idx")
-
+    terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
 	// Create atlas and index from directory
 	//	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("./assets/textures/blocks/star_odyssey", listOfBlocks)
 	//	terrainTexture.SaveAsPNG("./assets/textures/blocks/star_odyssey_01.png")
@@ -143,7 +140,7 @@ func (a *BattleClient) LoadMap(filename string) {
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 	bl.ApplyGameplayRules(a.GameInstance)
 
-	loadedMap = voxel.NewMapFromFile(filename, a.chunkShader, terrainTexture)
+    loadedMap = voxel.NewMapFromSource(a.GetAssets().LoadMap(filename), a.chunkShader, terrainTexture)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)
 	loadedMap.GenerateAllMeshes()
 

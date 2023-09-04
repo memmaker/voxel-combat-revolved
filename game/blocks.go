@@ -33,7 +33,7 @@ type BlockLibrary struct {
 }
 
 // TODO: Use texture atlas data to fill the library
-func NewBlockLibrary(blockNames []string, indexMap util.BlockIndex) *BlockLibrary {
+func NewBlockLibrary(blockNames []string, indexMap util.NameIndex) *BlockLibrary {
 	b := &BlockLibrary{
 		nameToId: make(map[string]byte),
 		blocks: map[byte]*BlockDefinition{

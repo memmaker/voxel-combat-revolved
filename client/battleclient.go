@@ -82,6 +82,7 @@ type ClientSettings struct {
     EnableBulletCam           bool
     FPSCameraMouseSensitivity float32
     EnableCameraAnimations    bool
+    FullScreen                bool
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
@@ -115,10 +116,11 @@ const (
 )
 
 func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, settings ClientSettings) *BattleClient {
-    window, terminateFunc := util.InitOpenGL(initInfos.Title, settings.Width, settings.Height)
+    window, terminateFunc := util.InitOpenGLWindow(initInfos.Title, settings.Width, settings.Height, settings.FullScreen)
+    usedWidth, usedHeight := window.GetSize()
     glApp := &util.GlApplication{
-        WindowWidth:   settings.Width,
-        WindowHeight:  settings.Height,
+        WindowWidth:  usedWidth,
+        WindowHeight: usedHeight,
         Window:        window,
         TerminateFunc: terminateFunc,
     }
@@ -127,16 +129,15 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     window.SetMouseButtonCallback(glApp.MouseButtonCallback)
     window.SetScrollCallback(glApp.ScrollCallback)
 
-    fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, settings.Width, settings.Height, settings.FPSCameraMouseSensitivity)
+    fpsCamera := util.NewFPSCamera(mgl32.Vec3{0, 10, 0}, usedWidth, usedHeight, settings.FPSCameraMouseSensitivity)
     fpsCamera.SetInvertedY(settings.FPSCameraInvertedMouse)
 
     myApp := &BattleClient{
         GlApplication: glApp,
-        isoCamera:     util.NewISOCamera(settings.Width, settings.Height),
+        isoCamera: util.NewISOCamera(usedWidth, usedHeight),
         fpsCamera:     fpsCamera,
         timer:         util.NewTimer(),
         settings:      settings,
-        //coroutine: gocoro.NewCoroutine(),
         particleProps: map[ParticleName]glhf.ParticleProperties{
             ParticlesBlood: {
                 Origin:               mgl32.Vec3{1, 2, 1},
@@ -165,7 +166,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
                 ColorEnd:          mgl32.Vec4{0.2, 0.01, 0.01, 1},
             },
         },
-        aspectRatio:   float32(settings.Width) / float32(settings.Height),
+        aspectRatio: float32(usedWidth) / float32(usedHeight),
     }
     myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
     myApp.GameClient.SetEnvironment("GL-Client")
@@ -182,78 +183,58 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
     myApp.MousePosHandler = myApp.handleMousePosEvents
     myApp.MouseButtonHandler = myApp.handleMouseButtonEvents
     myApp.ScrollHandler = myApp.handleScrollEvents
+    myApp.ResizeHandler = myApp.handleResizeEvents
 
     //fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
-    fontTextureAtlas := util.MustLoadTexture("./assets/fonts/quadratica.png")
-    fontTextureAtlas.SetAtlasItemSize(8, 14)
-    atlasIndex := util.NewBitmapFontIndexFromFile("./assets/fonts/quadratica.idx")
     //fontTextureAtlas.SaveAsPNG("./assets/fonts/quadratica.png")
+    assetLoader := myApp.GameInstance.GetAssets()
+    fontTextureAtlas, atlasIndex := assetLoader.LoadBitmapFont("quadratica", 8, 14)
+
     myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
     myApp.textLabel.SetScale(1)
 
-    myApp.unitSelector = NewGroundSelector(util.LoadGLTFWithTextures("./assets/models/flatselector.glb"), myApp.defaultShader)
-    selectorColor := mgl32.Vec3{1, 1, 1}
-    selectorMesh := util.LoadGLTF("./assets/models/selector.glb", &selectorColor)
+    myApp.unitSelector = NewGroundSelector(assetLoader.LoadMesh("flatselector"), myApp.defaultShader)
+
+    selectorMesh := assetLoader.LoadMeshWithColor("selector", mgl32.Vec3{1, 1, 1})
     selectorMesh.SetTexture(0, glhf.NewSolidColorTexture([3]uint8{0, 248, 250}))
     myApp.groundSelector = NewGroundSelector(selectorMesh, myApp.defaultShader)
+
     myApp.blockSelector = NewBlockSelector(myApp.lineShader)
-    myApp.bulletModel = util.LoadGLTFWithTextures("./assets/models/bullet.glb")
-    myApp.bulletModel.ConvertVertexData(myApp.defaultShader)
+
+    myApp.bulletModel = assetLoader.LoadMesh("bullet")
+    myApp.bulletModel.UploadVertexData(myApp.defaultShader)
+
     guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
     myApp.guiIcons = guiIconIndices
     myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
+
     myApp.highlights = voxel.NewHighlights(myApp.defaultShader)
     myApp.lines = NewLineDrawer(myApp.defaultShader)
 
-    glError := gl.GetError()
-    if glError != gl.NO_ERROR {
-        println("to do stuff before the particle system", glError)
-    }
-    getViewFunc := func() mgl32.Mat4 {
-        return myApp.camera().GetViewMatrix()
-    }
-    getProjectionFunc := func() mgl32.Mat4 {
-        return myApp.camera().GetProjectionMatrix()
-    }
+    getViewFunc := func() mgl32.Mat4 { return myApp.camera().GetViewMatrix() }
+    getProjectionFunc := func() mgl32.Mat4 { return myApp.camera().GetProjectionMatrix() }
     myApp.particles = glhf.NewParticleSystem(5000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
-    //myApp.particles.Emit(2)
-    glError = gl.GetError()
-    if glError != gl.NO_ERROR {
-        println("failed to create NewParticleSystem:", glError)
-    }
 
     myApp.SwitchToBlockSelector()
-    /* Old Crosshair
-       myApp.textRenderer.SetAlign(etxt.YCenter, etxt.XCenter)
-       crosshair := myApp.textRenderer.DrawText("+")
-       crosshair.SetBlockPosition(mgl32.Vec3{float32(glApp.WindowWidth) / 2, float32(glApp.WindowHeight) / 2, 0})
-       myApp.textRenderer.SetAlign(etxt.Top, etxt.Left)
-    */
+
     crosshair := NewCrosshair(myApp.defaultShader, myApp.fpsCamera)
     myApp.SetCrosshair(crosshair)
+
     myApp.SetConnection(con)
-
-    // DEBUG TEST STUFF
-
-
 
     return myApp
 }
 
-func (a *BattleClient) LoadModel(filename string) *util.CompoundMesh {
-    compoundMesh := util.LoadGLTFWithTextures(filename)
-    compoundMesh.ConvertVertexData(a.defaultShader)
-    return compoundMesh
-}
-
 func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
     // load model
-    model := a.LoadModel(currentUnit.Definition.ModelFile)
-    // load / select weapon model
+    model := a.GetAssets().LoadMesh(currentUnit.Definition.ModelFile)
+    // upload vertex data to GPU
+    model.UploadVertexData(a.defaultShader)
+    // select weapon model by hiding the others
     model.HideChildrenOfBoneExcept("Weapon", currentUnit.GetWeapon().Definition.Model)
     // load & set the skin texture
     if currentUnit.Definition.ClientRepresentation.TextureFile != "" {
-        model.SetTexture(0, util.MustLoadTexture(currentUnit.Definition.ClientRepresentation.TextureFile))
+        model.SetTexture(0, a.GetAssets().LoadSkin(currentUnit.Definition.ClientRepresentation.TextureFile))
     }
     currentUnit.SetModel(model)
     unit := NewClientUnit(currentUnit)
@@ -1098,4 +1079,19 @@ func (a *BattleClient) OnDebugGameStateRececeivedFromServer(msg game.CompleteGam
     } else {
         println("[BattleClient] Client state MATCHES server state")
     }
+}
+
+func (a *BattleClient) handleResizeEvents(width int, height int) {
+    a.WindowWidth = width // PROBLEM: This is the value we restore when switching back..
+    a.WindowHeight = height
+    a.aspectRatio = float32(width) / float32(height)
+
+    a.isoCamera.SetScreenSize(width, height)
+    a.fpsCamera.SetScreenSize(width, height)
+
+    a.actionbar.SetScreenSize(width, height)
+
+    a.guiShader.Begin()
+    a.guiShader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
+    a.guiShader.End()
 }
