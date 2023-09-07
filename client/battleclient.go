@@ -62,7 +62,7 @@ type BattleClient struct {
     particleShader             *glhf.Shader
     particles                  *glhf.ParticleSystem
     particleProps              map[ParticleName]glhf.ParticleProperties
-
+    selectedBlocks             []voxel.Int3
 }
 
 func (a *BattleClient) state() GameState {
@@ -165,6 +165,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
     }
     myApp.GameClient = game.NewGameClient[*Unit](initInfos, myApp.CreateClientUnit)
     myApp.GameClient.SetEnvironment("GL-Client")
+    myApp.GameClient.SetOnExplode(myApp.OnExplode)
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
     myApp.guiShader = myApp.loadGuiShader()
@@ -441,13 +442,16 @@ func (a *BattleClient) drawLines(cam util.Camera) {
     a.lineShader.SetUniformAttr(0, cam.GetProjectionMatrix())
     a.lineShader.SetUniformAttr(1, cam.GetViewMatrix())
     if a.selector != nil && a.lastHitInfo != nil && a.isBlockSelection {
-        a.lineShader.SetUniformAttr(3, mgl32.Vec3{0, 0, 0})
+        a.lineShader.SetUniformAttr(3, mgl32.Vec3{1, 1, 1})
         a.selector.Draw()
     }
 
     a.lineShader.SetUniformAttr(3, mgl32.Vec3{0.2, 1, 0.2})
     for _, debugPositions := range a.debugPositions {
         a.blockSelector.DrawAt(debugPositions)
+    }
+    for _, selectedPos := range a.selectedBlocks {
+        a.blockSelector.DrawAt(selectedPos)
     }
     a.lineShader.End()
 }
@@ -463,7 +467,7 @@ func (a *BattleClient) drawGUI() {
     }
 
     if a.actionbar != nil {
-        a.guiShader.SetUniformAttr(2, ColorTechTeal)          // tint
+        a.guiShader.SetUniformAttr(2, mgl32.Vec4{0, 0, 0, 0}) // tint
         a.guiShader.SetUniformAttr(3, mgl32.Vec4{0, 0, 0, 0}) // discard
         a.actionbar.Draw()
     }
@@ -587,7 +591,6 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
         a.textLabel.SetTintColor(ColorNegativeRed.Vec3())
         a.Print(unitHit.GetEnemyDescription() + pressureString)
     }
-    //a.textLabel.SetTintColor(mgl32.Vec3{1, 1, 1})
 }
 
 func (a *BattleClient) SwitchToGroundSelector() {
@@ -1173,5 +1176,14 @@ func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
             a.bigLabel.Hide()
         }
     })
+}
+
+func (a *BattleClient) OnExplode(origin voxel.Int3, radius int) {
+    properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3())
+    a.particles.Emit(properties, 1000)
+}
+
+func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {
+    a.selectedBlocks = selection
 }
 

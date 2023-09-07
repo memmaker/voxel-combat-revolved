@@ -103,11 +103,14 @@ type GameInstance struct {
 	overwatch         map[voxel.Int3][]*UnitInstance
 	pressureMatrix    map[uint64]map[uint64]float64
 	waitForDeployment bool
+	onExplode         func(voxel.Int3, int)
 }
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
 }
-
+func (g *GameInstance) SetOnExplode(onExplode func(voxel.Int3, int)) {
+	g.onExplode = onExplode
+}
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 	result := make(map[uint64]string)
 	for playerID, faction := range g.playerFactions {
@@ -374,6 +377,9 @@ func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
 		}
 	}
 	g.voxelMap.GenerateAllMeshes()
+	if g.onExplode != nil {
+		g.onExplode(position, radius)
+	}
 }
 
 func (g *GameInstance) SetBlockLibrary(bl *BlockLibrary) {

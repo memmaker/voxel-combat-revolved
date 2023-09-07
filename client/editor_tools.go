@@ -9,11 +9,13 @@ type BlockPlacer interface {
 	StopDragAt(blockPos voxel.Int3) []voxel.Int3
 	SetFill(fill bool)
 	GetFill() bool
+    IsDragging() bool
 }
 
 type RectanglePlacer struct {
-	start voxel.Int3
-	fill  bool
+    start      voxel.Int3
+    fill       bool
+    isDragging bool
 }
 
 func NewRectanglePlacer() *RectanglePlacer {
@@ -31,13 +33,19 @@ func (a *RectanglePlacer) GetFill() bool {
 }
 func (a *RectanglePlacer) StartDragAt(blockPos voxel.Int3) {
 	a.start = blockPos
+    a.isDragging = true
 }
 
 func (a *RectanglePlacer) DraggedOver(blockPos voxel.Int3) []voxel.Int3 {
 	return a.outlinedRectangle(a.start, blockPos)
 }
 
+func (a *RectanglePlacer) IsDragging() bool {
+    return a.isDragging
+}
+
 func (a *RectanglePlacer) StopDragAt(blockPos voxel.Int3) []voxel.Int3 {
+    a.isDragging = false
 	return a.outlinedRectangle(a.start, blockPos)
 }
 

@@ -130,7 +130,7 @@ func (g *GameStateEditMap) Init(bool) {
 
 	g.switchToBlocks()
 	g.pencil = NewRectanglePlacer()
-	println(fmt.Sprintf("[GameStateEditMap] Entered"))
+	util.LogGameInfo(fmt.Sprintf("[GameStateEditMap] Entered"))
 }
 
 func (g *GameStateEditMap) setBlockPage(page int) {
@@ -169,14 +169,23 @@ func (g *GameStateEditMap) changeBlockTypeToPlace(blockType byte) {
 
 func (g *GameStateEditMap) OnMouseClicked(x float64, y float64) {
 	pos := g.engine.blockSelector.GetBlockPosition()
-	println(fmt.Sprintf("Clicked at %d, %d, %d", pos.X, pos.Y, pos.Z))
 	g.pencil.StartDragAt(pos)
+}
+
+func (g *GameStateEditMap) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
+	g.IsoMovementState.OnMouseMoved(oldX, oldY, newX, newY)
+	if !g.pencil.IsDragging() {
+		return
+	}
+	pos := g.engine.blockSelector.GetBlockPosition()
+	selection := g.pencil.DraggedOver(pos)
+	g.engine.SetSelectedBlocks(selection)
 }
 func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
 	pos := g.engine.blockSelector.GetBlockPosition()
-	println(fmt.Sprintf("Released at %d, %d, %d", pos.X, pos.Y, pos.Z))
 	selection := g.pencil.StopDragAt(pos)
 	g.placeRange(selection)
+	g.engine.SetSelectedBlocks(nil)
 }
 func (g *GameStateEditMap) ClearMap() {
 	loadedMap := g.engine.GetVoxelMap()

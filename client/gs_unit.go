@@ -118,7 +118,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 
 func (g *GameStateUnit) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
 	g.IsoMovementState.OnMouseMoved(oldX, oldY, newX, newY)
-	cursorPos := g.engine.groundSelector.GetBlockPosition()
+	cursorPos := g.engine.selector.GetBlockPosition()
 	if cursorPos == g.lastCursorPos {
 		return
 	}
