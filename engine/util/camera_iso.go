@@ -104,8 +104,8 @@ func (c *ISOCamera) SetLookTarget(targetPos mgl32.Vec3) {
 
 func (c *ISOCamera) ZoomIn(deltaTime float64, amount float64) {
 	c.camDistance -= float32(amount) * float32(deltaTime)
-	if c.camDistance < 0.5 {
-		c.camDistance = 0.5
+	if c.camDistance < 1.5 {
+		c.camDistance = 1.5
 	}
 	c.updateTransform()
 }

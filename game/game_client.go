@@ -86,8 +86,10 @@ func (a *GameClient[U]) AddOwnedUnitToDeploymentQueue(currentUnit *UnitInstance)
 		return a.clientUnitMap[unitID]
 	}
 	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
-	unit := a.newClientUnit(currentUnit)
 
+	unit := a.newClientUnit(currentUnit)
+	unit.SetUserControlled()
+	
 	a.clientUnitMap[unitID] = unit
 
 	a.deploymentQueue = append(a.deploymentQueue, unit)

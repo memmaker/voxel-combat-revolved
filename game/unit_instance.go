@@ -68,15 +68,15 @@ func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
     return u.Transform.GetBlockPosition()
 }
 func (u *UnitInstance) GetFriendlyDescription() string {
-    desc := fmt.Sprintf("x> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetIntegerAP(), u.GetFreeAimAccuracy())
+    desc := fmt.Sprintf("> %s HP: %d/%d AP: %d TAcc: (%0.2f)\n", u.Name, u.Health, u.Definition.CoreStats.Health, u.GetIntegerAP(), u.GetFreeAimAccuracy())
     if u.Weapon != nil {
-        desc += fmt.Sprintf("x> %s Ammo: %d/%d Acc: (%0.2f)\n", u.Weapon.Definition.UniqueName, u.Weapon.AmmoCount, u.Weapon.Definition.MagazineSize, u.Weapon.Definition.AccuracyModifier)
+        desc += fmt.Sprintf("> %s Ammo: %d/%d Acc: (%0.2f)\n", u.Weapon.Definition.UniqueName, u.Weapon.AmmoCount, u.Weapon.Definition.MagazineSize, u.Weapon.Definition.AccuracyModifier)
     }
     if len(u.DamageZones) > 0 {
-        desc += fmt.Sprintf("x> Damage:\n")
+        desc += fmt.Sprintf("> Damage:\n")
         for _, zone := range getDamageZones() {
             if damage, ok := u.DamageZones[zone]; ok {
-                desc += fmt.Sprintf("x> %s: %d\n", zone, damage)
+                desc += fmt.Sprintf("> %s: %d\n", zone, damage)
             }
         }
     }
@@ -84,15 +84,15 @@ func (u *UnitInstance) GetFriendlyDescription() string {
 }
 func (u *UnitInstance) GetEnemyDescription() string {
 
-    desc := fmt.Sprintf("o> %s HP: %d/%d\n", u.Name, u.Health, u.Definition.CoreStats.Health)
+    desc := fmt.Sprintf("> %s HP: %d/%d\n", u.Name, u.Health, u.Definition.CoreStats.Health)
     if u.Weapon != nil {
-        desc += fmt.Sprintf("o> %s\n", u.Weapon.Definition.UniqueName)
+        desc += fmt.Sprintf("> %s\n", u.Weapon.Definition.UniqueName)
     }
     if len(u.DamageZones) > 0 {
-        desc += fmt.Sprintf("o> Damage:\n")
+        desc += fmt.Sprintf("> Damage:\n")
         for _, zone := range getDamageZones() {
             if damage, ok := u.DamageZones[zone]; ok {
-                desc += fmt.Sprintf("o> %s: %d\n", zone, damage)
+                desc += fmt.Sprintf("> %s: %d\n", zone, damage)
             }
         }
     }
@@ -412,7 +412,7 @@ func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int
     if u.CurrentStance == stance && forward2d == currentForward {
         return
     }
-    println(fmt.Sprintf("[UnitInstance] %s(%d) UpdateStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
+    util.LogUnitDebug(fmt.Sprintf("[UnitInstance] %s(%d) UpdateStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
 
     u.Transform.SetForward2DDiagonal(forward2d)
     u.CurrentStance = stance

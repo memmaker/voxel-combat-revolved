@@ -572,19 +572,22 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
     if !a.GetVoxelMap().IsOccupied(selectedPosition) {
         return
     }
-    unitHit := a.GetVoxelMap().GetMapObjectAt(selectedPosition).(*Unit)
+    unitHitInstance := a.GetVoxelMap().GetMapObjectAt(selectedPosition).(*game.UnitInstance)
 
-    //unitHit, _ := a.GetClientUnit(hitInfo.UnitHit.UnitID())
+    unitHit, _ := a.GetClientUnit(unitHitInstance.UnitID())
     pressureString := ""
     pressure := a.GetTotalPressure(unitHit.UnitID())
     if pressure > 0 {
         pressureString = fmt.Sprintf("\nPressure: %0.2f", pressure)
     }
     if unitHit.IsUserControlled() {
+        a.textLabel.SetTintColor(ColorPositiveGreen.Vec3())
         a.Print(unitHit.GetFriendlyDescription() + pressureString)
     } else {
+        a.textLabel.SetTintColor(ColorNegativeRed.Vec3())
         a.Print(unitHit.GetEnemyDescription() + pressureString)
     }
+    //a.textLabel.SetTintColor(mgl32.Vec3{1, 1, 1})
 }
 
 func (a *BattleClient) SwitchToGroundSelector() {
@@ -1166,7 +1169,9 @@ func (a *BattleClient) OnStartDeployment() {
 func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
     a.bigLabel.SetText(text)
     a.scheduleUpdateIn(delayInSeconds, func(deltaTime float64) {
-        a.bigLabel.Hide()
+        if a.bigLabel.GetText() == text {
+            a.bigLabel.Hide()
+        }
     })
 }
 
