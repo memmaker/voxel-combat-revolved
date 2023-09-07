@@ -99,18 +99,18 @@ jobs:
         env:
           CGO_ENABLED: 1
 
-#      - name: Add binaries to release
-#        uses: svenstaro/upload-release-action@v2
-#        with:
-#          repo_token: ${{ secrets.GITHUB_TOKEN }}
-#          file: D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
-#          asset_name: bt_windows_client.exe
-#          tag: ${{ github.ref }}
-#          overwrite: true
-
       - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
         with:
-          files: |
-            D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
+          asset_name: bt_windows_client.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+
+#      - name: Release
+#        uses: softprops/action-gh-release@v1
+#        if: startsWith(github.ref, 'refs/tags/')
+#        with:
+#          files: |
+#            D:\a\voxel-combat-revolved\voxel-combat-revolved\windows_client.exe
