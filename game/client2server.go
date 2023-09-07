@@ -54,24 +54,6 @@ type DebugRequest struct {
 }
 type MapLoadedMessage struct {
 }
-type PlacementMode string
-
-const (
-	PlacementModeRandom PlacementMode = "random"
-	PlacementModeManual PlacementMode = "manual"
-)
-
-type MissionScenario string
-
-const (
-	MissionScenarioDeathmatch MissionScenario = "deathmatch"
-	MissionScenarioDefend     MissionScenario = "defend"
-)
-
-type MissionDetails struct {
-	Placement PlacementMode
-	Scenario  MissionScenario
-}
 
 type CreateGameMessage struct {
 	Map            string

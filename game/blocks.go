@@ -121,6 +121,20 @@ func (b *BlockLibrary) ApplyGameplayRules(a *GameInstance) {
 		a.CreateExplodeEffect(block, 4)
 	}
 
+	destroyableDef := b.GetBlockDefinitionByName("bricks")
+	destroyableDef.OnDamageReceived = func(block voxel.Int3, damage int) {
+		if damage > 4 {
+			a.GetVoxelMap().SetAir(block)
+		}
+	}
+
+	destroyableObjectiveDef := b.GetBlockDefinitionByName("target")
+	destroyableObjectiveDef.OnDamageReceived = func(blockPos voxel.Int3, damage int) {
+		missionDetails := a.GetMissionDetails()
+		if missionDetails.TryDamageObjective(blockPos, damage) {
+			a.GetVoxelMap().SetAir(blockPos)
+		}
+	}
 }
 func getFaceMapForBlock(blockName string, indexMap map[string]byte) map[voxel.FaceType]byte {
 	result := make(map[voxel.FaceType]byte)

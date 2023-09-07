@@ -10,6 +10,9 @@ import (
 func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetails) *GameInstance {
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
 	assetLoader := NewAssets()
+	mapMetadata := assetLoader.LoadMapMetadata(mapFile)
+	details.SyncFromMap(mapMetadata)
+
 	g := &GameInstance{
 		id:             gameID,
 		mapFile:        mapFile,
@@ -23,7 +26,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetail
 		playersNeeded:  2,
 		waitForDeployment: details.Placement == PlacementModeManual,
 		voxelMap:          voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
-		mapMeta:           assetLoader.LoadMapMetadata(mapFile),
+		mapMeta: &mapMetadata,
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 		missionDetails: details,
 	}
@@ -104,12 +107,16 @@ type GameInstance struct {
 	pressureMatrix    map[uint64]map[uint64]float64
 	waitForDeployment bool
 	onExplode         func(voxel.Int3, int)
+	onNotification    func(string)
 }
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
 }
 func (g *GameInstance) SetOnExplode(onExplode func(voxel.Int3, int)) {
 	g.onExplode = onExplode
+}
+func (g *GameInstance) SetOnNotification(onNotification func(string)) {
+	g.onNotification = onNotification
 }
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 	result := make(map[uint64]string)
@@ -339,8 +346,15 @@ func (g *GameInstance) SetVoxelMap(loadedMap *voxel.Map) {
 }
 
 func (g *GameInstance) SaveMapToDisk() {
-	g.voxelMap.SaveToDisk()
-	g.mapMeta.SaveToDisk(g.mapFile)
+	mapFileName := g.assets.GetMapPath(g.mapFile)
+	errMap := g.voxelMap.SaveToDisk(mapFileName)
+	metaErr := g.mapMeta.SaveToDisk(mapFileName)
+	if errMap != nil || metaErr != nil {
+		util.LogGameError(fmt.Sprintf("[GameInstance] ERR - SaveMapToDisk - %v %v", errMap, metaErr))
+		g.onNotification("ERROR saving map")
+	} else if g.onNotification != nil {
+		g.onNotification("Saved successfully")
+	}
 }
 func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, bodyPart util.DamageZone) bool {
 	lethal := hitUnit.ApplyDamage(damage, bodyPart)

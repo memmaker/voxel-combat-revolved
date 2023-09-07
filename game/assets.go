@@ -94,13 +94,17 @@ func (a *Assets) LoadMap(filename string) []byte {
     return data
 }
 
-func (a *Assets) LoadMapMetadata(filename string) *MapMetadata {
+func (a *Assets) LoadMapMetadata(filename string) MapMetadata {
     filePath := path.Join(a.paths[AssetTypeMaps], filename+".bin.meta")
     return NewMapMetadataFromFile(filePath)
 }
 func (a *Assets) LoadSkin(file string) *glhf.Texture {
     filePath := path.Join(a.paths[AssetTypeSkins], file+".png")
     return mustLoadTexture(filePath)
+}
+
+func (a *Assets) GetMapPath(mapName string) string {
+    return path.Join(a.paths[AssetTypeMaps], mapName+".bin")
 }
 
 func mustLoadTexture(filePath string) *glhf.Texture {

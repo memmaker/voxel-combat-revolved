@@ -83,11 +83,11 @@ func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture)
 	return m
 }
 
-func (m *Map) SaveToDisk() {
+func (m *Map) SaveToDisk(filename string) error {
 	// serialize this map manually to a byte array
-	outfile, err := os.Create("assets/maps/map.bin")
+	outfile, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	// use a gzip writer to compress the byte array
 	// then write the compressed byte array to the file
@@ -116,13 +116,24 @@ func (m *Map) SaveToDisk() {
 			if block != nil {
 				id = block.ID
 			}
-			binary.Write(gzipWriter, binary.LittleEndian, id)
+			err = binary.Write(gzipWriter, binary.LittleEndian, id)
+			if err != nil {
+				return err
+			}
 		}
 		m.logVoxelInfo(fmt.Sprintf("[Map] Saved %d blocks", len(chunk.data)))
 	}
 
-	gzipWriter.Close()
-	outfile.Close()
+	err = gzipWriter.Close()
+	if err != nil {
+		return err
+	}
+	err = outfile.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *Map) LoadFromSource(source []byte) {
@@ -263,6 +274,11 @@ func (m *Map) SetBlock(x int32, y int32, z int32, block *Block) {
 		chunk.SetBlock(x%CHUNK_SIZE, y%CHUNK_SIZE, z%CHUNK_SIZE, block)
 	}
 }
+
+func (m *Map) SetAir(blockPos Int3) {
+	m.SetBlock(blockPos.X, blockPos.Y, blockPos.Z, NewAirBlock())
+}
+
 
 func (m *Map) ContainsVec(pos mgl32.Vec3) bool {
 	x, y, z := pos.X(), pos.Y(), pos.Z()
@@ -667,3 +683,4 @@ func (m *Map) DebugGetOccupiedBlocks(id uint64) []Int3 {
 	}
 	return blocks
 }
+
