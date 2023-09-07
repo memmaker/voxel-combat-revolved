@@ -68,13 +68,13 @@ jobs:
         run: CGOENABLED=1 go build -o bt_linux_server -tags server .
         working-directory: /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_server
-            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_client
+#      - name: Release
+#        uses: softprops/action-gh-release@v1
+#        if: startsWith(github.ref, 'refs/tags/')
+#        with:
+#          files: |
+#            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_server
+#            /home/runner/work/voxel-combat-revolved/voxel-combat-revolved/bt_linux_client
 
       - name: Add binaries to release
         uses: svenstaro/upload-release-action@v2

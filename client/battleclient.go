@@ -166,6 +166,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
     myApp.GameClient = game.NewGameClient[*Unit](initInfos, myApp.CreateClientUnit)
     myApp.GameClient.SetEnvironment("GL-Client")
     myApp.GameClient.SetOnExplode(myApp.OnExplode)
+    myApp.GameClient.SetOnNotification(myApp.Print)
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
     myApp.guiShader = myApp.loadGuiShader()

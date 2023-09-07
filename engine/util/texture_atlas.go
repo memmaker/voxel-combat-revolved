@@ -6,7 +6,6 @@ import (
 	"github.com/memmaker/battleground/engine/voxel"
 	_ "github.com/spakin/netpbm"
 	"image"
-	"image/png"
 	"os"
 	"path"
 	"sort"
@@ -22,7 +21,7 @@ type NameIndex map[string]byte
 func (i NameIndex) WriteAtlasIndex(filename string) {
     file, err := os.Create(filename)
     if err != nil {
-		LogTextureError("could not create debug_atlas.png")
+		LogTextureError("could not create atlas")
     }
     for name, index := range i {
         file.WriteString(fmt.Sprintf("%s %d\n", name, index))
@@ -86,6 +85,7 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 		textureIndex++
 	}
 	// debug write the atlas to a file
+	/*
 	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
 	if err != nil {
 		LogTextureError("could not create debug_atlas.png")
@@ -95,6 +95,7 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 		LogTextureError("could not encode debug_atlas.png")
 	}
 	file.Close()
+	*/
 	texture := glhf.NewTexture(256, 256, false, pixels.Pix)
 	texture.SetAtlasItemSize(itemSizeX, itemSizeY)
 	return texture, indices

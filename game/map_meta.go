@@ -14,33 +14,30 @@ type MapMetadata struct {
 	PoIPlacements       []voxel.Int3
 }
 
-func (m *MapMetadata) SaveToDisk(mapfilename string) {
+func (m *MapMetadata) SaveToDisk(mapfilename string) error {
 	metaFilename := mapfilename + ".meta"
 	file, err := os.Create(metaFilename)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	err = encoder.Encode(m)
-	if err != nil {
-		panic(err)
-	}
+	return encoder.Encode(m)
 }
 
-func NewMapMetadataFromFile(filename string) *MapMetadata {
+func NewMapMetadataFromFile(filename string) MapMetadata {
 	if util.DoesFileExist(filename) {
 		var metadata MapMetadata
 		data, err := os.ReadFile(filename)
 		if err == nil {
 			if util.FromJson(string(data), &metadata) {
-				return &metadata
+				return metadata
 			}
 		}
 	}
-	return &MapMetadata{
+	return MapMetadata{
 		Name:                "Unnamed Map",
 		FloorCeilingHeights: [][2]int{{1, 4}},
 		SpawnPositions:      [][]voxel.Int3{{}},

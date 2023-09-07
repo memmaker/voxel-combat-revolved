@@ -234,9 +234,7 @@ func (c *DummyClient) CreateGameSequence() {
 	println("[DummyClient] Starting create game sequence...")
 	util.MustSend(con.Login("creator"))
 	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map", "fx's test game", MissionDetails{
-		Placement: PlacementModeManual,
-	}, true))
+	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDeathmatch(), true))
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)
