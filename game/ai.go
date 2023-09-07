@@ -118,9 +118,13 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnNextPlayer(msg)
 			if msg.YourTurn {
+				util.MustSend(c.connection.EndTurn())
+				/*
 				c.resetTurn()
 				c.makeMove()
 				c.turnCounter++
+
+				*/
 			}
 		}
 	case "GameOver":
@@ -234,7 +238,7 @@ func (c *DummyClient) CreateGameSequence() {
 	println("[DummyClient] Starting create game sequence...")
 	util.MustSend(con.Login("creator"))
 	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDeathmatch(), true))
+	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDefend(), true))
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)

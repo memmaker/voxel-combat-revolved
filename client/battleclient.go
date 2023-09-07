@@ -993,7 +993,15 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
         a.ResetOverwatch()
         a.ResetUnitsForNextTurn()
         //a.Print("It's your turn!")
-        a.FlashText("FIGHT!", 3)
+        if a.GetMissionDetails().Scenario == game.MissionScenarioDefend {
+            if a.GameInstance.IndexOfPlayer(a.GetControllingUserID()) == 0 {
+                a.FlashText("DEFEND!", 3)
+            } else {
+                a.FlashText("DESTROY!", 3)
+            }
+        } else {
+            a.FlashText("FIGHT!", 3)
+        }
         a.SwitchToUnitNoCameraMovement(a.FirstUnit())
     } else {
         a.FlashText("WAIT!", 3)

@@ -26,7 +26,7 @@ type GameStartedMessage struct {
 	LOSMatrix        map[uint64]map[uint64]bool
 	PressureMatrix   map[uint64]map[uint64]float64
 	VisibleUnits     []*UnitInstance
-	MissionDetails   MissionDetails
+	MissionDetails   *MissionDetails
 }
 
 type NextPlayerMessage struct {

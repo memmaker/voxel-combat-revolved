@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetails) *GameInstance {
+func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetails) *GameInstance {
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
 	assetLoader := NewAssets()
 	mapMetadata := assetLoader.LoadMapMetadata(mapFile)
@@ -85,7 +85,7 @@ type GameInstance struct {
 
 	rules          *Ruleset
 	assets         *Assets
-	missionDetails MissionDetails
+    missionDetails *MissionDetails
 
 	// game instance state
 	currentPlayerIndex int
@@ -245,6 +245,7 @@ func (g *GameInstance) SetLOS(observer uint64, target uint64, canSee bool) {
 }
 
 func (g *GameInstance) IsGameOver() (bool, uint64) {
+
 	playersWithActiveUnits := make(map[uint64]bool)
 	for playerID, units := range g.playerUnits {
 		for _, unitID := range units {
@@ -260,6 +261,14 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 			return true, playerID
 		}
 	}
+
+    if g.missionDetails.Scenario == MissionScenarioDefend { // player at Index 0 is the defender
+        if g.missionDetails.AllObjectivesDestroyed() {
+            return true, g.players[1]
+        }
+    }
+
+
 	return false, 0
 }
 
@@ -507,7 +516,7 @@ func (g *GameInstance) GetAssets() *Assets {
 	return g.assets
 }
 
-func (g *GameInstance) GetMissionDetails() MissionDetails {
+func (g *GameInstance) GetMissionDetails() *MissionDetails {
 	return g.missionDetails
 }
 
