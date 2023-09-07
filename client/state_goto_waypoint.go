@@ -36,7 +36,7 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
 			a.snapToPosition(resolvedPosition)
 		}
-		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Start movement from %v to %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
+		util.LogUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Start movement from %v to %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
 
 		// move until we reach a waypoint
 		should(exe.YieldFunc(func() bool {
@@ -44,7 +44,7 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 			return a.unit.HasReachedWaypoint()
 		}))
 
-		println(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
+		util.LogUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
 		// we reached a waypoint
 		if a.unit.IsLastWaypoint() {
 			a.snapToLastPosition(a.unit.GetWaypoint())

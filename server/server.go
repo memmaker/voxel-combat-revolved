@@ -330,12 +330,14 @@ func (b *BattleServer) SelectDeployment(userID uint64, msg game.DeploymentMessag
 		return
 	}
 
+	util.LogNetworkDebug(fmt.Sprintf("[BattleServer] %d selected deployment: %v", userID, msg.Deployment))
+
 	if !gameInstance.TryDeploy(userID, msg.Deployment) {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Deployment failed"})
+		b.respond(user, "DeploymentResponse", game.ActionResponse{Success: false, Message: "Deployment failed"})
 		return
 	}
 
-	b.respondWithMessage(user, game.ActionResponse{Success: true, Message: "Deployment successful"})
+	b.respond(user, "DeploymentResponse", game.ActionResponse{Success: true, Message: "Deployment successful"})
 
 	user.isReady = true
 
@@ -349,6 +351,7 @@ func (b *BattleServer) SelectDeployment(userID uint64, msg game.DeploymentMessag
 	}
 
 	if allReady {
+		gameInstance.DeploymentDone()
 		b.SendNextPlayer(gameInstance)
 	}
 }
@@ -471,6 +474,12 @@ func (b *BattleServer) EndTurn(userID uint64) {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "It is not your turn"})
 		return
 	}
+
+	if !gameInstance.AllUnitsDeployed() {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Not all units are deployed"})
+		return
+	}
+
 	isGameOver, winner := gameInstance.IsGameOver()
 	if isGameOver {
 		b.SendGameOver(gameInstance, winner)
@@ -502,6 +511,7 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	}
 
 	*/
+	util.LogNetworkInfo(fmt.Sprintf("[BattleServer] New turn for game %s", gameInstance.GetID()))
 
 	nextPlayer := gameInstance.NextPlayer()
 	for _, playerID := range gameInstance.GetPlayerIDs() {

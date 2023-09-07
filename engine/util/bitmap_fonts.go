@@ -31,6 +31,7 @@ type BitmapFontMesh struct {
     paddingBetweenLines      int
     originIsCenter           bool
     isHidden                 bool
+    lastText                 []string
 }
 
 func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(character rune) uint16) *BitmapFontMesh {
@@ -83,6 +84,8 @@ func (t *BitmapFontMesh) SetMultilineText(text []string) {
         println("BitmapFontMesh: characterToTextureIndex is nil")
         return
     }
+    t.lastText = text
+    t.isHidden = false
     paddingBetweenCharacters := t.paddingBetweenCharacters
     paddingBetweenLines := t.paddingBetweenLines
 
@@ -195,6 +198,10 @@ func (t *BitmapFontMesh) SetPosition(vec2 mgl32.Vec2) {
 
 func (t *BitmapFontMesh) Hide() {
     t.isHidden = true
+}
+
+func (t *BitmapFontMesh) GetText() string {
+    return strings.Join(t.lastText, "\n")
 }
 
 type BitmapFontIndex map[rune]uint16

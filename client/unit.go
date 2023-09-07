@@ -72,7 +72,7 @@ func (p *Unit) Update(deltaTime float64) {
 
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
-		println(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
+		util.LogUnitDebug(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
 		p.SetState(nextState)
 	}
 }

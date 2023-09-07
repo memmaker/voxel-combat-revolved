@@ -13,7 +13,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetail
 	g := &GameInstance{
 		id:             gameID,
 		mapFile:        mapFile,
-		assets:   assetLoader,
+		assets:            assetLoader,
 		players:        make([]uint64, 0),
 		playerFactions: make(map[uint64]*Faction),
 		losMatrix:      make(map[uint64]map[uint64]bool),
@@ -21,8 +21,9 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetail
 		playerUnits:    make(map[uint64][]uint64),
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
-		voxelMap: voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
-		mapMeta:  assetLoader.LoadMapMetadata(mapFile),
+		waitForDeployment: details.Placement == PlacementModeManual,
+		voxelMap:          voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
+		mapMeta:           assetLoader.LoadMapMetadata(mapFile),
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 		missionDetails: details,
 	}
@@ -80,7 +81,7 @@ type GameInstance struct {
 	public  bool
 
 	rules          *Ruleset
-	assets *Assets
+	assets         *Assets
 	missionDetails MissionDetails
 
 	// game instance state
@@ -99,8 +100,9 @@ type GameInstance struct {
 	environment string
 
 	// mechanics
-	overwatch      map[voxel.Int3][]*UnitInstance
-	pressureMatrix map[uint64]map[uint64]float64
+	overwatch         map[voxel.Int3][]*UnitInstance
+	pressureMatrix    map[uint64]map[uint64]float64
+	waitForDeployment bool
 }
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
@@ -148,7 +150,17 @@ func (g *GameInstance) AddPlayer(id uint64) {
 func (g *GameInstance) IsReady() bool {
 	return len(g.players) == g.playersNeeded && len(g.playerFactions) == g.playersNeeded && len(g.playerUnits) == g.playersNeeded
 }
-
+func (g *GameInstance) AllUnitsDeployed() bool {
+	if !g.waitForDeployment {
+		return true
+	}
+	for _, unit := range g.units {
+		if !g.GetVoxelMap().IsUnitOnMap(unit) {
+			return false
+		}
+	}
+	return true
+}
 func (g *GameInstance) Start() uint64 {
 	firstPlayer := g.players[0]
 	return firstPlayer
@@ -495,4 +507,8 @@ func (g *GameInstance) TryDeploy(playerID uint64, deployment map[uint64]voxel.In
 		unit.StartStanceAnimation()
 	}
 	return true
+}
+
+func (g *GameInstance) DeploymentDone() {
+	g.waitForDeployment = false
 }
