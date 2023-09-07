@@ -59,7 +59,7 @@ type CreateGameMessage struct {
 	Map            string
 	GameIdentifier string
 	IsPublic       bool
-	MissionDetails MissionDetails
+	MissionDetails *MissionDetails
 }
 
 type JoinGameMessage struct {

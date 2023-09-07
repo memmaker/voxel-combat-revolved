@@ -24,22 +24,22 @@ type MissionDetails struct {
     damage                map[voxel.Int3]int
 }
 
-func NewRandomDeathmatch() MissionDetails {
-    return MissionDetails{
+func NewRandomDeathmatch() *MissionDetails {
+    return &MissionDetails{
         Placement: PlacementModeRandom,
         Scenario:  MissionScenarioDeathmatch,
     }
 }
 
-func NewManualDeathmatch() MissionDetails {
-    return MissionDetails{
+func NewManualDeathmatch() *MissionDetails {
+    return &MissionDetails{
         Placement: PlacementModeManual,
         Scenario:  MissionScenarioDeathmatch,
     }
 }
 
-func NewRandomDefend() MissionDetails {
-    return MissionDetails{
+func NewRandomDefend() *MissionDetails {
+    return &MissionDetails{
         Placement:     PlacementModeRandom,
         Scenario:      MissionScenarioDefend,
         ObjectiveLife: 10,
@@ -60,6 +60,9 @@ func (d *MissionDetails) SyncFromMap(mapData MapMetadata) {
 
 // TryDamageObjective returns true if the objective was destroyed
 func (d *MissionDetails) TryDamageObjective(atPos voxel.Int3, damage int) bool {
+    if d.damage == nil {
+        d.damage = make(map[voxel.Int3]int)
+    }
     if _, exists := d.damage[atPos]; !exists {
         d.damage[atPos] = 0
     }

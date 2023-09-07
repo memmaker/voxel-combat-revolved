@@ -125,6 +125,7 @@ func (b *BlockLibrary) ApplyGameplayRules(a *GameInstance) {
 	destroyableDef.OnDamageReceived = func(block voxel.Int3, damage int) {
 		if damage > 4 {
 			a.GetVoxelMap().SetAir(block)
+			a.GetVoxelMap().GenerateAllMeshes()
 		}
 	}
 
@@ -133,6 +134,7 @@ func (b *BlockLibrary) ApplyGameplayRules(a *GameInstance) {
 		missionDetails := a.GetMissionDetails()
 		if missionDetails.TryDamageObjective(blockPos, damage) {
 			a.GetVoxelMap().SetAir(blockPos)
+			a.GetVoxelMap().GenerateAllMeshes()
 		}
 	}
 }
