@@ -31,6 +31,9 @@ func (m UnitMessage) UnitID() uint64 {
 	return m.GameUnitID
 }
 
+type DeploymentMessage struct {
+	Deployment map[uint64]voxel.Int3
+}
 type UnitActionMessage interface {
 	UnitID() uint64
 }
@@ -58,11 +61,23 @@ const (
 	PlacementModeManual PlacementMode = "manual"
 )
 
+type MissionScenario string
+
+const (
+	MissionScenarioDeathmatch MissionScenario = "deathmatch"
+	MissionScenarioDefend     MissionScenario = "defend"
+)
+
+type MissionDetails struct {
+	Placement PlacementMode
+	Scenario  MissionScenario
+}
+
 type CreateGameMessage struct {
 	Map            string
 	GameIdentifier string
 	IsPublic       bool
-	Placement      PlacementMode
+	MissionDetails MissionDetails
 }
 
 type JoinGameMessage struct {

@@ -17,6 +17,7 @@ type LoginResponse struct {
 
 type GameStartedMessage struct {
 	OwnID            uint64
+	SpawnIndex       uint64
 	OwnUnits         []*UnitInstance
 	GameID           string
 	PlayerFactionMap map[uint64]string
@@ -25,6 +26,7 @@ type GameStartedMessage struct {
 	LOSMatrix        map[uint64]map[uint64]bool
 	PressureMatrix   map[uint64]map[uint64]float64
 	VisibleUnits     []*UnitInstance
+	MissionDetails   MissionDetails
 }
 
 type NextPlayerMessage struct {
@@ -39,4 +41,11 @@ func (n NextPlayerMessage) MessageType() string {
 type GameOverMessage struct {
 	WinnerID uint64
 	YouWon   bool
+}
+
+type StartDeploymentMessage struct {
+}
+
+func (s StartDeploymentMessage) MessageType() string {
+	return "StartDeployment"
 }

@@ -22,7 +22,7 @@ type NameIndex map[string]byte
 func (i NameIndex) WriteAtlasIndex(filename string) {
     file, err := os.Create(filename)
     if err != nil {
-        println("could not create debug_atlas.png")
+		LogTextureError("could not create debug_atlas.png")
     }
     for name, index := range i {
         file.WriteString(fmt.Sprintf("%s %d\n", name, index))
@@ -33,7 +33,7 @@ func (i NameIndex) WriteAtlasIndex(filename string) {
 func NewBlockIndexFromFile(filename string) NameIndex {
     file, err := os.Open(filename)
     if err != nil {
-        println("could not open index file")
+		LogTextureError("could not open index file")
         return nil
     }
     defer file.Close()
@@ -59,7 +59,7 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 		texturePath := path.Join(directory, blockName+".png")
 		file, err := os.Open(texturePath)
 		if err != nil {
-			println(fmt.Sprintf("[Atlas] Error loading %s from %s", blockName, texturePath))
+			LogTextureError(fmt.Sprintf("[Atlas] Error loading %s from %s", blockName, texturePath))
 			continue
 		}
 		img, _, err := image.Decode(file)
@@ -82,17 +82,17 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 			}
 		}
 		indices[blockName] = byte(textureIndex)
-		println(fmt.Sprintf("[Atlas] %d -> %s", textureIndex, blockName))
+		LogTextureDebug(fmt.Sprintf("[Atlas] %d -> %s", textureIndex, blockName))
 		textureIndex++
 	}
 	// debug write the atlas to a file
 	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
 	if err != nil {
-		println("could not create debug_atlas.png")
+		LogTextureError("could not create debug_atlas.png")
 	}
 	err = png.Encode(file, pixels)
 	if err != nil {
-		println("could not encode debug_atlas.png")
+		LogTextureError("could not encode debug_atlas.png")
 	}
 	file.Close()
 	texture := glhf.NewTexture(256, 256, false, pixels.Pix)
@@ -109,7 +109,7 @@ func createIndicesDirectory(directory string, whiteList []string) NameIndex {
 			continue
 		}
 		indices[blockName] = byte(textureIndex)
-		println(fmt.Sprintf("[Index] %d -> %s", textureIndex, blockName))
+		LogTextureDebug(fmt.Sprintf("[Index] %d -> %s", textureIndex, blockName))
 		textureIndex++
 	}
 	return indices

@@ -35,6 +35,7 @@ type PositionDrawable interface {
 	SetBlockPosition(pos voxel.Int3)
 	Draw()
 	SetSize(scaleFactor float64)
+    GetBlockPosition() voxel.Int3
 }
 
 type GroundSelector struct {

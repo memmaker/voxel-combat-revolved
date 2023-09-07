@@ -51,18 +51,33 @@ func (a *Assets) LoadBitmapFont(fontName string, glyphWidth int, glyphHeight int
     return fontTextureAtlas, atlasIndex
 }
 
+func (a *Assets) LoadBitmapFontWithoutIndex(fontName string, glyphWidth int, glyphHeight int) *glhf.Texture {
+    filePath := path.Join(a.paths[AssetTypeBitmapFonts], fontName)
+    fontTextureAtlas := mustLoadTexture(filePath + ".png")
+    fontTextureAtlas.SetAtlasItemSize(glyphWidth, glyphHeight)
+    return fontTextureAtlas
+}
+
 func (a *Assets) LoadMesh(name string) *util.CompoundMesh {
-    filePath := path.Join(a.paths[AssetTypeMeshes], name+".glb")
+    filePath := a.getModelFile(name)
     return util.LoadGLTFWithTextures(filePath)
 }
 
 func (a *Assets) LoadMeshWithoutTextures(name string) *util.CompoundMesh {
-    filePath := path.Join(a.paths[AssetTypeMeshes], name+".glb")
+    filePath := a.getModelFile(name)
     return util.LoadGLTF(filePath, nil)
 }
 func (a *Assets) LoadMeshWithColor(name string, forcedColor mgl32.Vec3) *util.CompoundMesh {
-    filePath := path.Join(a.paths[AssetTypeMeshes], name+".glb")
+    filePath := a.getModelFile(name)
     return util.LoadGLTF(filePath, &forcedColor)
+}
+
+func (a *Assets) getModelFile(name string) string {
+    binPath := path.Join(a.paths[AssetTypeMeshes], name+".glb")
+    if util.DoesFileExist(binPath) {
+        return binPath
+    }
+    return path.Join(a.paths[AssetTypeMeshes], name+".gltf")
 }
 
 func (a *Assets) LoadMap(filename string) []byte {

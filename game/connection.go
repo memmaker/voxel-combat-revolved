@@ -53,8 +53,8 @@ func (c *ServerConnection) SelectFaction(factionName string) error {
 	return c.send("SelectFaction", message)
 }
 
-func (c *ServerConnection) CreateGame(mapName string, gameID string, placement PlacementMode, isPublic bool) error {
-	message := CreateGameMessage{Map: mapName, GameIdentifier: gameID, IsPublic: isPublic, Placement: placement}
+func (c *ServerConnection) CreateGame(mapName string, gameID string, details MissionDetails, isPublic bool) error {
+	message := CreateGameMessage{Map: mapName, GameIdentifier: gameID, IsPublic: isPublic, MissionDetails: details}
 	return c.send("CreateGame", message)
 }
 
@@ -142,6 +142,11 @@ func (c *ServerConnection) ReloadAction(unitID uint64) error {
 	return c.send("Reload", UnitMessage{GameUnitID: unitID})
 }
 
+func (c *ServerConnection) SelectDeployment(deployment map[uint64]voxel.Int3) error {
+	return c.send("SelectDeployment", DeploymentMessage{
+		Deployment: deployment,
+	})
+}
 func (c *ServerConnection) DebugRequest(command string) error {
     message := DebugRequest{Command: command}
     return c.send("DebugRequest", message)

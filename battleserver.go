@@ -92,7 +92,7 @@ func NewBattleServer() *server.BattleServer {
 				CoreStats: defaultCoreStats,
 				ModelFile: "human",
 				ClientRepresentation: game.UnitClientDefinition{
-					TextureFile: "deep_monster2",
+					//TextureFile: "deep_monster2",
 				},
 			},
 			{

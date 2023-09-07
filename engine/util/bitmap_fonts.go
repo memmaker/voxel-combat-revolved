@@ -22,6 +22,15 @@ type BitmapFontMesh struct {
     texture                 *glhf.Texture
     characterToTextureIndex func(character rune) uint16
     scale                   int
+    discardColor            mgl32.Vec3
+    useDiscardColor         bool
+    tintColor               mgl32.Vec3
+    useTintColor            bool
+
+    paddingBetweenCharacters int
+    paddingBetweenLines      int
+    originIsCenter           bool
+    isHidden                 bool
 }
 
 func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(character rune) uint16) *BitmapFontMesh {
@@ -30,17 +39,42 @@ func NewBitmapFontMesh(shader *glhf.Shader, texture *glhf.Texture, mapper func(c
         texture:                 texture,
         characterToTextureIndex: mapper,
         scale:                   1,
+        paddingBetweenLines: 2,
     }
     return b
 }
+func (t *BitmapFontMesh) SetDiscardColor(color mgl32.Vec3) {
+    t.discardColor = color
+    t.useDiscardColor = true
+}
 
+func (t *BitmapFontMesh) SetCenterOrigin(center bool) {
+    t.originIsCenter = center
+}
+
+func (t *BitmapFontMesh) SetTintColor(color mgl32.Vec3) {
+    t.tintColor = color
+    t.useTintColor = true
+}
 func (t *BitmapFontMesh) SetAtlasFontMapper(mapper func(character rune) uint16) {
     t.characterToTextureIndex = mapper
 }
 func (t *BitmapFontMesh) SetScale(scale int) {
     t.scale = scale
 }
-func (t *BitmapFontMesh) SetText(text []string) {
+func (t *BitmapFontMesh) SetText(text string) {
+    t.SetMultilineText([]string{text})
+}
+func (t *BitmapFontMesh) getDimensions(text []string) (int, int) {
+    maxChars := 0
+    for _, line := range text {
+        if len(line) > maxChars {
+            maxChars = len(line)
+        }
+    }
+    return maxChars, len(text)
+}
+func (t *BitmapFontMesh) SetMultilineText(text []string) {
     if t.texture == nil {
         println("BitmapFontMesh: texture is nil")
         return
@@ -49,16 +83,22 @@ func (t *BitmapFontMesh) SetText(text []string) {
         println("BitmapFontMesh: characterToTextureIndex is nil")
         return
     }
-    paddingBetweenCharacters := 0
-    paddingBetweenLines := 2
-    var rawVertices []glhf.GlFloat
-    curDrawPos := t.pos
+    paddingBetweenCharacters := t.paddingBetweenCharacters
+    paddingBetweenLines := t.paddingBetweenLines
+
+    curDrawPos := mgl32.Vec3{}
     charWidth, charHeight := t.texture.GetAtlasItemSize()
     charWidth *= t.scale
     charHeight *= t.scale
     gWidth := glhf.GlFloat(charWidth)
     gHeight := glhf.GlFloat(charHeight)
 
+    if t.originIsCenter {
+        tWidth, tHeight := t.CalculateSize(text)
+        curDrawPos = curDrawPos.Add(mgl32.Vec3{float32(-tWidth / 2), float32(-tHeight / 2), 0})
+    }
+
+    var rawVertices []glhf.GlFloat
     for _, line := range text {
         for _, character := range line {
             if character == ' ' {
@@ -92,11 +132,33 @@ func (t *BitmapFontMesh) SetText(text []string) {
     }
     t.setVertices(rawVertices)
 }
+
+func (t *BitmapFontMesh) CalculateSize(text []string) (int, int) {
+    charWidth, charHeight := t.texture.GetAtlasItemSize()
+    charWidth *= t.scale
+    charHeight *= t.scale
+    charsX, charsY := t.getDimensions(text)
+    tWidth := (charsX * (charWidth + t.paddingBetweenCharacters)) - t.paddingBetweenCharacters
+    tHeight := (charsY * (charHeight + t.paddingBetweenLines)) - t.paddingBetweenLines
+    return tWidth, tHeight
+}
 func (t *BitmapFontMesh) Draw() {
-    if t.vertices == nil {
+    if t.vertices == nil || t.isHidden {
         return
     }
     t.shader.SetUniformAttr(1, t.GetTransformMatrix())
+
+    if t.useTintColor {
+        t.shader.SetUniformAttr(2, t.tintColor.Vec4(1.0)) // tint
+    } else {
+        t.shader.SetUniformAttr(2, mgl32.Vec4{0, 0, 0, 0})
+    }
+    if t.useDiscardColor {
+        t.shader.SetUniformAttr(3, t.discardColor.Vec4(1.0)) // discard
+    } else {
+        t.shader.SetUniformAttr(3, mgl32.Vec4{0, 0, 0, 0})
+    }
+
 
     t.texture.Begin()
 
@@ -125,6 +187,14 @@ func (t *BitmapFontMesh) GetTransformMatrix() mgl32.Mat4 {
 
 func (t *BitmapFontMesh) Clear() {
     t.vertices = nil
+}
+
+func (t *BitmapFontMesh) SetPosition(vec2 mgl32.Vec2) {
+    t.pos = mgl32.Vec3{vec2.X(), vec2.Y(), 0}
+}
+
+func (t *BitmapFontMesh) Hide() {
+    t.isHidden = true
 }
 
 type BitmapFontIndex map[rune]uint16
@@ -163,12 +233,58 @@ func NewBitmapFontIndexFromFile(filename string) BitmapFontIndex {
     for {
         _, scanError := fmt.Fscanf(file, "%d:%d\n", &k, &v)
         if scanError != nil {
-            println("could not scan atlas index file")
+            if scanError.Error() != "EOF" {
+                LogIOError("could not scan atlas index file")
+            }
             break
         }
         index[k] = v
     }
     return index
+}
+
+type AtlasDescription struct {
+    PositionOfCapitalA     [2]int
+    PositionOfZero         *[2]int
+    PositionOfSpecialChain *[2]int
+    //Rows                  int
+    Cols                  int
+    SpecialCharacterChain []rune
+}
+
+func NewIndexFromDescription(desc AtlasDescription) BitmapFontIndex {
+    result := map[rune]uint16{}
+
+    //rows := desc.Rows
+    cols := desc.Cols
+
+    positionOfCapitalA := desc.PositionOfCapitalA
+    indexOfCapitalA := positionOfCapitalA[0] + positionOfCapitalA[1]*cols
+
+    indexOfZero := indexOfCapitalA + 26
+    if desc.PositionOfZero != nil {
+        positionOfZero := *desc.PositionOfZero
+        indexOfZero = positionOfZero[0] + positionOfZero[1]*cols
+    }
+    indexOfSpecialChain := indexOfZero + 10
+    if desc.PositionOfSpecialChain != nil {
+        positionOfSpecialChain := *desc.PositionOfSpecialChain
+        indexOfSpecialChain = positionOfSpecialChain[0] + positionOfSpecialChain[1]*cols
+    }
+
+    for i := 0; i < 26; i++ {
+        result[rune(i+65)] = uint16(indexOfCapitalA + i)
+    }
+
+    for i := 0; i < 10; i++ {
+        result[rune(i+48)] = uint16(indexOfZero + i)
+    }
+
+    for i, special := range desc.SpecialCharacterChain {
+        result[special] = uint16(indexOfSpecialChain + i)
+    }
+
+    return result
 }
 
 func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.Texture, BitmapFontIndex) {

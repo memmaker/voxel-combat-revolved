@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
 )
@@ -22,19 +23,27 @@ type ClientUnit interface {
 type GameClient[U ClientUnit] struct {
 	*GameInstance
 	controllingUserID uint64
+	spawnIndex        uint64
 	clientUnitMap     map[uint64]U
 	newClientUnit     func(*UnitInstance) U
+	deploymentQueue   []U
 }
 
-func NewGameClient[U ClientUnit](controllingUserID uint64, gameID, mapFile string, newClientUnit func(*UnitInstance) U) *GameClient[U] {
+func NewGameClient[U ClientUnit](infos GameStartedMessage, newClientUnit func(*UnitInstance) U) *GameClient[U] {
 	return &GameClient[U]{
-		GameInstance:      NewGameInstanceWithMap(gameID, mapFile),
+		GameInstance:      NewGameInstanceWithMap(infos.GameID, infos.MapFile, infos.MissionDetails),
 		newClientUnit:     newClientUnit,
-		controllingUserID: controllingUserID,
+		controllingUserID: infos.OwnID,
+		spawnIndex:        infos.SpawnIndex,
 		clientUnitMap:     make(map[uint64]U),
 	}
 }
-
+func (a *GameClient[U]) GetDeploymentQueue() []U {
+	return a.deploymentQueue
+}
+func (a *GameClient[U]) GetSpawnIndex() uint64 {
+	return a.spawnIndex
+}
 func (a *GameClient[U]) OnTargetedUnitActionResponse(msg ActionResponse) {
 	if !msg.Success {
 		println(fmt.Sprintf("[%s] Action failed: %s", a.environment, msg.Message))
@@ -47,10 +56,10 @@ func (a *GameClient[U]) AddOrUpdateUnit(currentUnit *UnitInstance) {
 	if _, ok := a.clientUnitMap[unitID]; ok {
 		a.UpdateUnit(currentUnit)
 	} else {
-		a.AddUnit(currentUnit)
+		a.AddUnitToGame(currentUnit)
 	}
 }
-func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
+func (a *GameClient[U]) AddUnitToGame(currentUnit *UnitInstance) U {
 	unitID := currentUnit.GameUnitID
 	if _, ok := a.clientUnitMap[unitID]; ok {
 		println(fmt.Sprintf("[%s] Unit %d already known", a.environment, unitID))
@@ -59,6 +68,7 @@ func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 	//currentUnit.Transform.SetName(currentUnit.GetName())
 	// add to game instance
 	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
+	currentUnit.UpdateMapPosition()
 
 	unit := a.newClientUnit(currentUnit)
 
@@ -69,9 +79,23 @@ func (a *GameClient[U]) AddUnit(currentUnit *UnitInstance) U {
 
 	return unit
 }
+func (a *GameClient[U]) AddOwnedUnitToDeploymentQueue(currentUnit *UnitInstance) U {
+	unitID := currentUnit.GameUnitID
+	if _, ok := a.clientUnitMap[unitID]; ok {
+		println(fmt.Sprintf("[%s] Unit %d already known", a.environment, unitID))
+		return a.clientUnitMap[unitID]
+	}
+	a.GameInstance.ClientAddUnit(currentUnit.ControlledBy(), currentUnit)
+	unit := a.newClientUnit(currentUnit)
 
-func (a *GameClient[U]) AddOwnedUnit(unitInstance *UnitInstance) U {
-	unit := a.AddUnit(unitInstance)
+	a.clientUnitMap[unitID] = unit
+
+	a.deploymentQueue = append(a.deploymentQueue, unit)
+	util.LogGameInfo(fmt.Sprintf("[%s] Added unit %s(%d) to deployment queue", a.environment, unit.GetName(), unit.UnitID()))
+	return unit
+}
+func (a *GameClient[U]) AddOwnedUnitToGame(unitInstance *UnitInstance) U {
+	unit := a.AddUnitToGame(unitInstance)
 	unit.SetUserControlled()
 	return unit
 }

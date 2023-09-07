@@ -55,7 +55,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 	case "GameStarted":
 		var gameInfo GameStartedMessage
 		util.FromJson(messageAsJson, &gameInfo)
-		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo.OwnID, gameInfo.GameID, gameInfo.MapFile, c.createDummyUnit)
+		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo, c.createDummyUnit)
 		c.GameClient.SetEnvironment("AI-Client")
 		println("Game started!")
 		loadedMap := voxel.NewMapFromSource(c.GetAssets().LoadMap(gameInfo.MapFile), nil, nil)
@@ -66,16 +66,25 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		bl.ApplyGameplayRules(c.GameInstance)
 		c.SetBlockLibrary(bl)
 
-		for _, unit := range gameInfo.OwnUnits {
-			c.AddOwnedUnit(unit)
+		if gameInfo.MissionDetails.Placement == PlacementModeManual {
+			for _, unit := range gameInfo.OwnUnits {
+				c.AddOwnedUnitToDeploymentQueue(unit)
+			}
+		} else {
+			for _, unit := range gameInfo.OwnUnits {
+				c.AddOwnedUnitToGame(unit)
+			}
 		}
 		for _, unit := range gameInfo.VisibleUnits {
-			c.AddUnit(unit)
+			c.AddUnitToGame(unit)
 		}
 
 		c.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
 
 		util.MustSend(c.connection.MapLoaded())
+	case "StartDeployment":
+		// TODO: Let the ai decide where to place units
+		c.OnDeploy()
 	case "OwnUnitMoved":
 		var msg VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
@@ -163,7 +172,7 @@ func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
 			moves *= -1
 		}
 		chosenDest = unit.GetBlockPosition().Add(voxel.Int3{Z: moves})
-		println(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
+		util.LogGameInfo(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
 		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), []voxel.Int3{chosenDest}))
 		// HACK: assume this works
 		unit.SetBlockPositionAndUpdateStance(chosenDest)
@@ -225,7 +234,9 @@ func (c *DummyClient) CreateGameSequence() {
 	println("[DummyClient] Starting create game sequence...")
 	util.MustSend(con.Login("creator"))
 	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map", "fx's test game", PlacementModeRandom, true))
+	util.MustSend(con.CreateGame("map", "fx's test game", MissionDetails{
+		Placement: PlacementModeManual,
+	}, true))
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)
@@ -288,4 +299,27 @@ func (c *DummyClient) getNextUnit() (*DummyClientUnit, bool) {
 
 func (c *DummyClient) createDummyUnit(instance *UnitInstance) *DummyClientUnit {
 	return NewDummyClientUnit(instance)
+}
+
+func (c *DummyClient) OnDeploy() {
+	deployment := make(map[uint64]voxel.Int3)
+	spawnIndex := c.GetSpawnIndex()
+	spawns := c.mapMeta.SpawnPositions[spawnIndex]
+	for _, unit := range c.GetDeploymentQueue() {
+		targetPos := c.choseRandom(unit, spawns)
+		unit.SetBlockPositionAndUpdateStance(targetPos)
+		deployment[unit.UnitID()] = targetPos
+	}
+
+	util.MustSend(c.connection.SelectDeployment(deployment))
+}
+
+func (c *DummyClient) choseRandom(unit *DummyClientUnit, spawns []voxel.Int3) voxel.Int3 {
+	current := util.RandomChoice(spawns)
+	placeable, _ := c.voxelMap.IsUnitPlaceable(unit, current)
+	for !placeable {
+		current = util.RandomChoice(spawns)
+		placeable, _ = c.voxelMap.IsUnitPlaceable(unit, current)
+	}
+	return current
 }
