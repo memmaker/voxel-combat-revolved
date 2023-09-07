@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
+func NewGameInstanceWithMap(gameID string, mapFile string, details MissionDetails) *GameInstance {
 	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
 	assetLoader := NewAssets()
 	g := &GameInstance{
@@ -24,6 +24,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string) *GameInstance {
 		voxelMap: voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
 		mapMeta:  assetLoader.LoadMapMetadata(mapFile),
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
+		missionDetails: details,
 	}
 	g.rules = NewDefaultRuleset(g)
 	return g
@@ -78,8 +79,9 @@ type GameInstance struct {
 	mapFile string
 	public  bool
 
-	rules *Ruleset
+	rules          *Ruleset
 	assets *Assets
+	missionDetails MissionDetails
 
 	// game instance state
 	currentPlayerIndex int
@@ -139,7 +141,7 @@ func (g *GameInstance) currentPlayerID() uint64 {
 }
 
 func (g *GameInstance) AddPlayer(id uint64) {
-	println(fmt.Sprintf("[GameInstance] Adding player %d to game %s", id, g.id))
+	util.LogGameInfo(fmt.Sprintf("[GameInstance] Adding player %d to game %s", id, g.id))
 	g.players = append(g.players, id)
 }
 
@@ -154,7 +156,7 @@ func (g *GameInstance) Start() uint64 {
 
 func (g *GameInstance) SetFaction(userID uint64, faction *Faction) {
 	g.playerFactions[userID] = faction
-	println(fmt.Sprintf("[GameInstance] Player %d is now in faction %s", userID, faction.Name))
+	util.LogGameInfo(fmt.Sprintf("[GameInstance] Player %d is now in faction %s", userID, faction.Name))
 }
 
 func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64 {
@@ -179,7 +181,7 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 	unit.UpdateMapPosition()
 	unit.StartStanceAnimation()
 
-	println(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	util.LogGameInfo(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 
 	return unitInstanceID
 }
@@ -188,12 +190,12 @@ func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
 		g.playerUnits[userID] = make([]uint64, 0)
 	}
 	unitInstanceID := unit.UnitID()
-	println(fmt.Sprintf("[ClientAddUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	util.LogGameInfo(fmt.Sprintf("[ClientAddUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 
 	unit.SetVoxelMap(g.voxelMap)
-	unit.UpdateMapPosition()
+
 
 	return unitInstanceID
 }
@@ -241,9 +243,9 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 
 func (g *GameInstance) Kill(killer, victim *UnitInstance) {
 	if killer != nil {
-		println(fmt.Sprintf("[%s] %s(%d) killed %s(%d)", g.environment, killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
+		util.LogGameInfo(fmt.Sprintf("[%s] %s(%d) killed %s(%d)", g.environment, killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
 	} else {
-		println(fmt.Sprintf("[%s] %s(%d) died", g.environment, victim.Name, victim.UnitID()))
+		util.LogGameInfo(fmt.Sprintf("[%s] %s(%d) died", g.environment, victim.Name, victim.UnitID()))
 	}
 	victim.Kill()
 }
@@ -335,7 +337,7 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 }
 
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
-	println(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
+	util.LogGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
 	// TODO: implement visual effect
 	xStart := int32(position.X) - int32(radius)
 	xEnd := int32(position.X) + int32(radius)
@@ -396,7 +398,7 @@ func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damag
 }
 
 func (g *GameInstance) RegisterOverwatch(unit *UnitInstance, targets []voxel.Int3) {
-	println(fmt.Sprintf("[%s] Registering overwatch for %s(%d) on %v", g.environment, unit.GetName(), unit.UnitID(), targets))
+	util.LogGameInfo(fmt.Sprintf("[%s] Registering overwatch for %s(%d) on %v", g.environment, unit.GetName(), unit.UnitID(), targets))
 	for _, target := range targets {
 		g.overwatch[target] = append(g.overwatch[target], unit)
 	}
@@ -471,4 +473,26 @@ func (g *GameInstance) IndexOfPlayer(id uint64) int {
 
 func (g *GameInstance) GetAssets() *Assets {
 	return g.assets
+}
+
+func (g *GameInstance) GetMissionDetails() MissionDetails {
+	return g.missionDetails
+}
+
+func (g *GameInstance) TryDeploy(playerID uint64, deployment map[uint64]voxel.Int3) bool {
+	for unitID, pos := range deployment {
+		unit, ok := g.units[unitID]
+		if !ok {
+			util.LogGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d does not exist", unitID))
+			return false
+		}
+		if unit.ControlledBy() != playerID {
+			util.LogGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d is not controlled by player %d", unitID, playerID))
+			return false
+		}
+		// TODO: needs validation..
+		unit.SetBlockPositionAndUpdateStance(pos)
+		unit.StartStanceAnimation()
+	}
+	return true
 }

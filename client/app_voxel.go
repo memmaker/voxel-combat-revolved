@@ -113,6 +113,7 @@ func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
 	sizeHorizontal := 3
 	sizeVertical := 1
 	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
+	loadedMap.SetLogger(util.LogVoxelInfo, util.LogGameError)
 	loadedMap.SetShader(a.chunkShader)
 	loadedMap.SetTerrainTexture(terrainTextureAtlas)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)

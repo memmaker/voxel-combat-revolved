@@ -256,7 +256,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
     c.isDirty = false
 
-    println(fmt.Sprintf("[Greedy] Chunk %d,%d,%d was meshed into %d triangles", c.chunkPosX, c.chunkPosY, c.chunkPosZ, c.meshBuffer.TriangleCount()))
+    c.m.logVoxelInfo(fmt.Sprintf("[Greedy] Chunk %d,%d,%d was meshed into %d triangles", c.chunkPosX, c.chunkPosY, c.chunkPosZ, c.meshBuffer.TriangleCount()))
     return c.meshBuffer
 }
 

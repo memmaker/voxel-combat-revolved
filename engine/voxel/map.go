@@ -1,7 +1,7 @@
 package voxel
 
 import (
-    "bytes"
+	"bytes"
 	"compress/gzip"
 	"encoding/binary"
 	"fmt"
@@ -19,9 +19,28 @@ type Map struct {
 	chunkShader        *glhf.Shader
 	terrainTexture     *glhf.Texture
 	knownUnitPositions map[uint64][]Int3
+	mapInfoLogger      func(string)
+	gameErrorLogger    func(string)
 
 	spawnCounter    int
 	textureCallback func(block *Block, side FaceType) byte
+}
+
+func (m *Map) SetLogger(mapLogger func(string), gameErrorLogger func(string)) {
+	m.mapInfoLogger = mapLogger
+	m.gameErrorLogger = gameErrorLogger
+}
+
+func (m *Map) logVoxelInfo(msg string) {
+	if m.mapInfoLogger != nil {
+		m.mapInfoLogger(msg)
+	}
+}
+
+func (m *Map) logGameError(msg string) {
+	if m.gameErrorLogger != nil {
+		m.gameErrorLogger(msg)
+	}
 }
 
 func (m *Map) SetSize(width, height, depth int32) {
@@ -79,19 +98,19 @@ func (m *Map) SaveToDisk() {
 	binary.Write(gzipWriter, binary.LittleEndian, m.height)
 	binary.Write(gzipWriter, binary.LittleEndian, m.depth)
 	// write the map dimensions
-	println(fmt.Sprintf("[Map] Saving map with dimensions %d %d %d", m.width, m.height, m.depth))
+	m.logVoxelInfo(fmt.Sprintf("[Map] Saving map with dimensions %d %d %d", m.width, m.height, m.depth))
 
 	// write the number of chunks
 	chunkCount := int16(len(m.chunks))
 	binary.Write(gzipWriter, binary.LittleEndian, chunkCount)
-	println(fmt.Sprintf("[Map] Saving %d chunks", chunkCount))
+	m.logVoxelInfo(fmt.Sprintf("[Map] Saving %d chunks", chunkCount))
 
 	// write the chunks
 	for _, chunk := range m.chunks {
 		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosX)
 		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosY)
 		binary.Write(gzipWriter, binary.LittleEndian, chunk.chunkPosZ)
-		println(fmt.Sprintf("[Map] Saving chunk %d %d %d", chunk.chunkPosX, chunk.chunkPosY, chunk.chunkPosZ))
+		m.logVoxelInfo(fmt.Sprintf("[Map] Saving chunk %d %d %d", chunk.chunkPosX, chunk.chunkPosY, chunk.chunkPosZ))
 		for _, block := range chunk.data {
 			id := byte(0)
 			if block != nil {
@@ -99,7 +118,7 @@ func (m *Map) SaveToDisk() {
 			}
 			binary.Write(gzipWriter, binary.LittleEndian, id)
 		}
-		println(fmt.Sprintf("[Map] Saved %d blocks", len(chunk.data)))
+		m.logVoxelInfo(fmt.Sprintf("[Map] Saved %d blocks", len(chunk.data)))
 	}
 
 	gzipWriter.Close()
@@ -117,13 +136,13 @@ func (m *Map) LoadFromSource(source []byte) {
 	binary.Read(gzipReader, binary.LittleEndian, &m.width)
 	binary.Read(gzipReader, binary.LittleEndian, &m.height)
 	binary.Read(gzipReader, binary.LittleEndian, &m.depth)
-	println(fmt.Sprintf("[Map] Loading map with dimensions %d %d %d", m.width, m.height, m.depth))
+	m.logVoxelInfo(fmt.Sprintf("[Map] Loading map with dimensions %d %d %d", m.width, m.height, m.depth))
 
 	// read the number of chunks
 
 	chunkCount := int16(0)
 	binary.Read(gzipReader, binary.LittleEndian, &chunkCount)
-	println(fmt.Sprintf("[Map] Loading %d chunks", chunkCount))
+	m.logVoxelInfo(fmt.Sprintf("[Map] Loading %d chunks", chunkCount))
 
 	m.chunks = make([]*Chunk, chunkCount)
 
@@ -133,7 +152,7 @@ func (m *Map) LoadFromSource(source []byte) {
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[0])
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[1])
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[2])
-		println(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
+		m.logVoxelInfo(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
 		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
 		m.chunks[i] = chunk
 		for j := int32(0); j < CHUNK_SIZE_CUBED; j++ {
@@ -204,7 +223,7 @@ func (m *Map) GenerateAllMeshes() {
 			}
 		}
 	}
-	println(fmt.Sprintf("[Greedy] Total triangles: %d", totalTriangles))
+	m.logVoxelInfo(fmt.Sprintf("[Greedy] Total triangles: %d", totalTriangles))
 }
 
 func (m *Map) GetChunkFromPosition(pos mgl32.Vec3) *Chunk {
@@ -396,7 +415,7 @@ func (m *Map) SetUnitWithOffsets(unit MapObject, blockPos Int3, offsets []Int3) 
 		m.knownUnitPositions[unit.UnitID()] = occupiedBlocks
 		return true
 	}
-	println(fmt.Sprintf("[Map] ERR - Failed to place %s(%d): %s (%s)", unit.GetName(), unit.UnitID(), blockPos.ToString(), reason))
+	m.logGameError(fmt.Sprintf("[Map] ERR - Failed to place %s(%d): %s (%s)", unit.GetName(), unit.UnitID(), blockPos.ToString(), reason))
 	return false
 }
 
@@ -411,10 +430,8 @@ func GetBlocksNeededByConstruction(construction *Construction) []string {
 		}
 	}
 	var blockNames []string
-	println("[Map] blocks needed by construction:")
 	for blockName := range blocks {
 		blockNames = append(blockNames, blockName)
-		println("[Map] -", blockName)
 	}
 	return blockNames
 }
@@ -426,10 +443,8 @@ func GetBlockEntitiesNeededByConstruction(construction *Construction) []string {
 		}
 	}
 	var blockEntityNames []string
-	println("[Map] BlockEntities needed by construction:")
 	for name := range blockEntities {
 		blockEntityNames = append(blockEntityNames, name)
-		println("[Map] -", name)
 	}
 	return blockEntityNames
 }
@@ -456,11 +471,9 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 			maxZ = section.MinBlockZ + int32(section.ShapeZ)
 		}
 	}
-	println(fmt.Sprintf("[Map] Construction bounds: %d %d %d - %d %d %d", minX, minY, minZ, maxX, maxY, maxZ))
 	chunkCountX := int32(math.Ceil(float64(maxX-minX) / float64(CHUNK_SIZE)))
 	chunkCountY := int32(math.Ceil(float64(maxY-minY) / float64(CHUNK_SIZE)))
 	chunkCountZ := int32(math.Ceil(float64(maxZ-minZ) / float64(CHUNK_SIZE)))
-	println(fmt.Sprintf("[Map] Chunk count: %d %d %d", chunkCountX, chunkCountY, chunkCountZ))
 	voxelMap := NewMap(chunkCountX, chunkCountY, chunkCountZ)
 	voxelMap.SetShader(chunkShader)
 	chunkCounter := 0
@@ -468,7 +481,6 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 		for cY := int32(0); cY < chunkCountY; cY++ {
 			for cZ := int32(0); cZ < chunkCountZ; cZ++ {
 				voxelMap.NewChunk(cX, cY, cZ)
-				println(fmt.Sprintf("[Map] Created chunk %d %d %d", cX, cY, cZ))
 				chunkCounter++
 			}
 		}
@@ -487,7 +499,6 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 		zChunkOffset = -minZ
 	}
 	blockCounter := 0
-	println(fmt.Sprintf("[Map] Chunk offset for blocks: %d %d %d", xChunkOffset, yChunkOffset, zChunkOffset))
 	for _, section := range construction.Sections {
 		blockIndex := 0
 		for x := section.MinBlockX; x < section.MinBlockX+int32(section.ShapeX); x++ {
@@ -520,10 +531,8 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 
 	// debug
 	for blockname := range bf.UnknownBlocks {
-		println("[Map] Unknown block:", blockname)
+		println("[Map] Unknown block: " + blockname)
 	}
-
-	println(fmt.Sprintf("[Map] Loaded map with %d blocks in %d chunks", blockCounter, chunkCounter))
 
 	return voxelMap
 }
@@ -613,42 +622,6 @@ func (m *Map) GetMapObjectAt(target Int3) MapObject {
 		return block.GetOccupant()
 	}
 	return nil
-}
-
-func (m *Map) PrintArea2D(maxX, maxZ int32) {
-	for z := int32(0); z < maxZ; z++ {
-		for x := int32(0); x < maxX; x++ {
-			blockPos := Int3{X: x, Y: 1, Z: z}
-			if m.IsSolidBlockAt(x, 1, z) {
-				print("#")
-			} else if m.IsOccupied(blockPos) {
-				block := m.GetBlockFromVec(blockPos)
-				if block != nil && block.IsOccupied() {
-					print(block.GetOccupant().UnitID())
-				} else {
-					print(" ")
-				}
-			} else {
-				print(" ")
-			}
-		}
-		println()
-	}
-}
-
-func (m *Map) GetNextDebugSpawn() Int3 {
-	var debugSpawnPositions = []Int3{
-		{X: 2, Y: 1, Z: 2},
-		{X: 6, Y: 1, Z: 2},
-		{X: 4, Y: 1, Z: 13},
-		{X: 4, Y: 1, Z: 11},
-		{X: 2, Y: 1, Z: 6},
-		{X: 6, Y: 1, Z: 6},
-		{X: 2, Y: 1, Z: 12},
-	}
-	spawnPos := debugSpawnPositions[m.spawnCounter]
-	m.spawnCounter++
-	return spawnPos
 }
 
 func (m *Map) getTextureIndexForSide(block *Block, side FaceType) byte {

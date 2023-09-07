@@ -154,7 +154,7 @@ func InitOpenGLWindow(title string, width, height int, fullScreen bool) (*glfw.W
 	glhf.Init()
 
 	version := gl.GoStr(gl.GetString(gl.VERSION))
-	fmt.Println("OpenGL version", version)
+	LogGlInfo("OpenGL version: " + version)
 
 	gl.DepthFunc(gl.LESS)
 	gl.Enable(gl.DEPTH_TEST)

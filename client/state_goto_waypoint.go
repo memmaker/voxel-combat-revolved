@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"github.com/solarlune/gocoro"
@@ -16,7 +17,7 @@ type UnitGotoWaypointBehavior struct {
 
 func should(err error) {
 	if err != nil {
-		println(fmt.Sprintf("[Script] Error: %v", err))
+		util.LogGameError(fmt.Sprintf("[Script] Error: %v", err))
 	}
 }
 func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) {

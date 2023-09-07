@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 )
@@ -52,7 +53,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	currentPos := a.unit.GetBlockPosition()
 	moveTarget := a.targets[0]
 	distance := a.gameAction.GetCost(moveTarget)
-	println(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %0.2f)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
+	util.LogUnitDebug(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %0.2f)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
 
 	foundPath := a.gameAction.GetPath(moveTarget)
 	destination := foundPath[len(foundPath)-1]
@@ -134,7 +135,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	a.unit.SetForward(unitForward)
 	a.unit.SetBlockPositionAndUpdateStance(destination)
 
-	println(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
+	util.LogUnitDebug(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
 
 	// apply changes to LOS
 	for _, unit := range visibles {

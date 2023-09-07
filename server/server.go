@@ -24,79 +24,6 @@ type BattleServer struct {
 	runningGames map[string]*game.GameInstance
 }
 
-func (b *BattleServer) AddMap(name string, filename string) {
-	b.availableMaps[name] = filename
-}
-func (b *BattleServer) AddFaction(def game.FactionDefinition) {
-	faction := &game.Faction{Name: def.Name}
-	b.availableFactions[def.Name] = faction
-	for _, u := range def.Units {
-		unit := u
-		b.AddUnitDefinition(&unit)
-	}
-}
-
-func (b *BattleServer) AddUnitDefinition(unit *game.UnitDefinition) {
-	b.availableUnits = append(b.availableUnits, unit)
-}
-func (b *BattleServer) ListenTCP(endpoint string) {
-	clientID := uint64(0)
-	listener, err := net.Listen("tcp", endpoint)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer listener.Close()
-	println(fmt.Sprintf("Server started on %s", endpoint))
-
-	endianess, err := util.GetSystemNativeEndianess()
-	if err != nil {
-		println(fmt.Sprintf("[GetSystemNativeEndianess] ERR -> %s", err.Error()))
-	} else {
-		println(fmt.Sprintf("[GetSystemNativeEndianess] %s", endianess.ToString()))
-	}
-	for {
-		con, err := listener.Accept()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		// If you want, you can increment a counter here and inject to handleClientRequest below as client identifier
-		go b.handleClientRequest(con, clientID)
-		clientID++
-	}
-}
-
-func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
-	connectionDropped := func() {
-		println(fmt.Sprintf("[BattleServer] Client(%d) disconnected!", id))
-		delete(b.connectedClients, id)
-		con.Close()
-	}
-	defer connectionDropped()
-	clientReader := bufio.NewReader(con)
-	println(fmt.Sprintf("[BattleServer] New client(%d) connected! Waiting for client messages.", id))
-	for {
-		messageType, err := clientReader.ReadString('\n')
-		if err != nil {
-			println(fmt.Sprintf(err.Error()))
-			return
-		}
-		message, err := clientReader.ReadString('\n')
-		if err != nil {
-			println(fmt.Sprintf(err.Error()))
-			return
-		}
-		message = strings.TrimSpace(message)
-		messageType = strings.TrimSpace(messageType)
-		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
-		b.GenerateResponse(con, id, messageType, message)
-	}
-}
-
-type Header struct {
-	Type string `json:"type"`
-}
-
 func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string, message string) {
 	// decode msg as json
 	// check header
@@ -120,6 +47,11 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		var selectUnitsMsg game.SelectUnitsMessage
 		if FromJson(message, &selectUnitsMsg) {
 			b.SelectUnits(id, selectUnitsMsg)
+		}
+	case "SelectDeployment":
+		var deployMsg game.DeploymentMessage
+		if FromJson(message, &deployMsg) {
+			b.SelectDeployment(id, deployMsg)
 		}
 	case "JoinGame":
 		var joinGameMsg game.JoinGameMessage
@@ -156,10 +88,80 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 	}
 }
 
+func (b *BattleServer) AddMap(name string, filename string) {
+	b.availableMaps[name] = filename
+}
+func (b *BattleServer) AddFaction(def game.FactionDefinition) {
+	faction := &game.Faction{Name: def.Name}
+	b.availableFactions[def.Name] = faction
+	for _, u := range def.Units {
+		unit := u
+		b.AddUnitDefinition(&unit)
+	}
+}
+
+func (b *BattleServer) AddUnitDefinition(unit *game.UnitDefinition) {
+	b.availableUnits = append(b.availableUnits, unit)
+}
+func (b *BattleServer) ListenTCP(endpoint string) {
+	clientID := uint64(0)
+	listener, err := net.Listen("tcp", endpoint)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer listener.Close()
+	util.LogNetworkInfo(fmt.Sprintf("Server started on %s", endpoint))
+
+	endianess, err := util.GetSystemNativeEndianess()
+	if err != nil {
+		util.LogSystemInfo(fmt.Sprintf("[GetSystemNativeEndianess] ERR -> %s", err.Error()))
+	} else {
+		util.LogSystemInfo(fmt.Sprintf("[GetSystemNativeEndianess] %s", endianess.ToString()))
+	}
+	for {
+		con, err := listener.Accept()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		// If you want, you can increment a counter here and inject to handleClientRequest below as client identifier
+		go b.handleClientRequest(con, clientID)
+		clientID++
+	}
+}
+
+func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
+	connectionDropped := func() {
+		util.LogNetworkInfo(fmt.Sprintf("[BattleServer] Client(%d) disconnected!", id))
+		delete(b.connectedClients, id)
+		con.Close()
+	}
+	defer connectionDropped()
+	clientReader := bufio.NewReader(con)
+	util.LogNetworkInfo(fmt.Sprintf("[BattleServer] New client(%d) connected! Waiting for client messages.", id))
+	for {
+		messageType, err := clientReader.ReadString('\n')
+		if err != nil {
+			println(fmt.Sprintf(err.Error()))
+			return
+		}
+		message, err := clientReader.ReadString('\n')
+		if err != nil {
+			util.LogNetworkError(fmt.Sprintf(err.Error()))
+			return
+		}
+		message = strings.TrimSpace(message)
+		messageType = strings.TrimSpace(messageType)
+		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
+		b.GenerateResponse(con, id, messageType, message)
+	}
+}
+
+
 func FromJson(message string, msg interface{}) bool {
 	err := json.Unmarshal([]byte(message), &msg)
 	if err != nil {
-		println(err.Error())
+		util.LogIOError(err.Error())
 		return false
 	}
 	return true
@@ -192,12 +194,12 @@ func (b *BattleServer) writeToClient(connection *UserConnection, messageType, re
 	//println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, string(messageType), string(response)))
 	_, err := connection.raw.Write(append(messageType, '\n'))
 	if err != nil {
-		println(fmt.Sprintf(err.Error()))
+		util.LogNetworkError(fmt.Sprintf(err.Error()))
 		return
 	}
 	_, err = connection.raw.Write(append(response, '\n'))
 	if err != nil {
-		println(fmt.Sprintf(err.Error()))
+		util.LogNetworkError(fmt.Sprintf(err.Error()))
 		return
 	}
 }
@@ -243,7 +245,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 		return
 	}
 
-	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map)
+	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map, msg.MissionDetails)
 	battleGame.SetEnvironment("Server")
 	battleGame.AddPlayer(userId)
 
@@ -282,7 +284,7 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 }
 
 func (b *BattleServer) startGame(battleGame *game.GameInstance) {
-	println(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.GetID()))
+	util.LogGameInfo(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.GetID()))
 	battleGame.Start()
 	playerNames := make(map[uint64]string)
 	playerFactions := battleGame.GetPlayerFactions()
@@ -290,7 +292,7 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 	for _, playerID := range battleGame.GetPlayerIDs() {
 		user, exists := b.connectedClients[playerID]
 		if !exists {
-			println(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", playerID))
+			util.LogGameError(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", playerID))
 			continue
 		}
 		playerNames[playerID] = user.name
@@ -299,7 +301,7 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 	// also send the initial LOS state
 	battleGame.InitLOSAndPressure()
 
-	for _, playerID := range battleGame.GetPlayerIDs() {
+	for spawnIndex, playerID := range battleGame.GetPlayerIDs() {
 		user := b.connectedClients[playerID]
 
 		// broadcast game started event to all players, tell everyone who's turn it is
@@ -312,15 +314,44 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 			PlayerNameMap:    playerNames,
 			PlayerFactionMap: playerFactions,
 			OwnID:            playerID,
+			SpawnIndex:     uint64(spawnIndex),
 			OwnUnits:         units,
 			MapFile:          battleGame.GetMapFile(),
 			LOSMatrix:        whoCanSeeWho,
 			PressureMatrix:   pressure,
 			VisibleUnits:     visibleUnits,
+			MissionDetails: battleGame.GetMissionDetails(),
 		})
 	}
 }
+func (b *BattleServer) SelectDeployment(userID uint64, msg game.DeploymentMessage) {
+	user, gameInstance, exists := b.getUserAndGame(userID)
+	if !exists {
+		return
+	}
 
+	if !gameInstance.TryDeploy(userID, msg.Deployment) {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Deployment failed"})
+		return
+	}
+
+	b.respondWithMessage(user, game.ActionResponse{Success: true, Message: "Deployment successful"})
+
+	user.isReady = true
+
+	allReady := true
+	for _, playerID := range gameInstance.GetPlayerIDs() {
+		connectedUser := b.connectedClients[playerID]
+		if !connectedUser.isReady {
+			allReady = false
+			break
+		}
+	}
+
+	if allReady {
+		b.SendNextPlayer(gameInstance)
+	}
+}
 func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 	user := b.connectedClients[userID]
 	gameID := user.activeGame
@@ -349,7 +380,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		if weaponIsOK {
 			unit.SetWeapon(game.NewWeapon(chosenWeapon))
 		} else {
-			println(fmt.Sprintf("[BattleServer] %d tried to select weapon '%s', but it does not exist", userID, unitChoice.Weapon))
+			util.LogGameError(fmt.Sprintf("[BattleServer] %d tried to select weapon '%s', but it does not exist", userID, unitChoice.Weapon))
 		}
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
@@ -359,8 +390,8 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.AutoSetStanceAndForwardAndUpdateMap()
 		unit.StartStanceAnimation()
 
-		println(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
-		println(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
+		util.LogUnitDebug(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
+		util.LogGameInfo(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
 	}
 
 	b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: true, Message: "Units selected"})
@@ -460,7 +491,7 @@ func (b *BattleServer) SendGameOver(instance *game.GameInstance, winner uint64) 
 		})
 	}
 	delete(b.runningGames, instance.GetID())
-	println(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.GetID()))
+	util.LogGameInfo(fmt.Sprintf("[BattleServer] Game '%s' removed", instance.GetID()))
 }
 func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	//println("[BattleServer] Ending turn. New map state:")
@@ -481,6 +512,14 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 		})
 	}
 }
+
+func (b *BattleServer) SendStartDeployment(gameInstance *game.GameInstance) {
+	for _, playerID := range gameInstance.GetPlayerIDs() {
+		connectedUser := b.connectedClients[playerID]
+		b.respondWithMessage(connectedUser, game.StartDeploymentMessage{})
+	}
+}
+
 
 func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	// get the player and mark him as ready
@@ -513,7 +552,15 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	}
 
 	if allReady {
-		b.SendNextPlayer(gameInstance)
+		if gameInstance.GetMissionDetails().Placement == game.PlacementModeManual {
+			for _, playerID := range gameInstance.GetPlayerIDs() {
+				connectedUser := b.connectedClients[playerID]
+				connectedUser.isReady = false // reset ready, wait for deployment
+			}
+			b.SendStartDeployment(gameInstance)
+		} else {
+			b.SendNextPlayer(gameInstance) // this is the right thing, if the place is pre-determined..
+		}
 	}
 }
 

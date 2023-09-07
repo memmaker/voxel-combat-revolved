@@ -44,20 +44,21 @@ func runNetworkClient(createOrJoin string, endpoint string) {
 	})
 }
 func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage, settings client.ClientSettings) {
-	initInfos := client.ClientInitializer{
-		Title:             "BattleGrounds",
-		GameID:            gameInfo.GameID,
-		MapFile:           gameInfo.MapFile,
-		ControllingUserID: gameInfo.OwnID,
-	}
-	gameClient := client.NewBattleGame(con, initInfos, settings)
+	gameClient := client.NewBattleGame(con, gameInfo, settings)
 	gameClient.LoadMap(gameInfo.MapFile)
 
-	for _, unit := range gameInfo.OwnUnits {
-		gameClient.AddOwnedUnit(unit)
+	if gameInfo.MissionDetails.Placement == game.PlacementModeManual {
+		for _, unit := range gameInfo.OwnUnits {
+			gameClient.AddOwnedUnitToDeploymentQueue(unit)
+		}
+	} else {
+		for _, unit := range gameInfo.OwnUnits {
+			gameClient.AddOwnedUnitToGame(unit)
+		}
 	}
+
 	for _, unit := range gameInfo.VisibleUnits {
-		gameClient.AddUnit(unit)
+		gameClient.AddUnitToGame(unit)
 	}
 
 	gameClient.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
@@ -118,7 +119,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 				println(fmt.Sprintf("[Client] Select units response: %s", msg.Message))
 			}
 		} else if msgReceived.MessageType == "GameStarted" {
-			println("Game started!")
+			util.LogGameInfo("Game started!")
 			gameStarted = true
 			util.FromJson(msgReceived.Message, &gameInfo)
 		} else {
@@ -129,7 +130,9 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	createGameSequence := func() {
 		util.MustSend(con.Login("creator"))
 		util.WaitForTrue(&loginSuccess)
-		util.MustSend(con.CreateGame("map", "fx's test game", game.PlacementModeRandom, true))
+		util.MustSend(con.CreateGame("map", "fx's test game", game.MissionDetails{
+			Placement: game.PlacementModeRandom,
+		}, true))
 		util.WaitForTrue(&createSuccess)
 		util.MustSend(con.SelectFaction("X-Com"))
 		util.WaitForTrue(&factionSuccess)
@@ -198,9 +201,9 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 		})
 	}
 
-	println("[Client] Waiting for game to start...")
+	util.LogGameInfo("[Client] Waiting for game to start...")
 	util.WaitForTrue(&gameStarted)
-	println("[Client] Game started!")
+	util.LogGameInfo("[Client] Game started!")
 
 	startGraphicalClient(con, gameInfo, client.NewClientSettingsFromFile("settings.json"))
 }

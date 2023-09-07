@@ -189,10 +189,7 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, geometryShader, f
 	runtime.SetFinalizer(shader, (*Shader).delete)
 
 	if len(errorMessages) > 0 {
-		for _, errorMessage := range errorMessages {
-			println(errorMessage)
-		}
-		//panic("^^^ERRORS DURING SHADER CREATION^^^")
+		return nil, fmt.Errorf("errors during shader creation:\n%s", errorMessages)
 	}
 
 	return shader, nil

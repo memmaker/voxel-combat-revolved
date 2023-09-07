@@ -6,5 +6,6 @@
   "FPSCameraMouseSensitivity": 0.08,
   "EnableBulletCam": false,
   "EnableCameraAnimations": true,
-  "FullScreen": false
+  "FullScreen": false,
+  "Title":             "Block Tactics"
 }

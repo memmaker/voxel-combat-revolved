@@ -210,12 +210,11 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
             println("WARNING: Only triangles are supported for now")
         }
         indexOfPositions := subMesh.Attributes["POSITION"]
-        indexOfColors := subMesh.Attributes["COLOR_0"]
+        indexOfColors, hasColors := subMesh.Attributes["COLOR_0"]
         indexOfNormals := subMesh.Attributes["NORMAL"]
         indexOfUVs := subMesh.Attributes["TEXCOORD_0"]
 
         positionAccessor := doc.Accessors[indexOfPositions]
-        colorAccessor := doc.Accessors[indexOfColors]
         normalsAccessor := doc.Accessors[indexOfNormals]
         indicesAccessor := doc.Accessors[*subMesh.Indices]
         uvsAccessor := doc.Accessors[indexOfUVs]
@@ -232,10 +231,13 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
             return nil
         }
 
-        colorBuffer, err = modeler.ReadColor(doc, colorAccessor, colorBuffer)
-        if err != nil {
-            println(err)
-            return nil
+        if hasColors {
+            colorAccessor := doc.Accessors[indexOfColors]
+            colorBuffer, err = modeler.ReadColor(doc, colorAccessor, colorBuffer)
+            if err != nil {
+                println(err)
+                return nil
+            }
         }
 
         indicesBuffer, err = modeler.ReadIndices(doc, indicesAccessor, indicesBuffer)
@@ -262,11 +264,14 @@ func loadMesh(doc *gltf.Document, meshIndex uint32, forcedVertexColor *mgl32.Vec
             	{Name: "vertexColor", Type: glhf.Vec3},
             	{Name: "normal", Type: glhf.Vec3},
             */
-            colorR := glhf.GlFloat(colorBuffer[i][0]) / 255.0
-            colorG := glhf.GlFloat(colorBuffer[i][1]) / 255.0
-            colorB := glhf.GlFloat(colorBuffer[i][2]) / 255.0
-
-            if forcedVertexColor != nil {
+            colorR := glhf.GlFloat(1.0)
+            colorG := glhf.GlFloat(1.0)
+            colorB := glhf.GlFloat(1.0)
+            if hasColors {
+                colorR = glhf.GlFloat(colorBuffer[i][0]) / 255.0
+                colorG = glhf.GlFloat(colorBuffer[i][1]) / 255.0
+                colorB = glhf.GlFloat(colorBuffer[i][2]) / 255.0
+            } else if forcedVertexColor != nil {
                 colorR = glhf.GlFloat(forcedVertexColor.X())
                 colorG = glhf.GlFloat(forcedVertexColor.Y())
                 colorB = glhf.GlFloat(forcedVertexColor.Z())

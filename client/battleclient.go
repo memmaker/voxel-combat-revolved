@@ -26,6 +26,7 @@ type BattleClient struct {
     guiShader                  *glhf.Shader
     defaultShader              *glhf.Shader
     textLabel                  *util.BitmapFontMesh
+    bigLabel                   *util.BitmapFontMesh
     lastHitInfo                *game.RayCastHit
     projectiles                []*Projectile
     debugObjects               []PositionDrawable
@@ -61,6 +62,7 @@ type BattleClient struct {
     particleShader             *glhf.Shader
     particles                  *glhf.ParticleSystem
     particleProps              map[ParticleName]glhf.ParticleProperties
+
 }
 
 func (a *BattleClient) state() GameState {
@@ -83,6 +85,7 @@ type ClientSettings struct {
     FPSCameraMouseSensitivity float32
     EnableCameraAnimations    bool
     FullScreen                bool
+    Title                     string
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
@@ -100,14 +103,6 @@ func NewClientSettingsFromFile(filename string) ClientSettings {
     }
 }
 
-type ClientInitializer struct {
-    Title             string
-    OwnerID           uint64
-    GameID            string
-    MapFile           string
-    ControllingUserID uint64
-}
-
 type ParticleName int
 
 const (
@@ -115,8 +110,8 @@ const (
     ParticlesExplosion
 )
 
-func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, settings ClientSettings) *BattleClient {
-    window, terminateFunc := util.InitOpenGLWindow(initInfos.Title, settings.Width, settings.Height, settings.FullScreen)
+func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage, settings ClientSettings) *BattleClient {
+    window, terminateFunc := util.InitOpenGLWindow(settings.Title, settings.Width, settings.Height, settings.FullScreen)
     usedWidth, usedHeight := window.GetSize()
     glApp := &util.GlApplication{
         WindowWidth:  usedWidth,
@@ -168,7 +163,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
         },
         aspectRatio: float32(usedWidth) / float32(usedHeight),
     }
-    myApp.GameClient = game.NewGameClient[*Unit](initInfos.ControllingUserID, initInfos.GameID, initInfos.MapFile, myApp.CreateClientUnit)
+    myApp.GameClient = game.NewGameClient[*Unit](initInfos, myApp.CreateClientUnit)
     myApp.GameClient.SetEnvironment("GL-Client")
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
@@ -187,11 +182,38 @@ func NewBattleGame(con *game.ServerConnection, initInfos ClientInitializer, sett
 
     //fontTextureAtlas, atlasIndex := util.CreateAtlasFromPBMs("./assets/fonts/quadratica/", 8, 14)
     //fontTextureAtlas.SaveAsPNG("./assets/fonts/quadratica.png")
-    assetLoader := myApp.GameInstance.GetAssets()
-    fontTextureAtlas, atlasIndex := assetLoader.LoadBitmapFont("quadratica", 8, 14)
 
+    assetLoader := myApp.GameInstance.GetAssets()
+
+    bigFont := assetLoader.LoadBitmapFontWithoutIndex("STEEL_MV", 32, 32)
+    bigFont.SetPaddingBetweenItems(0, 1)
+    bigFontIndex := util.NewIndexFromDescription(util.AtlasDescription{
+        PositionOfCapitalA:     [2]int{2, 3},
+        PositionOfZero:         &[2]int{5, 1},
+        PositionOfSpecialChain: &[2]int{0, 0},
+        Cols:                   10,
+        SpecialCharacterChain:  []rune{'!', 'Ö', 'Ä', '"', '§', '*', '(', ')', '+', ',', ' ', '-', '.', '/'},
+    })
+
+    /*
+       bigFont := assetLoader.LoadBitmapFontWithoutIndex("CRYPGRAU", 32, 38)
+       bigFontIndex := util.NewIndexFromDescription(util.AtlasDescription{
+           PositionOfCapitalA:    [2]int{0, 0},
+           Cols:                  10,
+           SpecialCharacterChain: []rune{':', ';', '.', '-', ',', '?', '´', '(', ')', '/', '!', '*', '='},
+       })
+
+    */
+    myApp.bigLabel = util.NewBitmapFontMesh(myApp.guiShader, bigFont, bigFontIndex.GetMapper())
+    myApp.bigLabel.SetCenterOrigin(true)
+    myApp.bigLabel.SetScale(1)
+    myApp.bigLabel.SetDiscardColor(mgl32.Vec3{0, 0, 0})
+    myApp.bigLabel.SetPosition(mgl32.Vec2{float32(myApp.WindowWidth) / 2, float32(myApp.WindowHeight) / 2})
+
+    fontTextureAtlas, atlasIndex := assetLoader.LoadBitmapFont("quadratica", 8, 14)
     myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
     myApp.textLabel.SetScale(1)
+    myApp.textLabel.SetTintColor(ColorTechTeal.Vec3())
 
     myApp.unitSelector = NewGroundSelector(assetLoader.LoadMesh("flatselector"), myApp.defaultShader)
 
@@ -238,7 +260,7 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
     }
     currentUnit.SetModel(model)
     unit := NewClientUnit(currentUnit)
-    println(unit.DebugString("CreateClientUnit"))
+    util.LogUnitDebug(unit.DebugString("CreateClientUnit"))
     return unit
 }
 
@@ -259,7 +281,7 @@ func (a *BattleClient) Print(text string) {
     // split text into lines
     // to lower
     lines := strings.Split(text, "\n")
-    a.textLabel.SetText(lines)
+    a.textLabel.SetMultilineText(lines)
 }
 
 func (a *BattleClient) Update(elapsed float64) {
@@ -287,7 +309,7 @@ func (a *BattleClient) Update(elapsed float64) {
     if len(a.conditionQueue) > 0 {
         for i := len(a.conditionQueue) - 1; i >= 0; i-- {
             c := a.conditionQueue[i]
-            if c.condition() {
+            if c.condition(elapsed) {
                 c.function(elapsed)
                 a.conditionQueue = append(a.conditionQueue[:i], a.conditionQueue[i+1:]...)
             }
@@ -432,12 +454,17 @@ func (a *BattleClient) drawLines(cam util.Camera) {
 
 func (a *BattleClient) drawGUI() {
     a.guiShader.Begin()
-
     if a.textLabel != nil {
         a.textLabel.Draw()
     }
 
+    if a.bigLabel != nil {
+        a.bigLabel.Draw()
+    }
+
     if a.actionbar != nil {
+        a.guiShader.SetUniformAttr(2, ColorTechTeal)          // tint
+        a.guiShader.SetUniformAttr(3, mgl32.Vec4{0, 0, 0, 0}) // discard
         a.actionbar.Draw()
     }
 
@@ -484,16 +511,37 @@ func (a *BattleClient) SwitchToEditMap() {
     a.state().Init(false)
 }
 
+func (a *BattleClient) SwitchToDeployment() {
+    a.stateStack = []GameState{
+        &GameStateWaitForEvents{IsoMovementState{engine: a}},
+        NewGameStateDeployment(a),
+    }
+    a.state().Init(false)
+}
+
+func (a *BattleClient) SwitchToWaitForEvents() {
+    a.stateStack = []GameState{&GameStateWaitForEvents{IsoMovementState{engine: a}}}
+    a.state().Init(false)
+}
+
 func (a *BattleClient) scheduleUpdate(f func(deltaTime float64)) {
-    a.scheduleWaitForCondition(func() bool { return true }, f)
+    a.scheduleWaitForCondition(func(deltaTime float64) bool { return true }, f)
+}
+
+func (a *BattleClient) scheduleUpdateIn(timeInSeconds float64, f func(deltaTime float64)) {
+    timeSpent := float64(0)
+    a.scheduleWaitForCondition(func(deltaTime float64) bool {
+        timeSpent += deltaTime
+        return timeSpent >= timeInSeconds
+    }, f)
 }
 
 type ConditionalCall struct {
-    condition func() bool
+    condition func(deltaTime float64) bool
     function  func(deltaTime float64)
 }
 
-func (a *BattleClient) scheduleWaitForCondition(condition func() bool, function func(deltaTime float64)) {
+func (a *BattleClient) scheduleWaitForCondition(condition func(deltaTime float64) bool, function func(deltaTime float64)) {
     //a.mc.Lock()
     a.conditionQueue = append(a.conditionQueue, ConditionalCall{condition: condition, function: function})
     //a.mc.Unlock()
@@ -507,28 +555,35 @@ func (a *BattleClient) PopState() {
 }
 func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
     rayStart, rayEnd := a.camera().GetPickingRayFromScreenPosition(newX, newY)
-    //a.placeDebugLine([2]mgl32.Vec3{rayStart, rayEnd})
+
     hitInfo := a.RayCastGround(rayStart, rayEnd)
-    if hitInfo.HitUnit() {
-        unitHit, _ := a.GetClientUnit(hitInfo.UnitHit.UnitID())
-        pressureString := ""
-        pressure := a.GetTotalPressure(unitHit.UnitID())
-        if pressure > 0 {
-            pressureString = fmt.Sprintf("\nPressure: %0.2f", pressure)
-        }
-        if unitHit.IsUserControlled() {
-            a.Print(unitHit.GetFriendlyDescription() + pressureString)
-        } else {
-            a.Print(unitHit.GetEnemyDescription() + pressureString)
-        }
+
+    if !hitInfo.Hit {
+        return
     }
 
-    if hitInfo.Hit {
-        if a.isBlockSelection {
-            a.selector.SetBlockPosition(hitInfo.PreviousGridPosition)
-        } else {
-            a.selector.SetBlockPosition(a.GetVoxelMap().GetGroundPosition(hitInfo.PreviousGridPosition))
-        }
+    if a.isBlockSelection {
+        a.selector.SetBlockPosition(hitInfo.PreviousGridPosition)
+    } else {
+        a.selector.SetBlockPosition(a.GetVoxelMap().GetGroundPosition(hitInfo.PreviousGridPosition))
+    }
+
+    selectedPosition := a.selector.GetBlockPosition()
+    if !a.GetVoxelMap().IsOccupied(selectedPosition) {
+        return
+    }
+    unitHit := a.GetVoxelMap().GetMapObjectAt(selectedPosition).(*Unit)
+
+    //unitHit, _ := a.GetClientUnit(hitInfo.UnitHit.UnitID())
+    pressureString := ""
+    pressure := a.GetTotalPressure(unitHit.UnitID())
+    if pressure > 0 {
+        pressureString = fmt.Sprintf("\nPressure: %0.2f", pressure)
+    }
+    if unitHit.IsUserControlled() {
+        a.Print(unitHit.GetFriendlyDescription() + pressureString)
+    } else {
+        a.Print(unitHit.GetEnemyDescription() + pressureString)
     }
 }
 
@@ -630,6 +685,9 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 
 func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
     switch msgType {
+    case "StartDeployment":
+        //var msg game.StartDeploymentMessage
+        a.OnStartDeployment()
     case "BeginOverwatch":
         var msg game.VisualBeginOverwatch
         if util.FromJson(messageAsJson, &msg) {
@@ -799,7 +857,7 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
     // the space where the unit was standing is cleared on the client side map.
     movingUnit, _ := a.GetClientUnit(msg.MovingUnit)
     if movingUnit == nil && msg.UpdatedUnit == nil {
-        println(fmt.Sprintf("[BattleClient] Received LOS update for unknown unit %d", msg.MovingUnit))
+        util.LogGameError(fmt.Sprintf("[BattleClient] Received LOS update for unknown unit %d", msg.MovingUnit))
         return
     }
     if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
@@ -829,8 +887,8 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
         }
     }
     currentPathPart := 0
-    observerPositionReached := func() bool { return false }
-    observerPositionReached = func() bool {
+    observerPositionReached := func(deltaTime float64) bool { return false }
+    observerPositionReached = func(deltaTime float64) bool {
         reachedLastWaypoint := voxel.PositionToGridInt3(movingUnit.GetPosition()) == movingUnit.GetLastWaypoint()
         if !reachedLastWaypoint { // not yet at last waypoint
             return false
@@ -903,7 +961,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
         }
         a.isBusy = false // this never happens under some circumstances
     }
-    destinationReached := func() bool { // problem: we are hanging here..
+    destinationReached := func(deltaTime float64) bool { // problem: we are hanging here..
         return unit.IsAtLocation(destination)
     }
     a.scheduleWaitForCondition(destinationReached, changeLOS)
@@ -915,7 +973,7 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 }
 
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
-    println(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
+    util.LogGameInfo(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
     //println("[BattleClient] Map State:")
     //a.GetVoxelMap().PrintArea2D(16, 16)
     /*
@@ -927,10 +985,11 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
     if msg.YourTurn {
         a.ResetOverwatch()
         a.ResetUnitsForNextTurn()
-        a.Print("It's your turn!")
+        //a.Print("It's your turn!")
+        a.FlashText("FIGHT!", 3)
         a.SwitchToUnitNoCameraMovement(a.FirstUnit())
     } else {
-        a.Print("Waiting for other players...")
+        a.FlashText("WAIT!", 3)
         a.SwitchToWaitForEvents()
     }
 }
@@ -938,11 +997,6 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 func (a *BattleClient) EndTurn() {
     util.MustSend(a.server.EndTurn())
     a.SwitchToWaitForEvents()
-}
-
-func (a *BattleClient) SwitchToWaitForEvents() {
-    a.stateStack = []GameState{&GameStateWaitForEvents{IsoMovementState{engine: a}}}
-    a.state().Init(false)
 }
 
 func (a *BattleClient) FirstUnit() *Unit {
@@ -984,6 +1038,13 @@ func (a *BattleClient) pollNetwork() {
 func (a *BattleClient) OnGameOver(msg game.GameOverMessage) {
     a.GameClient.OnGameOver(msg)
     a.SwitchToWaitForEvents()
+    var printedMessage string
+    if msg.YouWon {
+        printedMessage = "VICTORY!"
+    } else {
+        printedMessage = "DEFEAT!"
+    }
+    a.FlashText(printedMessage, 3)
 }
 
 func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
@@ -1095,3 +1156,17 @@ func (a *BattleClient) handleResizeEvents(width int, height int) {
     a.guiShader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
     a.guiShader.End()
 }
+
+func (a *BattleClient) OnStartDeployment() {
+    // show the spawn markers on the map
+    // attach the current unit to the cursor
+    a.SwitchToDeployment()
+}
+
+func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
+    a.bigLabel.SetText(text)
+    a.scheduleUpdateIn(delayInSeconds, func(deltaTime float64) {
+        a.bigLabel.Hide()
+    })
+}
+

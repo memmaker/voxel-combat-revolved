@@ -2,7 +2,6 @@
  - Cannot look inside buildings with roofs
  - Own unit not visually dying, when hit by enemy units during fps view
  - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
- - Units don't return to their original forward direction, after being hit with multiple bullets
 
 # Particles
  - We probably want to use TransformFeedback:
@@ -201,6 +200,8 @@ Try rendering a really small window, if that helps it is the fragment shader tha
 Try using a really simple vertex shader, if that helps it is the vertex shader that is the bottleneck.
 
 Look at this:
+https://github.com/nothings/stb/blob/master/stb_voxel_render.h
+
 https://veloren.net/
 https://openspades.yvt.jp/
 https://wolkenwelten.net/

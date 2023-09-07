@@ -140,8 +140,10 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 			{Name: "texCoord", Type: glhf.Vec2},
 		}
 		uniformFormat = glhf.AttrFormat{
-			glhf.Attr{Name: "projection", Type: glhf.Mat4},
-			glhf.Attr{Name: "model", Type: glhf.Mat4},
+			glhf.Attr{Name: "projection", Type: glhf.Mat4},       // 0
+			glhf.Attr{Name: "model", Type: glhf.Mat4},            // 1
+			glhf.Attr{Name: "appliedTintColor", Type: glhf.Vec4}, // 2
+			glhf.Attr{Name: "discardedColor", Type: glhf.Vec4},   // 3
 		}
 		shader *glhf.Shader
 	)
