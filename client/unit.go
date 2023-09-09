@@ -259,17 +259,6 @@ func (p *Unit) FreezeStanceAnimation() {
 	p.UnitInstance.GetModel().SetAnimationPose(p.GetStance().GetAnimation().Str())
 }
 
-func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
-	oldModel := p.UnitInstance.GetModel()
-	oldVoxelMap := p.GetVoxelMap()
-
-	unit.SetModel(oldModel)
-	unit.SetVoxelMap(oldVoxelMap)
-
-	p.UnitInstance = unit
-	p.AutoSetStanceAndForwardAndUpdateMap()
-	p.StartStanceAnimation()
-}
 
 func (p *Unit) IsInTheAir() bool {
 	posBelow := p.GetPosition().Sub(mgl32.Vec3{0, 1, 0})
@@ -304,13 +293,28 @@ func (p *Unit) GetClientOnlyRotation() mgl32.Quat {
 func NewClientUnit(instance *game.UnitInstance) *Unit {
 	// load model of unit
 	a := &Unit{
-		UnitInstance:    instance,
 		animationSpeed:  4,
 		currentWaypoint: -1,
 		transition:      ActorTransitionTable, // one for all
 		clientOnlyRotation: mgl32.QuatIdent(),
 	}
-	instance.Transform.SetParent(a)
+	a.SetServerInstance(instance)
 	a.SetState(ActorStateIdle)
 	return a
+}
+func (p *Unit) UpdateFromServerInstance(unit *game.UnitInstance) {
+	oldModel := p.UnitInstance.GetModel()
+	oldVoxelMap := p.GetVoxelMap()
+
+	unit.SetModel(oldModel)
+	unit.SetVoxelMap(oldVoxelMap)
+
+	p.SetServerInstance(unit)
+}
+
+func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
+	p.UnitInstance = unit
+	p.UnitInstance.Transform.SetParent(p)
+	p.AutoSetStanceAndForwardAndUpdateMap()
+	p.StartStanceAnimation()
 }

@@ -63,6 +63,7 @@ type BattleClient struct {
     particles                  *glhf.ParticleSystem
     particleProps              map[ParticleName]glhf.ParticleProperties
     selectedBlocks             []voxel.Int3
+    currentlyMovingUnits       bool
 }
 
 func (a *BattleClient) state() GameState {
@@ -114,6 +115,7 @@ type ParticleName int
 
 const (
     ParticlesBlood ParticleName = iota
+    ParticlesBulletImpact
     ParticlesExplosion
 )
 
@@ -142,7 +144,6 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
         settings:      settings,
         particleProps: map[ParticleName]glhf.ParticleProperties{
             ParticlesBlood: {
-                Origin:               mgl32.Vec3{1, 2, 1},
                 PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
                 VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0, 0, 0} },
                 VelocityVariation:    mgl32.Vec3{0.1, 0.1, 0.1},
@@ -153,8 +154,18 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
                 ColorBegin:           mgl32.Vec4{0.7, 0.01, 0.01, 1},
                 ColorEnd:             mgl32.Vec4{0.4, 0.01, 0.01, 1},
             },
+            ParticlesBulletImpact: {
+                PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
+                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0, 0, 0} },
+                VelocityVariation:    mgl32.Vec3{0.1, 0.1, 0.1},
+                SizeBegin:            0.08,
+                SizeVariation:        0.04,
+                SizeEnd:              0.04,
+                Lifetime:             0.2,
+                ColorBegin:           mgl32.Vec4{0.7, 0.7, 0.7, 1},
+                ColorEnd:             mgl32.Vec4{0.01, 0.01, 0.01, 1},
+            },
             ParticlesExplosion: {
-                Origin:            mgl32.Vec3{1, 2, 1},
                 PositionVariation: mgl32.Vec3{0.02, 0.02, 0.02},
                 VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 {
                     return pos.Sub(origin).Normalize().Mul(20)
@@ -165,7 +176,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
                 SizeEnd:           0.5,
                 Lifetime:          0.5,
                 ColorBegin:        mgl32.Vec4{1, 1, 1, 1},
-                ColorEnd:          mgl32.Vec4{0.2, 0.01, 0.01, 1},
+                ColorEnd: mgl32.Vec4{0.01, 0.01, 0.01, 1},
             },
         },
         aspectRatio: float32(usedWidth) / float32(usedHeight),
@@ -310,8 +321,9 @@ func (a *BattleClient) Update(elapsed float64) {
     //a.particles.Emit(properties, 1)
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
+    a.currentlyMovingUnits = a.isBusyMovingUnits()
 
-    if !a.isBusyMovingUnits() && !waitForCameraAnimation { // PROBLEM: isBusy can hang. So isn't reset every time we expect it to..
+    if !a.currentlyMovingUnits && !waitForCameraAnimation { // PROBLEM: isBusy can hang. So isn't reset every time we expect it to..
         a.pollNetwork()
     }
 
@@ -396,9 +408,10 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
     a.defaultShader.SetUniformAttr(ShaderProjectionMatrix, cam.GetProjectionMatrix())
     a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
-    for _, unit := range a.GetAllClientUnits() {
+    for _, unit := range a.GetAllClientUnits() { // TODO: view frustum culling
         if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) {
             unit.Draw(a.defaultShader)
+
         }
     }
 
@@ -410,13 +423,15 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
         a.selector.Draw()
     }
 
-    if a.lines != nil {
+    if a.lines != nil && !a.currentlyMovingUnits {
+        gl.Disable(gl.CULL_FACE)
         a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
         a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
         a.defaultShader.SetUniformAttr(ShaderViewport, mgl32.Vec2{float32(a.WindowWidth), float32(a.WindowHeight)})
         a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawLine)
         a.defaultShader.SetUniformAttr(ShaderThickness, float32(2))
         a.lines.Draw()
+        gl.Enable(gl.CULL_FACE)
     }
 
     if a.unitSelector != nil {
@@ -814,6 +829,8 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
                 a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
 
                 println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
+            } else {
+                a.AddBulletImpact(projectile.Destination, projectile.Velocity)
             }
 
             for _, damagedBlock := range projectile.BlocksHit {
@@ -960,8 +977,10 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 
     util.LogGraphicalClientGameInfo(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
-    a.highlights.Hide()
+    a.highlights.ClearFlat(voxel.HighlightMove)
     a.unitSelector.Hide()
+    a.lines.Clear()
+
     destination := msg.Path[len(msg.Path)-1]
 
     changeLOS := func(deltaTime float64) {
@@ -1084,7 +1103,10 @@ func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bu
     bloodProps := a.particleProps[ParticlesBlood].WithOrigin(entryWoundPosition)
     a.particles.Emit(bloodProps, 10)
 }
-
+func (a *BattleClient) AddBulletImpact(worldPosition mgl32.Vec3, bulletVelocity mgl32.Vec3) {
+    bloodProps := a.particleProps[ParticlesBulletImpact].WithOrigin(worldPosition)
+    a.particles.Emit(bloodProps, 10)
+}
 func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {
     var snapRange []voxel.Int3  // can snap fire from here
     var aimedRange []voxel.Int3 // can free aim from here
@@ -1200,7 +1222,7 @@ func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
 
 func (a *BattleClient) OnExplode(origin voxel.Int3, radius int) {
     properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3())
-    a.particles.Emit(properties, 1000)
+    a.particles.Emit(properties, 100)
 }
 
 func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {

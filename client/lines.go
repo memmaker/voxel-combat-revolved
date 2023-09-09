@@ -159,6 +159,12 @@ func (l *LineDrawer) AddSimpleLine(start, end mgl32.Vec3) {
     })
 }
 
+func (l *LineDrawer) AddPathLine(wayPoints []mgl32.Vec3) {
+    l.lines = append(l.lines, &Line{
+        lineParts: wayPoints,
+    })
+}
+
 func (l *LineDrawer) AddLine(line *Line) {
     l.lines = append(l.lines, line)
 }

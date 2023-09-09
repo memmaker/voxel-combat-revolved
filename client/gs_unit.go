@@ -123,11 +123,49 @@ func (g *GameStateUnit) OnMouseMoved(oldX float64, oldY float64, newX float64, n
 		return
 	}
 	g.lastCursorPos = cursorPos
-	g.updateLOSIndicator(cursorPos)
+	if g.engine.currentlyMovingUnits {
+		return
+	}
+	g.updateIndicators(cursorPos)
 }
 
-func (g *GameStateUnit) updateLOSIndicator(cursorPos voxel.Int3) {
+func (g *GameStateUnit) updateIndicators(cursorPos voxel.Int3) {
 	g.engine.lines.Clear()
+	losLinesNeeded := g.updateLOSIndicator(cursorPos)
+	pathLinesNeeded := g.updatePathIndicator(cursorPos)
+	if losLinesNeeded || pathLinesNeeded {
+		g.engine.lines.UpdateVerticesAndShow()
+	}
+}
+func (g *GameStateUnit) updatePathIndicator(cursorPos voxel.Int3) bool {
+	unit := g.engine.selectedUnit
+	if unit.GetBlockPosition() == cursorPos {
+		return false
+	}
+	path := g.moveAction.GetPath(cursorPos)
+	if len(path) == 0 {
+		return false
+	}
+	// prepend current position
+	path = append([]voxel.Int3{unit.GetBlockPosition()}, path...)
+	waypoints := make([]mgl32.Vec3, 0)
+	for i, pos := range path {
+		waypoints = append(waypoints, pos.ToBlockCenterVec3().Add(mgl32.Vec3{0, 0.02, 0}))
+		if i != len(path)-1 {
+			next := path[i+1]
+			if next.Y > pos.Y {
+				waypoints = append(waypoints, pos.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1.02, 0}))
+			} else if next.Y < pos.Y {
+				waypoints = append(waypoints, next.ToBlockCenterVec3().Add(mgl32.Vec3{0, 1.02, 0}))
+			}
+		}
+	}
+
+	g.engine.lines.AddPathLine(waypoints)
+
+	return true
+}
+func (g *GameStateUnit) updateLOSIndicator(cursorPos voxel.Int3) bool {
 	atLeastOneEnemyInSight := false
 	currentUnit := g.engine.selectedUnit
 	visibleEnemies := g.engine.GetAllVisibleEnemies(currentUnit.ControlledBy())
@@ -139,7 +177,5 @@ func (g *GameStateUnit) updateLOSIndicator(cursorPos voxel.Int3) {
 			atLeastOneEnemyInSight = true
 		}
 	}
-	if atLeastOneEnemyInSight {
-		g.engine.lines.UpdateVerticesAndShow()
-	}
+	return atLeastOneEnemyInSight
 }
