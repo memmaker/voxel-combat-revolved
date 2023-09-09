@@ -108,7 +108,7 @@ func (g *GameStateUnit) OnMouseClicked(x float64, y float64) {
 		if unitHit != g.engine.selectedUnit.UnitInstance && unitHit.CanAct() && g.engine.IsUnitOwnedByClient(unitHit.UnitID()) {
 			clickedUnit, _ := g.engine.GetClientUnit(unitHit.UnitID())
 			g.engine.SetSelectedUnit(clickedUnit)
-			println(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.engine.selectedUnit.GetBlockPosition().ToString()))
+			util.LogGlobalUnitDebug(fmt.Sprintf("[GameStateUnit] Selected unit at %s", g.engine.selectedUnit.GetBlockPosition().ToString()))
 			g.Init(false)
 		}
 	} else if g.moveAction.IsValidTarget(groundBlockPos) {

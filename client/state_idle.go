@@ -4,7 +4,7 @@ type ActorIdleBehavior struct {
 	actor *Unit
 }
 
-func (a *ActorIdleBehavior) GetName() ActorState {
+func (a *ActorIdleBehavior) GetName() AnimationStateName {
 	return ActorStateIdle
 }
 
@@ -14,5 +14,5 @@ func (a *ActorIdleBehavior) Init(actor *Unit) {
 }
 
 func (a *ActorIdleBehavior) Execute(deltaTime float64) TransitionEvent {
-	return a.actor.GetNextEvent()
+	return EventNone
 }

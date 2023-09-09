@@ -11,6 +11,7 @@ import (
     "github.com/memmaker/battleground/game"
     "os"
     "strings"
+
 )
 
 type BattleClient struct {
@@ -48,7 +49,6 @@ type BattleClient struct {
     lines                      *LineDrawer
     server                     *game.ServerConnection
     serverChannel              chan game.StringMessage
-    isBusy                     bool
     onSwitchToIsoCamera        func()
     bulletModel                *util.CompoundMesh
     settings                   ClientSettings
@@ -68,7 +68,14 @@ type BattleClient struct {
 func (a *BattleClient) state() GameState {
     return a.stateStack[len(a.stateStack)-1]
 }
-
+func (a *BattleClient) isBusyMovingUnits() bool {
+    for _, unit := range a.GetAllClientUnits() {
+        if unit.state.GetName() == UnitGotoWaypoint {
+            return true
+        }
+    }
+    return false
+}
 func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
     if a.GetVoxelMap().IsSolidBlockAt(int32(x), int32(y), int32(z)) {
         return !a.GetVoxelMap().GetGlobalBlock(int32(x), int32(y), int32(z)).IsAir()
@@ -262,7 +269,7 @@ func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
     }
     currentUnit.SetModel(model)
     unit := NewClientUnit(currentUnit)
-    util.LogUnitDebug(unit.DebugString("CreateClientUnit"))
+    util.LogGlobalUnitDebug(unit.DebugString("CreateClientUnit"))
     return unit
 }
 
@@ -304,7 +311,7 @@ func (a *BattleClient) Update(elapsed float64) {
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
 
-    if !a.isBusy && !waitForCameraAnimation {
+    if !a.isBusyMovingUnits() && !waitForCameraAnimation { // PROBLEM: isBusy can hang. So isn't reset every time we expect it to..
         a.pollNetwork()
     }
 
@@ -691,6 +698,7 @@ func (a *BattleClient) OnTargetedUnitActionResponse(msg game.ActionResponse) {
 }
 
 func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
+    util.LogNetworkDebug(fmt.Sprintf("\n[GL-Client] FROM Server msg(%s):\n%s\n", msgType, messageAsJson))
     switch msgType {
     case "StartDeployment":
         //var msg game.StartDeploymentMessage
@@ -936,11 +944,9 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
     if currentPos == destination {
         changeLOS()
     } else {
-        a.isBusy = true
         movingUnit.SetPath(firstPath)
         a.scheduleWaitForCondition(observerPositionReached, func(deltaTime float64) {
             changeLOS()
-            a.isBusy = false
         })
     }
 }
@@ -948,10 +954,11 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
     unit, _ := a.GetClientUnit(msg.UnitID)
     if unit == nil {
-        println(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
+        util.LogGraphicalClientGameError(fmt.Sprintf("[BattleClient] Unknown unit %d", msg.UnitID))
         return
     }
-    //println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
+
+    util.LogGraphicalClientGameInfo(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
     a.highlights.Hide()
     a.unitSelector.Hide()
@@ -966,21 +973,25 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
         if a.selectedUnit == unit {
             a.SwitchToUnit(unit)
         }
-        a.isBusy = false // this never happens under some circumstances
     }
     destinationReached := func(deltaTime float64) bool { // problem: we are hanging here..
         return unit.IsAtLocation(destination)
     }
     a.scheduleWaitForCondition(destinationReached, changeLOS)
 
+    // HMM, maybe the ending the turn could interfer with the movement animations?
+    // but then, it doesn't appear until we fired at someone
+    // the scenario seems to imply, that the unit does not receive the NewWayPoint Event or doesn't act on it
+    // apparently, we don't leave the hit animation state beforehand
+    // because we received a NewPath event, before the AnimationFinished event.
+    // NewPath is not a transition from the HitState -> Deadlock
+
     unit.UseMovement(msg.Cost)
     unit.SetPath(msg.Path)
-
-    a.isBusy = true // don't process further server infos until we moved the unit
 }
 
 func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
-    util.LogGameInfo(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
+    util.LogGraphicalClientGameDebug(fmt.Sprintf("[BattleClient] NextPlayer: %v", msg))
     //println("[BattleClient] Map State:")
     //a.GetVoxelMap().PrintArea2D(16, 16)
     /*

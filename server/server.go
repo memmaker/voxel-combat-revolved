@@ -119,9 +119,9 @@ func (b *BattleServer) ListenTCP(endpoint string) {
 		util.LogSystemInfo(fmt.Sprintf("[GetSystemNativeEndianess] %s", endianess.ToString()))
 	}
 	for {
-		con, err := listener.Accept()
-		if err != nil {
-			log.Println(err)
+        con, listenError := listener.Accept()
+        if listenError != nil {
+            log.Println(listenError)
 			continue
 		}
 		// If you want, you can increment a counter here and inject to handleClientRequest below as client identifier
@@ -142,7 +142,7 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 	for {
 		messageType, err := clientReader.ReadString('\n')
 		if err != nil {
-			println(fmt.Sprintf(err.Error()))
+            util.LogNetworkError(fmt.Sprintf(err.Error()))
 			return
 		}
 		message, err := clientReader.ReadString('\n')
@@ -153,6 +153,8 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
 		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
+        util.LogNetworkDebug(fmt.Sprintf("\n[Server] FROM Client(%d) msg(%s):\n%s\n", id, messageType, message))
+
 		b.GenerateResponse(con, id, messageType, message)
 	}
 }
@@ -191,7 +193,7 @@ func (b *BattleServer) writeFromBuffer(userID uint64, msgType, msg []byte) {
 	b.writeToClient(connection, msgType, msg)
 }
 func (b *BattleServer) writeToClient(connection *UserConnection, messageType, response []byte) {
-	//println(fmt.Sprintf("[BattleServer] Server->Client(%d) msg(%s): %s", connection.id, string(messageType), string(response)))
+    util.LogNetworkDebug(fmt.Sprintf("\n[Server] TO Client(%d) msg(%s):\n%v\n", connection.id, string(messageType), string(response)))
 	_, err := connection.raw.Write(append(messageType, '\n'))
 	if err != nil {
 		util.LogNetworkError(fmt.Sprintf(err.Error()))
@@ -393,7 +395,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.AutoSetStanceAndForwardAndUpdateMap()
 		unit.StartStanceAnimation()
 
-		util.LogUnitDebug(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
+        util.LogGlobalUnitDebug(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
 		util.LogGameInfo(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
 	}
 

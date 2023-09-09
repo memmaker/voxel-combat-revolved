@@ -39,10 +39,17 @@ func (p *Unit) GetVelocity() mgl32.Vec3 {
 	return p.velocity
 }
 
-func (p *Unit) GetNextEvent() TransitionEvent {
+func (p *Unit) GetNextEvent(currentState AnimationStateName) TransitionEvent {
 	if len(p.eventQueue) > 0 {
 		nextEvent := p.eventQueue[0]
 		p.eventQueue = p.eventQueue[1:]
+		if !p.transition.Exists(currentState, nextEvent) {
+			// only advance the state machine from the current state, if the transition is defined
+			// otherwise, we just re-emit the event
+			p.eventQueue = append(p.eventQueue, nextEvent)
+			return EventNone
+		}
+		util.LogGreen(fmt.Sprintf("[Unit] %s(%d) Event retrieved from Queue %s", p.GetName(), p.UnitID(), nextEvent.ToString()))
 		return nextEvent
 	}
 	return EventNone
@@ -68,11 +75,12 @@ func (p *Unit) Update(deltaTime float64) {
 
 	p.EmitEvent(stateEvent)
 
-	currentEvent := p.GetNextEvent()
+	currentEvent := p.GetNextEvent(currentState)
+	// HMM2 now the problem is the movement animation not finishing, because we switched to idle before it could register
 
 	if p.transition.Exists(currentState, currentEvent) {
 		nextState := p.transition.GetNextState(currentState, currentEvent)
-		util.LogUnitDebug(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
+		util.LogGlobalUnitDebug(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
 		p.SetState(nextState)
 	}
 }
@@ -102,7 +110,7 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	}
 }
 
-func (p *Unit) SetState(nextState ActorState) {
+func (p *Unit) SetState(nextState AnimationStateName) {
 	p.state = BehaviorFactory(nextState)
 	p.state.Init(p)
 }
@@ -145,7 +153,7 @@ func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
 	p.currentWaypoint = 0
 	p.eventQueue = append(p.eventQueue, EventNewPath)
-	//println(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
+	util.LogGreen(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
 }
 func (p *Unit) GetWaypoint() voxel.Int3 {
 	return p.currentPath[p.currentWaypoint]

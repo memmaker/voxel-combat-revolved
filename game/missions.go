@@ -22,6 +22,7 @@ type MissionDetails struct {
     DestroyableObjectives []voxel.Int3
     ObjectiveLife         int
     damage                map[voxel.Int3]int
+    TurnLimit             int
 }
 
 func NewRandomDeathmatch() *MissionDetails {
@@ -43,6 +44,7 @@ func NewRandomDefend() *MissionDetails {
         Placement:     PlacementModeRandom,
         Scenario:      MissionScenarioDefend,
         ObjectiveLife: 10,
+        TurnLimit: 10,
         damage:        make(map[voxel.Int3]int),
     }
 }

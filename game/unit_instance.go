@@ -412,7 +412,7 @@ func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int
     if u.CurrentStance == stance && forward2d == currentForward {
         return
     }
-    util.LogUnitDebug(fmt.Sprintf("[UnitInstance] %s(%d) UpdateStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
+    util.LogGlobalUnitDebug(fmt.Sprintf("[UnitInstance] %s(%d) UpdateStanceAndForward(%d, %s)", u.GetName(), u.UnitID(), stance, forward2d.ToString()))
 
     u.Transform.SetForward2DDiagonal(forward2d)
     u.CurrentStance = stance

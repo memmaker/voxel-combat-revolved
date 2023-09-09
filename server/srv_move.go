@@ -53,7 +53,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	currentPos := a.unit.GetBlockPosition()
 	moveTarget := a.targets[0]
 	distance := a.gameAction.GetCost(moveTarget)
-	util.LogUnitDebug(fmt.Sprintf("[ActionMove] Moving %s(%d): from %s to %s (dist: %0.2f)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
+	util.LogServerUnitDebug(fmt.Sprintf("Moving %s(%d): from %s to %s (dist: %0.2f)", a.unit.GetName(), a.unit.UnitID(), currentPos.ToString(), moveTarget.ToString(), distance))
 
 	foundPath := a.gameAction.GetPath(moveTarget)
 	destination := foundPath[len(foundPath)-1]
@@ -91,7 +91,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 				if a.engine.CanSeeTo(enemyUnit, a.unit, pos.ToBlockCenterVec3()) {
 					pathPartsPerUser[enemyUserID][currentPathIndex] = append(pathPartsPerUser[enemyUserID][currentPathIndex], pos)
 					atLeastOneUnitCanSee = true
-					println(fmt.Sprintf(" --> can be seen by %s(%d) of %d", enemyUnit.GetName(), enemyUnit.UnitID(), enemyUserID))
+					util.LogServerUnitDebug(fmt.Sprintf(" --> can be seen by %s(%d) of %d", enemyUnit.GetName(), enemyUnit.UnitID(), enemyUserID))
 					break
 				}
 			}
@@ -116,7 +116,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 		// check if we can spot a new enemy unit from here
 		var newContact bool
 		if visibles, invisibles, newContact = a.engine.GetLOSChanges(a.unit, pos); newContact {
-			println(fmt.Sprintf(" --> can spot %d new enemies from here: ", len(visibles)))
+			util.LogServerUnitDebug(fmt.Sprintf(" --> can spot %d new enemies from here: ", len(visibles)))
 			destination = pos
 			foundPath = foundPath[:index+1]
 			if len(foundPath) > 1 {
@@ -135,7 +135,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 	a.unit.SetForward(unitForward)
 	a.unit.SetBlockPositionAndUpdateStance(destination)
 
-	util.LogUnitDebug(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
+	util.LogServerUnitDebug(fmt.Sprintf(" --> FINAL: %s(%d) is now at %s facing %s", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition().ToString(), a.unit.GetForward2DCardinal().ToString()))
 
 	// apply changes to LOS
 	for _, unit := range visibles {
@@ -181,7 +181,7 @@ func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
 				allPaths = allPaths[:len(allPaths)-1]
 			}
 			losMatrixForNonMovingPlayer, _ := a.engine.GetLOSState(enemyUserID)
-			println(fmt.Sprintf(" --> sending path parts to %d: %v", enemyUserID, allPaths))
+			util.LogServerUnitDebug(fmt.Sprintf(" --> sending path parts to %d: %v", enemyUserID, allPaths))
 			enemyUnitMoved := game.VisualEnemyUnitMoved{
 				MovingUnit:     a.unit.UnitID(),
 				LOSMatrix:      losMatrixForNonMovingPlayer,
@@ -212,11 +212,11 @@ func (a ServerActionMove) handleOverwatch(mb *game.MessageBuffer, movingUnit *ga
 		shot.SetDamageModifier(a.engine.GetRules().OverwatchDamageModifier)
 
 		if valid, reason := shot.IsValid(); valid {
-			println(fmt.Sprintf(" --> %s(%d) triggered overwatch by %s(%d) at %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString()))
+			util.LogServerUnitDebug(fmt.Sprintf(" --> %s(%d) triggered overwatch by %s(%d) at %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString()))
 			shot.Execute(mb)
 			a.engine.RemoveOverwatch(watcher.UnitID(), targetPos)
 		} else {
-			println(fmt.Sprintf(" --> ERR: %s(%d) triggered overwatch by %s(%d) at %s, but shot is not valid: %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString(), reason))
+			util.LogServerUnitDebug(fmt.Sprintf(" --> ERR: %s(%d) triggered overwatch by %s(%d) at %s, but shot is not valid: %s", movingUnit.GetName(), movingUnit.UnitID(), watcher.GetName(), watcher.UnitID(), targetPos.ToString(), reason))
 		}
 	}
 }

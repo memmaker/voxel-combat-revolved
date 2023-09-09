@@ -108,8 +108,8 @@ func (c *ServerConnection) SetEventHandler(handler func(msg StringMessage)) {
 }
 
 func (c *ServerConnection) SetMainthreadChannel(channel chan StringMessage) {
-	c.eventHandler = nil
 	c.mainthreadChannel = channel
+	c.eventHandler = nil
 }
 
 func (c *ServerConnection) SelectUnits(choices []UnitChoice) error {

@@ -108,6 +108,7 @@ type GameInstance struct {
 	waitForDeployment bool
 	onExplode         func(voxel.Int3, int)
 	onNotification    func(string)
+	turnCounter       int
 }
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
@@ -128,6 +129,7 @@ func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 
 func (g *GameInstance) NextPlayer() uint64 {
 	//println(fmt.Sprintf("[GameInstance] Ending turn for %s", g.currentPlayerFaction().Name))
+	g.turnCounter++
 	g.currentPlayerIndex = (g.currentPlayerIndex + 1) % len(g.players)
 	//println(fmt.Sprintf("[GameInstance] Starting turn for %s", g.currentPlayerFaction().Name))
 
@@ -153,7 +155,7 @@ func (g *GameInstance) currentPlayerID() uint64 {
 }
 
 func (g *GameInstance) AddPlayer(id uint64) {
-	util.LogGameInfo(fmt.Sprintf("[GameInstance] Adding player %d to game %s", id, g.id))
+	g.logGameInfo(fmt.Sprintf("[GameInstance] Adding player %d to game %s", id, g.id))
 	g.players = append(g.players, id)
 }
 
@@ -178,7 +180,7 @@ func (g *GameInstance) Start() uint64 {
 
 func (g *GameInstance) SetFaction(userID uint64, faction *Faction) {
 	g.playerFactions[userID] = faction
-	util.LogGameInfo(fmt.Sprintf("[GameInstance] Player %d is now in faction %s", userID, faction.Name))
+	g.logGameInfo(fmt.Sprintf("[GameInstance] Player %d is now in faction %s", userID, faction.Name))
 }
 
 func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64 {
@@ -203,7 +205,7 @@ func (g *GameInstance) ServerSpawnUnit(userID uint64, unit *UnitInstance) uint64
 	unit.UpdateMapPosition()
 	unit.StartStanceAnimation()
 
-	util.LogGameInfo(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	g.logGameInfo(fmt.Sprintf("[ServerSpawnUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 
 	return unitInstanceID
 }
@@ -212,7 +214,7 @@ func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
 		g.playerUnits[userID] = make([]uint64, 0)
 	}
 	unitInstanceID := unit.UnitID()
-	util.LogGameInfo(fmt.Sprintf("[ClientAddUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
+	g.logGameInfo(fmt.Sprintf("[ClientAddUnit] Adding unit %d -> %s of type %d for player %d", unitInstanceID, unit.Name, unit.Definition.ID, userID))
 	g.playerUnits[userID] = append(g.playerUnits[userID], unitInstanceID)
 	g.units[unitInstanceID] = unit
 
@@ -245,7 +247,6 @@ func (g *GameInstance) SetLOS(observer uint64, target uint64, canSee bool) {
 }
 
 func (g *GameInstance) IsGameOver() (bool, uint64) {
-
 	playersWithActiveUnits := make(map[uint64]bool)
 	for playerID, units := range g.playerUnits {
 		for _, unitID := range units {
@@ -265,6 +266,8 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
     if g.missionDetails.Scenario == MissionScenarioDefend { // player at Index 0 is the defender
         if g.missionDetails.AllObjectivesDestroyed() {
             return true, g.players[1]
+		} else if g.turnCounter >= g.missionDetails.TurnLimit {
+			return true, g.players[0]
         }
     }
 
@@ -274,9 +277,9 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 
 func (g *GameInstance) Kill(killer, victim *UnitInstance) {
 	if killer != nil {
-		util.LogGameInfo(fmt.Sprintf("[%s] %s(%d) killed %s(%d)", g.environment, killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
+		g.logGameInfo(fmt.Sprintf("[%s] %s(%d) killed %s(%d)", g.environment, killer.Name, killer.UnitID(), victim.Name, victim.UnitID()))
 	} else {
-		util.LogGameInfo(fmt.Sprintf("[%s] %s(%d) died", g.environment, victim.Name, victim.UnitID()))
+		g.logGameInfo(fmt.Sprintf("[%s] %s(%d) died", g.environment, victim.Name, victim.UnitID()))
 	}
 	victim.Kill()
 }
@@ -359,7 +362,7 @@ func (g *GameInstance) SaveMapToDisk() {
 	errMap := g.voxelMap.SaveToDisk(mapFileName)
 	metaErr := g.mapMeta.SaveToDisk(mapFileName)
 	if errMap != nil || metaErr != nil {
-		util.LogGameError(fmt.Sprintf("[GameInstance] ERR - SaveMapToDisk - %v %v", errMap, metaErr))
+		g.logGameError(fmt.Sprintf("[GameInstance] ERR - SaveMapToDisk - %v %v", errMap, metaErr))
 		g.onNotification("ERROR saving map")
 	} else if g.onNotification != nil {
 		g.onNotification("Saved successfully")
@@ -375,7 +378,7 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 }
 
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
-	util.LogGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
+	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
 	// TODO: implement visual effect
 	xStart := int32(position.X) - int32(radius)
 	xEnd := int32(position.X) + int32(radius)
@@ -439,7 +442,7 @@ func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damag
 }
 
 func (g *GameInstance) RegisterOverwatch(unit *UnitInstance, targets []voxel.Int3) {
-	util.LogGameInfo(fmt.Sprintf("[%s] Registering overwatch for %s(%d) on %v", g.environment, unit.GetName(), unit.UnitID(), targets))
+	g.logGameInfo(fmt.Sprintf("[%s] Registering overwatch for %s(%d) on %v", g.environment, unit.GetName(), unit.UnitID(), targets))
 	for _, target := range targets {
 		g.overwatch[target] = append(g.overwatch[target], unit)
 	}
@@ -524,11 +527,11 @@ func (g *GameInstance) TryDeploy(playerID uint64, deployment map[uint64]voxel.In
 	for unitID, pos := range deployment {
 		unit, ok := g.units[unitID]
 		if !ok {
-			util.LogGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d does not exist", unitID))
+			g.logGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d does not exist", unitID))
 			return false
 		}
 		if unit.ControlledBy() != playerID {
-			util.LogGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d is not controlled by player %d", unitID, playerID))
+			g.logGameError(fmt.Sprintf("[GameInstance] ERR - TryDeploy - Unit %d is not controlled by player %d", unitID, playerID))
 			return false
 		}
 		// TODO: needs validation..
@@ -540,4 +543,26 @@ func (g *GameInstance) TryDeploy(playerID uint64, deployment map[uint64]voxel.In
 
 func (g *GameInstance) DeploymentDone() {
 	g.waitForDeployment = false
+}
+
+func (g *GameInstance) logGameInfo(text string) {
+	switch g.environment {
+	case "GL-Client":
+		util.LogGraphicalClientGameInfo(text)
+	case "AI-Client":
+		util.LogAiClientGameInfo(text)
+	case "Server":
+		util.LogServerGameInfo(text)
+	}
+}
+
+func (g *GameInstance) logGameError(text string) {
+	switch g.environment {
+	case "GL-Client":
+		util.LogGraphicalClientGameError(text)
+	case "AI-Client":
+		util.LogAiClientGameError(text)
+	case "Server":
+		util.LogServerGameError(text)
+	}
 }
