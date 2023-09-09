@@ -13,6 +13,8 @@ type UnitGotoWaypointBehavior struct {
 	unit             *Unit
 	yOffset          int32
 	coroutine        gocoro.Coroutine
+	finalDestination voxel.Int3
+	runToCompletion  bool
 }
 
 func should(err error) {
@@ -23,8 +25,8 @@ func should(err error) {
 func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) {
 	// we start by setting the new map position, so that the user can go on
 	// with selecting the next unit and has the correct map state
-
-	a.unit.ForceMapPosition(a.unit.GetLastWaypoint(), a.unit.GetLastDirection())
+	a.finalDestination = a.unit.GetLastWaypoint()
+	a.unit.ForceMapPosition(a.finalDestination, a.unit.GetLastDirection())
 
 	for {
 		// do we need to start some special animation and thus wait for its completion?
@@ -36,7 +38,6 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 			resolvedPosition := voxel.Int3{X: wp.X, Y: fp.Y + a.yOffset, Z: wp.Z}
 			a.snapToPosition(resolvedPosition)
 		}
-		util.LogUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Start movement from %v to %v", a.unit.GetBlockPosition(), a.unit.GetWaypoint()))
 
 		// move until we reach a waypoint
 		should(exe.YieldFunc(func() bool {
@@ -44,11 +45,12 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 			return a.unit.HasReachedWaypoint()
 		}))
 
-		util.LogUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
+		//util.LogGlobalUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
 		// we reached a waypoint
 		if a.unit.IsLastWaypoint() {
-			a.snapToLastPosition(a.unit.GetWaypoint())
 			a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
+			a.snapToLastPosition(a.unit.GetWaypoint())
+			a.runToCompletion = true
 			break // end loop
 		} else { // not last waypoint
 			a.snapToPosition(a.unit.GetWaypoint())
@@ -62,6 +64,13 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 		a.coroutine.Update()
 		return EventNone
 	} else {
+		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
+		if !a.runToCompletion {
+			util.LogGreen(fmt.Sprintf("[UnitGotoWaypointBehavior] Interrupted movement %s(%d) snapped to %v", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition()))
+			a.snapToLastPosition(a.finalDestination)
+		} else {
+			util.LogGreen(fmt.Sprintf("[UnitGotoWaypointBehavior] Unit %s(%d) stopped at %v", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition()))
+		}
 		return EventLastWaypointReached
 	}
 }
@@ -97,7 +106,7 @@ func (a *UnitGotoWaypointBehavior) startAndWaitForAnimation() bool {
 	return false
 }
 
-func (a *UnitGotoWaypointBehavior) GetName() ActorState {
+func (a *UnitGotoWaypointBehavior) GetName() AnimationStateName {
 	return UnitGotoWaypoint
 }
 

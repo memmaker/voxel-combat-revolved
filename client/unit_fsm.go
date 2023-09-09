@@ -10,7 +10,7 @@ package client
 // ALL (except dying & dead), hit, dying
 // dying, animationFinished, dead
 
-// map[ActorState]map[TransitionEvent]ActorState
+// map[AnimationStateName]map[TransitionEvent]AnimationStateName
 
 func NewActorTransitionTable() *TransitionTable {
 	t := NewTransitionTable()
@@ -21,11 +21,13 @@ func NewActorTransitionTable() *TransitionTable {
 	//t.AddTransition(ActorStateWaiting, EventFinishedWaiting, ActorStateIdle)
 
 	// hits
-	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventHit, ActorStateHit)
+	t.AddTransition(ActorStateIdle, EventHit, ActorStateHit)
+	t.AddTransition(ActorStateHit, EventHit, ActorStateHit)
 	t.AddTransition(ActorStateHit, EventAnimationFinished, ActorStateIdle)
 
 	// dying & death
-	t.AddTransitionFromAllExcept([]ActorState{ActorStateDying, ActorStateDead}, EventLethalHit, ActorStateDying)
+	t.AddTransition(ActorStateIdle, EventLethalHit, ActorStateDying)
+	t.AddTransition(ActorStateHit, EventLethalHit, ActorStateDying)
 	t.AddTransition(ActorStateDying, EventAnimationFinished, ActorStateDead)
 
 	return t
@@ -69,9 +71,9 @@ const (
 	EventWaypointReached
 )
 
-type ActorState int
+type AnimationStateName int
 
-func (s ActorState) ToString() string {
+func (s AnimationStateName) ToString() string {
 	switch s {
 	case ActorStateIdle:
 		return "Idle"
@@ -83,13 +85,15 @@ func (s ActorState) ToString() string {
 		return "Dying"
 	case ActorStateDead:
 		return "Dead"
+	case ActorStateHit:
+		return "Hit"
 	default:
 		return "Unknown"
 	}
 }
 
 const (
-	ActorStateIdle ActorState = iota
+	ActorStateIdle AnimationStateName = iota
 	ActorStateWaiting
 	UnitGotoWaypoint
 	ActorStateDying
@@ -98,21 +102,21 @@ const (
 	// Also change NewTransitionTable() below, if you add new states at the end or the beginning
 )
 
-type TransitionTable map[ActorState]map[TransitionEvent]ActorState
+type TransitionTable map[AnimationStateName]map[TransitionEvent]AnimationStateName
 
 func NewTransitionTable() *TransitionTable {
 	t := make(TransitionTable)
 	for state := ActorStateIdle; state <= ActorStateDead; state++ {
-		t[state] = make(map[TransitionEvent]ActorState)
+		t[state] = make(map[TransitionEvent]AnimationStateName)
 	}
 	return &t
 }
 
-func (t *TransitionTable) AddTransition(fromState ActorState, event TransitionEvent, toState ActorState) {
+func (t *TransitionTable) AddTransition(fromState AnimationStateName, event TransitionEvent, toState AnimationStateName) {
 	(*t)[fromState][event] = toState
 }
 
-func (t *TransitionTable) AddTransitionFromAllExcept(excludedStates []ActorState, event TransitionEvent, toState ActorState) {
+func (t *TransitionTable) AddTransitionFromAllExcept(excludedStates []AnimationStateName, event TransitionEvent, toState AnimationStateName) {
 	for state := range *t {
 		if !contains(excludedStates, state) {
 			(*t)[state][event] = toState
@@ -120,16 +124,16 @@ func (t *TransitionTable) AddTransitionFromAllExcept(excludedStates []ActorState
 	}
 }
 
-func (t *TransitionTable) Exists(currentState ActorState, event TransitionEvent) bool {
+func (t *TransitionTable) Exists(currentState AnimationStateName, event TransitionEvent) bool {
 	_, ok := (*t)[currentState][event]
 	return ok
 }
 
-func (t *TransitionTable) GetNextState(currentState ActorState, event TransitionEvent) ActorState {
+func (t *TransitionTable) GetNextState(currentState AnimationStateName, event TransitionEvent) AnimationStateName {
 	return (*t)[currentState][event]
 }
 
-func contains(states []ActorState, state ActorState) bool {
+func contains(states []AnimationStateName, state AnimationStateName) bool {
 	for _, s := range states {
 		if s == state {
 			return true
@@ -139,12 +143,12 @@ func contains(states []ActorState, state ActorState) bool {
 }
 
 type AnimationState interface {
-	GetName() ActorState
+	GetName() AnimationStateName
 	Init(actor *Unit)
 	Execute(deltaTime float64) TransitionEvent
 }
 
-var BehaviorTable = map[ActorState]func() AnimationState{
+var BehaviorTable = map[AnimationStateName]func() AnimationState{
 	ActorStateIdle:    func() AnimationState { return &ActorIdleBehavior{} },
 	UnitGotoWaypoint:  func() AnimationState { return &UnitGotoWaypointBehavior{} },
 	ActorStateWaiting: func() AnimationState { return &ActorWaitingBehavior{} },
@@ -153,6 +157,6 @@ var BehaviorTable = map[ActorState]func() AnimationState{
 	ActorStateDead:    func() AnimationState { return &ActorDeadBehavior{} },
 }
 
-func BehaviorFactory(state ActorState) AnimationState {
+func BehaviorFactory(state AnimationStateName) AnimationState {
 	return BehaviorTable[state]()
 }

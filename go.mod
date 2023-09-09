@@ -15,6 +15,9 @@ require (
 )
 
 require (
+	github.com/fatih/color v1.15.0 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/solarlune/gocoro v0.0.0-20230824040254-0c0c4a19d76f // indirect
 	github.com/spakin/netpbm v1.3.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect

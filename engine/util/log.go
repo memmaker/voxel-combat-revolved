@@ -1,7 +1,33 @@
 package util
 
-var GLOBAL_LOG_LEVEL = LogLevelInfo
-var GLOBAL_LOG_CATEGORIES = LogNetwork
+import (
+    "fmt"
+    termColor "github.com/fatih/color"
+)
+
+var GLOBAL_LOG_LEVEL = LogLevelDebug
+var GLOBAL_LOG_CATEGORIES = LogNetwork | LogUnitState | LogGameStateGlobal | LogAnimation
+var GLOBAL_LOG_ENVIRONMENT = LogEnvironmentServer | LogEnvironmentGraphicalClient
+
+type LogEnvironment int
+
+func (e LogEnvironment) ToString() string {
+    switch e {
+    case LogEnvironmentServer:
+        return "Server"
+    case LogEnvironmentGraphicalClient:
+        return "GL-Client"
+    case LogEnvironmentAiClient:
+        return "AI-Client"
+    }
+    return fmt.Sprintf("Unknown(%d)", e)
+}
+
+const (
+    LogEnvironmentServer LogEnvironment = 1 << iota
+    LogEnvironmentGraphicalClient
+    LogEnvironmentAiClient
+)
 
 type LogLevel int
 
@@ -26,94 +52,145 @@ const (
     LogAnimation
 )
 
-func log(cat LogCategory, lvl LogLevel, txt string) {
+var allEnv = LogEnvironmentServer | LogEnvironmentGraphicalClient | LogEnvironmentAiClient
+
+func logGlobal(cat LogCategory, lvl LogLevel, txt string) {
+    log(allEnv, cat, lvl, txt)
+}
+
+func log(env LogEnvironment, cat LogCategory, lvl LogLevel, txt string) {
     if lvl > GLOBAL_LOG_LEVEL {
         return
     }
     if GLOBAL_LOG_CATEGORIES&cat == 0 {
         return
     }
+    if GLOBAL_LOG_ENVIRONMENT&env == 0 {
+        return
+    }
+    if env != allEnv {
+        txt = fmt.Sprintf("[%s] %s", env.ToString(), txt)
+    }
     println(txt)
 }
 
 func LogVoxelInfo(txt string) {
-    log(LogVoxel, LogLevelInfo, txt)
+    logGlobal(LogVoxel, LogLevelInfo, txt)
 }
 
 func LogVoxelDebug(txt string) {
-    log(LogVoxel, LogLevelDebug, txt)
+    logGlobal(LogVoxel, LogLevelDebug, txt)
 }
 func LogVoxelError(txt string) {
-    log(LogVoxel, LogLevelError, txt)
+    logGlobal(LogVoxel, LogLevelError, txt)
 }
 func LogNetworkInfo(txt string) {
-    log(LogNetwork, LogLevelInfo, txt)
+    logGlobal(LogNetwork, LogLevelInfo, txt)
 }
 
 func LogNetworkDebug(txt string) {
-    log(LogNetwork, LogLevelDebug, txt)
+    logGlobal(LogNetwork, LogLevelDebug, txt)
 }
 
 func LogNetworkWarning(txt string) {
-    log(LogNetwork, LogLevelWarning, txt)
+    logGlobal(LogNetwork, LogLevelWarning, txt)
 }
 
 func LogNetworkError(txt string) {
-    log(LogNetwork, LogLevelError, txt)
+    logGlobal(LogNetwork, LogLevelError, txt)
 }
 
 func LogSystemInfo(txt string) {
-    log(LogSystem, LogLevelInfo, txt)
+    logGlobal(LogSystem, LogLevelInfo, txt)
 }
 
 func LogIOError(txt string) {
-    log(LogIO, LogLevelError, txt)
+    logGlobal(LogIO, LogLevelError, txt)
 }
 
 func LogGameInfo(txt string) {
-    log(LogGameStateGlobal, LogLevelInfo, txt)
+    logGlobal(LogGameStateGlobal, LogLevelInfo, txt)
+}
+
+func LogServerGameInfo(txt string) {
+    log(LogEnvironmentServer, LogGameStateGlobal, LogLevelInfo, txt)
+}
+
+func LogGraphicalClientGameInfo(txt string) {
+    log(LogEnvironmentGraphicalClient, LogGameStateGlobal, LogLevelInfo, txt)
+}
+
+func LogGraphicalClientGameDebug(txt string) {
+    log(LogEnvironmentGraphicalClient, LogGameStateGlobal, LogLevelDebug, txt)
+}
+func getGreenLogger() func(format string, a ...interface{}) {
+    return termColor.New(termColor.FgGreen).PrintfFunc()
+}
+func LogGreen(txt string) {
+    greenLogger := getGreenLogger()
+    greenLogger(txt + "\n")
+}
+
+func LogAiClientGameInfo(txt string) {
+    log(LogEnvironmentAiClient, LogGameStateGlobal, LogLevelInfo, txt)
+}
+
+func LogServerGameError(txt string) {
+    log(LogEnvironmentServer, LogGameStateGlobal, LogLevelError, txt)
+}
+
+func LogGraphicalClientGameError(txt string) {
+    log(LogEnvironmentGraphicalClient, LogGameStateGlobal, LogLevelError, txt)
+}
+
+func LogAiClientGameError(txt string) {
+    log(LogEnvironmentAiClient, LogGameStateGlobal, LogLevelError, txt)
 }
 
 func LogGameError(txt string) {
-    log(LogGameStateGlobal, LogLevelError, txt)
+    logGlobal(LogGameStateGlobal, LogLevelError, txt)
 }
 
-func LogUnitDebug(txt string) {
-    log(LogUnitState, LogLevelDebug, txt)
+func LogGlobalUnitDebug(txt string) {
+    logGlobal(LogUnitState, LogLevelDebug, txt)
+}
+
+func LogServerUnitDebug(txt string) {
+    log(LogEnvironmentServer, LogUnitState, LogLevelDebug, txt)
 }
 
 func LogTextureDebug(txt string) {
-    log(LogTextures, LogLevelDebug, txt)
+    logGlobal(LogTextures, LogLevelDebug, txt)
 }
 
 func LogTextureError(txt string) {
-    log(LogTextures, LogLevelError, txt)
+    logGlobal(LogTextures, LogLevelError, txt)
 }
 
 func LogAnimationDebug(txt string) {
-    log(LogAnimation, LogLevelDebug, txt)
+    logGlobal(LogAnimation, LogLevelDebug, txt)
 }
 
 func LogAnimationError(txt string) {
-    log(LogAnimation, LogLevelError, txt)
+    logGlobal(LogAnimation, LogLevelError, txt)
 }
 
 func LogAnimationInfo(txt string) {
-    log(LogAnimation, LogLevelInfo, txt)
+    logGlobal(LogAnimation, LogLevelInfo, txt)
 }
 
 func LogGlInfo(txt string) {
-    log(LogOpenGL, LogLevelInfo, txt)
+    logGlobal(LogOpenGL, LogLevelInfo, txt)
 }
 
 func LogGlDebug(txt string) {
-    log(LogOpenGL, LogLevelDebug, txt)
+    logGlobal(LogOpenGL, LogLevelDebug, txt)
 }
 
 func LogGlError(txt string) {
-    log(LogOpenGL, LogLevelError, txt)
+    logGlobal(LogOpenGL, LogLevelError, txt)
 }
 
 func LogGlWarning(txt string) {
-    log(LogOpenGL, LogLevelWarning, txt)
+    logGlobal(LogOpenGL, LogLevelWarning, txt)
 }

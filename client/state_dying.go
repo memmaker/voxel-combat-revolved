@@ -6,7 +6,7 @@ type ActorDyingBehavior struct {
 	actor *Unit
 }
 
-func (a *ActorDyingBehavior) GetName() ActorState {
+func (a *ActorDyingBehavior) GetName() AnimationStateName {
 	return ActorStateDying
 }
 

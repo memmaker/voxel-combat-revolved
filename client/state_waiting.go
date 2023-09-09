@@ -11,7 +11,7 @@ func (a *ActorWaitingBehavior) Execute(deltaTime float64) TransitionEvent {
 	return EventNone
 }
 
-func (a *ActorWaitingBehavior) GetName() ActorState {
+func (a *ActorWaitingBehavior) GetName() AnimationStateName {
 	return ActorStateWaiting
 }
 

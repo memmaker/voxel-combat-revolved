@@ -4,7 +4,7 @@ type ActorDeadBehavior struct {
 	actor *Unit
 }
 
-func (a *ActorDeadBehavior) GetName() ActorState {
+func (a *ActorDeadBehavior) GetName() AnimationStateName {
 	return ActorStateDead
 }
 

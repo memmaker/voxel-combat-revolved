@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/game"
@@ -16,7 +17,7 @@ type ActorHitBehavior struct {
 	coroutine            gocoro.Coroutine
 }
 
-func (a *ActorHitBehavior) GetName() ActorState {
+func (a *ActorHitBehavior) GetName() AnimationStateName {
 	return ActorStateHit
 }
 
@@ -27,7 +28,7 @@ func (a *ActorHitBehavior) Init(actor *Unit) {
 }
 
 func (a *ActorHitBehavior) Execute(deltaTime float64) TransitionEvent {
-	if a.lerper != nil {
+	if a.lerper != nil && !a.lerper.IsDone() {
 		a.lerper.Update(deltaTime)
 		return EventNone
 	} else if a.coroutine.Running() {
@@ -41,6 +42,7 @@ func (a *ActorHitBehavior) Execute(deltaTime float64) TransitionEvent {
 func (a *ActorHitBehavior) GetHitScript(exe *gocoro.Execution) {
 	direction := a.unit.hitInfo.ForceOfImpact.Normalize().Mul(-1)
 	a.unit.turnToDirectionForAnimation(direction)
+	util.LogGlobalUnitDebug(fmt.Sprintf("[ActorHitBehavior] Start hit script for %d (%v)", a.unit.UnitID(), direction))
 
 	a.unit.GetModel().SetAnimation(game.AnimationHit.Str(), 1.0)
 	should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation))

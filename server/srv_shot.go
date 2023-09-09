@@ -61,7 +61,7 @@ func NewServerActionFreeShot(g *game.GameInstance, unit *game.UnitInstance, camP
 		targetAngle := targetAngles[rayCalls]
 
 		camera.Reposition(camPos, targetAngle[0], targetAngle[1])
-		println(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from (%0.2f, %0.2f, %0.2f) in direction %0.2f, %0.2f", unit.GetName(), unit.UnitID(), camPos.X(), camPos.Y(), camPos.Z(), targetAngle[0], targetAngle[1]))
+		util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] %s(%d) fires a shot from (%0.2f, %0.2f, %0.2f) in direction %0.2f, %0.2f", unit.GetName(), unit.UnitID(), camPos.X(), camPos.Y(), camPos.Z(), targetAngle[0], targetAngle[1]))
 		s.lastAimDirection = camera.GetForward()
 
 		startRay, endRay := camera.GetRandomRayInCircleFrustum(s.finalShotAccuracy())
@@ -174,7 +174,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 
 	if rayHitInfo.HitUnit() {
 		unitHitID = int64(rayHitInfo.UnitHit.UnitID())
-		println(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
+		util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
 		projectileBaseDamage, lethal = a.engine.HandleUnitHitWithProjectile(a.unit, a.damageModifier, rayHitInfo)
 	} else {
 		if rayHitInfo.Hit {
@@ -183,12 +183,12 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 			if blockDef.OnDamageReceived != nil {
 				blockDef.OnDamageReceived(blockPosHit, projectileBaseDamage)
 				hitBlocks = append(hitBlocks, blockPosHit)
-				println(fmt.Sprintf("[ServerActionShot] HIT -> Block with on damage effect %s at %s", blockDef.UniqueName, blockPosHit.ToString()))
+				util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] HIT -> Block with on damage effect %s at %s", blockDef.UniqueName, blockPosHit.ToString()))
 			} else {
-				println(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s hit %s", rayHitInfo.HitInfo3D.CollisionGridPosition.ToString(), blockDef.UniqueName))
+				util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s hit %s", rayHitInfo.HitInfo3D.CollisionGridPosition.ToString(), blockDef.UniqueName))
 			}
 		} else {
-			println(fmt.Sprintf("[ServerActionShot] MISS -> No Collision, out of weapon range"))
+			util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] MISS -> No Collision, out of weapon range"))
 			projectileDestination = endOfRay
 		}
 	}
