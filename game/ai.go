@@ -24,7 +24,7 @@ func (d *DummyClientUnit) SetUserControlled() {
 	d.isUserControlled = true
 }
 
-func (d *DummyClientUnit) SetServerInstance(instance *UnitInstance) {
+func (d *DummyClientUnit) UpdateFromServerInstance(instance *UnitInstance) {
 	oldModel := d.UnitInstance.GetModel()
 	oldVoxelMap := d.GetVoxelMap()
 
@@ -238,7 +238,7 @@ func (c *DummyClient) CreateGameSequence() {
 	println("[DummyClient] Starting create game sequence...")
 	util.MustSend(con.Login("creator"))
 	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDefend(), true))
+	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDeathmatch(), true))
 	util.WaitForTrue(&createSuccess)
 	util.MustSend(con.SelectFaction("X-Com"))
 	util.WaitForTrue(&factionSuccess)

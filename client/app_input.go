@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -108,9 +109,7 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	}
 	if key == glfw.KeyF7 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
-
-		properties := a.particleProps[ParticlesExplosion].WithOrigin(a.groundSelector.GetPosition())
-		a.particles.Emit(properties, 1000)
+		a.OnExplode(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 10)
 	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)

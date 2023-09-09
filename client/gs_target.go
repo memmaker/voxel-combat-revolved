@@ -42,6 +42,7 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 func (g *GameStateAction) Init(bool) {
 	//println(fmt.Sprintf("[GameStateAction] Entered for %s with action %s", g.selectedUnit.GetName(), g.selectedAction.GetName()))
 	validTargets := g.selectedAction.GetValidTargets()
+	g.engine.lines.Clear()
 	//println(fmt.Sprintf("[GameStateAction] Valid targets: %d", len(validTargets)))
 	if len(validTargets) > 0 {
 		g.engine.highlights.SetFlat(voxel.HighlightTarget, validTargets, mgl32.Vec3{0.0, 1.0, 0.0})

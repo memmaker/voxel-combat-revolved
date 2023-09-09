@@ -11,7 +11,7 @@ type ClientUnit interface {
 	SetUserControlled()
 	GetName() string
 	IsUserControlled() bool
-	SetServerInstance(*UnitInstance)
+	UpdateFromServerInstance(*UnitInstance)
 	UnitID() uint64
 	GetBlockPosition() voxel.Int3
 	SetBlockPosition(voxel.Int3)
@@ -89,7 +89,7 @@ func (a *GameClient[U]) AddOwnedUnitToDeploymentQueue(currentUnit *UnitInstance)
 
 	unit := a.newClientUnit(currentUnit)
 	unit.SetUserControlled()
-	
+
 	a.clientUnitMap[unitID] = unit
 
 	a.deploymentQueue = append(a.deploymentQueue, unit)
@@ -109,7 +109,7 @@ func (a *GameClient[U]) UpdateUnit(currentUnit *UnitInstance) {
 		println(fmt.Sprintf("[%s] ClientUpdateUnit: unit %d not found", a.environment, unitID))
 		return
 	}
-	knownUnit.SetServerInstance(currentUnit)
+	knownUnit.UpdateFromServerInstance(currentUnit)
 	a.GameInstance.ClientUpdateUnit(currentUnit)
 }
 

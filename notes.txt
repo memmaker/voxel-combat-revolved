@@ -3,13 +3,6 @@
  - Own unit not visually dying, when hit by enemy units during fps view
  - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
 
-# Particles
- - We probably want to use TransformFeedback:
- - https://mathweb.ucsd.edu/~sbuss/MathCG2/OpenGLsoft/ParticlesTransformFeedback/PTFexplain.html
- - https://ogldev.org/www/tutorial28/tutorial28.html
- - https://www.youtube.com/watch?v=ro4bDXcISms
- - https://www.youtube.com/watch?v=OYYZQ1yiXOE
-
 # Design Guidelines
  - Turn based
  - Free aim
@@ -26,6 +19,7 @@
  - Grenades: Arc drawing (Grenade throwing)
  - Explosions & Blood: Particle effects (Explosions & blood)
  - Lighting (Shadows?)
+ - Emissive Materials (Glow / Bloom Effects)
  - Outlines for Bodyparts & Units (Targeting)
 
 # Known low priority issues
@@ -34,11 +28,17 @@
 
 # Flaws of turn-based XCOM style games in general
  - Boring movement when there is no enemy in sight
+   -> Start with enemies in sight
+   -> Speed up initial movement
  - Nothing to do during the enemy turn
+   -> Add activity during enemy turn
  - Stormtrooper effect: No one hits anything
+   -> Increase accuracy, reduce damage dealt (shields, armor)
  - General slowness
+   -> Allow for disabling/speedup of animations
+   -> Efficient UI/UX
+   -> Small maps and small teams
  - Too complex or not complex enough, too many or not enough options
-
 
 # Where Phoenix Point failed
  - Difficulty curve / Balance
@@ -91,6 +91,13 @@
  - Units have action points that can be used to move, attack, etc.
  - Attacking usually ends the turn
 
+# On Balance
+ - Tradeoffs & Power Budgets
+ - No First Order Optimal Strategies
+ - Counter play (Rock, Paper, Scissors) for everything
+ - Don't balance into mediocrity, make everything OP
+ - Hands vs. Throws (What you pick before vs. what you use during the fight)
+
 # Random Cool ideas
  - Bleeding out instead of instant death
  - Bullet Cam for Sniper Shots (Slow Motion?)
@@ -126,6 +133,14 @@
  - Clients will add animations and apply the changes to their GameInstance
 
 
+# Particles
+ - We probably want to use TransformFeedback:
+ - https://mathweb.ucsd.edu/~sbuss/MathCG2/OpenGLsoft/ParticlesTransformFeedback/PTFexplain.html
+ - https://ogldev.org/www/tutorial28/tutorial28.html
+ - https://www.youtube.com/watch?v=ro4bDXcISms
+ - https://www.youtube.com/watch?v=OYYZQ1yiXOE
+
+
 # We need
  - OpenGL Rendering Pipeline - DONE
  - 3D DDA Raycasting - DONE
@@ -136,9 +151,9 @@
  - Networked Multiplayer & Standalone Multihreaded Singleplayer - DONE
  - FPS & ISO Camera - DONE
  - Circle drawing (Targeting reticule) - DONE
- - Line Drawing (Paths & Line Of Sight)
+ - Line Drawing (Paths & Line Of Sight) - DONE
  - Arc drawing (Grenade throwing)
- - Particle effects (Explosions & blood)
+ - Particle effects (Explosions & blood) - DONE
  - Lighting (Shadows?)
  - Outlines for Bodyparts & Units (Targeting)
  - Smooth camera movement (Zooming & Panning) - DONE
@@ -210,13 +225,6 @@ Switch to Godot?
 https://github.com/Zylann/godot_voxel
 Or Minetest?
 https://www.minetest.net/
-
-# On Balance
- - Tradeoffs & Power Budgets
- - No First Order Optimal Strategies
- - Counter play (Rock, Paper, Scissors) for everything
- - Don't balance into mediocrity, make everything OP
- - Hands vs. Throws (What you pick before vs. what you use during the fight)
 
 
 # Basic Knowledge
