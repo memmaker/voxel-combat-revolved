@@ -11,8 +11,8 @@ type ParticleProperties struct {
     VelocityVariation         mgl32.Vec3
     VelocityFromPosition      func(origin, pos mgl32.Vec3) mgl32.Vec3
     //RotationVariation                 float32
-    ColorBegin, ColorEnd              mgl32.Vec4
-    ColorVariation                    mgl32.Vec4
+    ColorBegin, ColorEnd mgl32.Vec3
+    ColorVariation       float32
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
     MaxDistance                       float32
@@ -26,7 +26,7 @@ func (p ParticleProperties) WithOrigin(newPos mgl32.Vec3) ParticleProperties {
 type Particle struct {
     id                     uint64
     Position, Velocity     mgl32.Vec3
-    ColorBegin, ColorEnd   mgl32.Vec4
+    ColorBegin, ColorEnd   mgl32.Vec3
     //Rotation               float32
     SizeBegin, SizeEnd     float32
     Lifetime, LifetimeLeft float32
@@ -227,9 +227,8 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
 
     v.particleShader.Begin()
     v.particleShader.SetUniformAttr(2, props.Lifetime)
-    v.particleShader.SetUniformAttr(3, props.ColorBegin)
-    v.particleShader.SetUniformAttr(4, props.ColorEnd)
-    v.particleShader.SetUniformAttr(5, props.SizeEnd)
+    v.particleShader.SetUniformAttr(3, props.ColorEnd)
+    v.particleShader.SetUniformAttr(4, props.SizeEnd)
     v.particleShader.End()
 
     v.transformFeedbackShader.Begin()
@@ -247,6 +246,7 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
     velocityX := GlFloat(velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5))
     velocityY := GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5))
     velocityZ := GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5))
+    colorVariation := props.ColorVariation * (rand.Float32() - 0.5)
     return []GlFloat{
         // position x,y,z
         GlFloat(x),
@@ -262,8 +262,12 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
         velocityZ,
         // size begin
         GlFloat(props.SizeBegin + props.SizeVariation*(rand.Float32()-0.5)),
+        // color begin r,g,b
+        GlFloat(mgl32.Clamp(props.ColorBegin.X()+colorVariation, 0, 1)),
+        GlFloat(mgl32.Clamp(props.ColorBegin.Y()+colorVariation, 0, 1)),
+        GlFloat(mgl32.Clamp(props.ColorBegin.Z()+colorVariation, 0, 1)),
         // origin x,y,z
-        GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()), 1,
+        GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
     }
 }
 
