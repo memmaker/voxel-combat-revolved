@@ -29,6 +29,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetai
 		mapMeta:  &mapMetadata,
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 		missionDetails: details,
+		smokeLocations: make(map[voxel.Int3]int),
 	}
 	g.rules = NewDefaultRuleset(g)
 	return g
@@ -85,7 +86,7 @@ type GameInstance struct {
 
 	rules          *Ruleset
 	assets         *Assets
-    missionDetails *MissionDetails
+	missionDetails *MissionDetails
 
 	// game instance state
 	currentPlayerIndex int
@@ -109,6 +110,9 @@ type GameInstance struct {
 	onExplode         func(voxel.Int3, int)
 	onNotification    func(string)
 	turnCounter       int
+
+	smokeLocations map[voxel.Int3]int
+
 }
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
@@ -379,33 +383,48 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
 	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
-	// TODO: implement visual effect
-	xStart := int32(position.X) - int32(radius)
-	xEnd := int32(position.X) + int32(radius)
-	yStart := int32(position.Y) - int32(radius)
-	yEnd := int32(position.Y) + int32(radius)
-	zStart := int32(position.Z) - int32(radius)
-	zEnd := int32(position.Z) + int32(radius)
-
-	for x := xStart; x <= xEnd; x++ {
-		for y := yStart; y <= yEnd; y++ {
-			for z := zStart; z <= zEnd; z++ {
-				dist := math.Sqrt(math.Pow(float64(x-position.X), 2) + math.Pow(float64(y-position.Y), 2) + math.Pow(float64(z-position.Z), 2))
-				if dist <= float64(radius) {
-					explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
-					if explodingBlock.IsOccupied() {
-						affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
-						g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone?
-					}
-					g.voxelMap.SetBlock(x, y, z, voxel.NewAirBlock())
-				}
-			}
-		}
-	}
+	g.voxelMap.ForBlockInHalfSphere(position, radius, g.ApplyExplosionToSingleBlock)
 	g.voxelMap.GenerateAllMeshes()
 	if g.onExplode != nil {
 		g.onExplode(position, radius)
 	}
+}
+
+func (g *GameInstance) CreateSmokeEffect(position voxel.Int3, radius int) {
+	g.logGameInfo(fmt.Sprintf("[%s] Smoke at %s with radius %d", g.environment, position.ToString(), radius))
+	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius int, x int32, y int32, z int32) {
+		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z})
+	})
+	g.voxelMap.GenerateAllMeshes()
+}
+func (g *GameInstance) AddSmokeAt(location voxel.Int3) {
+	if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
+		return
+	}
+	if g.voxelMap.IsSolidBlockAt(location.X, location.Y, location.Z) {
+		return
+	}
+	println(fmt.Sprintf("[GameInstance] Adding smoke at %s", location.ToString()))
+	g.smokeLocations[location] = 3
+}
+func (g *GameInstance) GetSmokeLocations() map[voxel.Int3]int {
+	return g.smokeLocations
+}
+
+func (g *GameInstance) ApplyExplosionToSingleBlock(origin voxel.Int3, radius int, x, y, z int32) {
+	if !g.voxelMap.Contains(int32(x), int32(y), int32(z)) {
+		return
+	}
+	dist := math.Sqrt(math.Pow(float64(x-origin.X), 2) + math.Pow(float64(y-origin.Y), 2) + math.Pow(float64(z-origin.Z), 2))
+	if dist > float64(radius) {
+		return
+	}
+	explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
+	if explodingBlock.IsOccupied() {
+		affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
+		g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone?
+	}
+	g.voxelMap.SetBlock(x, y, z, voxel.NewAirBlock())
 }
 
 func (g *GameInstance) SetBlockLibrary(bl *BlockLibrary) {

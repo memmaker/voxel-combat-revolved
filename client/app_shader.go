@@ -45,7 +45,7 @@ var (
 	transformFeedbackVertexShaderSource string
 )
 
-// v1 particles need for every instance:
+// v1 oneShotParticles need for every instance:
 // position, 3 floats
 // lifetimeLeft, 1 float
 // velocity, 3 floats
@@ -75,15 +75,20 @@ type ParticleUniforms int32
 const (
 	TransformFeedbackUniformDeltaTime = TransformFeedbackUniforms(0)
 )
-func loadTransformFeedbackShader() *glhf.Shader {
-	vertexFormat := glhf.AttrFormat{
+
+func getParticleVertexFormat() glhf.AttrFormat {
+	return glhf.AttrFormat{
 		{Name: "position", Type: glhf.Vec3},
 		{Name: "lifetimeLeft", Type: glhf.Float},
 		{Name: "velocity", Type: glhf.Vec3},
 		{Name: "sizeBegin", Type: glhf.Float},
+		//{Name: "origin", Type: glhf.Vec3},
 	}
+}
+func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "deltaTime", Type: glhf.Float},
+		glhf.Attr{Name: "maxDistance", Type: glhf.Float},
 	}
 
 	tfShader, shaderErr := glhf.NewShader(
@@ -92,7 +97,7 @@ func loadTransformFeedbackShader() *glhf.Shader {
 		transformFeedbackVertexShaderSource,
 		"",
 		"",
-		[]string{"VS_OUT.position\x00", "VS_OUT.lifetimeLeft\x00", "VS_OUT.velocity\x00", "VS_OUT.sizeBegin\x00"},
+		[]string{"VS_OUT.position\x00", "VS_OUT.lifetimeLeft\x00", "VS_OUT.velocity\x00", "VS_OUT.sizeBegin\x00"}, //, "VS_OUT.origin\x00"},
 	)
 	if shaderErr != nil {
 		panic(shaderErr)
@@ -101,13 +106,7 @@ func loadTransformFeedbackShader() *glhf.Shader {
 	return tfShader
 }
 
-func loadParticleShader() *glhf.Shader {
-	vertexFormat := glhf.AttrFormat{
-		{Name: "position", Type: glhf.Vec3},
-		{Name: "lifetimeLeft", Type: glhf.Float},
-		{Name: "velocity", Type: glhf.Vec3},
-		{Name: "sizeBegin", Type: glhf.Float},
-	}
+func loadParticleShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "projection", Type: glhf.Mat4},
 		glhf.Attr{Name: "modelView", Type: glhf.Mat4},

@@ -4,6 +4,7 @@ in vec3 position;
 in float lifetimeLeft;
 in vec3 velocity;
 in float sizeBegin;
+//in vec3 origin;
 
 uniform mat4 projection;
 uniform mat4 modelView;

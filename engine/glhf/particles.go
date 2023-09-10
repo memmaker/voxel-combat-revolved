@@ -14,6 +14,7 @@ type ParticleProperties struct {
     ColorBegin, ColorEnd              mgl32.Vec4
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
+    MaxDistance                       float32
 }
 
 func (p ParticleProperties) WithOrigin(newPos mgl32.Vec3) ParticleProperties {
@@ -52,6 +53,7 @@ type ParticleSystem struct {
     getView              func() mgl32.Mat4
     lastParticleLifetime float32
     flatData             []GlFloat
+    totalTime            float32
 }
 
 // idea: use transform feedback, so we have two buffers and can swap them
@@ -102,13 +104,13 @@ func (v *ParticleSystem) initializeBuffers(particleCount int) {
     }
 }
 func (v *ParticleSystem) Draw(deltaTime float64) {
-    if v.lastParticleLifetime < 0.00 {
+    if v.lastParticleLifetime <= 0.00 {
         return
     }
     v.lastParticleLifetime -= float32(deltaTime)
 
     v.doTransfer(v.currentBackBuffer(), v.currentFrontBuffer(), deltaTime)
-    v.draw(v.currentFrontBuffer())
+    v.draw(deltaTime, v.currentFrontBuffer())
     v.frontIsSource = !v.frontIsSource
 }
 
@@ -151,20 +153,19 @@ func (v *ParticleSystem) doTransfer(src, dest *vertexArray[GlFloat], deltaTime f
     //gl.Flush()
 }
 
-func (v *ParticleSystem) draw(drawBuffer *vertexArray[GlFloat]) {
+func (v *ParticleSystem) draw(deltaTime float64, drawBuffer *vertexArray[GlFloat]) {
+    v.totalTime += float32(deltaTime)
+
     view := v.getView()
     proj := v.getProjection()
 
     v.particleShader.Begin()
     v.particleShader.SetUniformAttr(0, proj)
-    //v.particleShader.SetUniformAttr(2, float32(20)) // lifetime
     modelMatrix := mgl32.Ident4()
     modelView := view.Mul4(modelMatrix)
-
     v.particleShader.SetUniformAttr(1, modelView)
 
     drawBuffer.begin()
-
     gl.DrawTransformFeedback(gl.POINTS, v.xfbo)
     drawBuffer.end()
 
@@ -210,6 +211,10 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
     v.particleShader.SetUniformAttr(5, props.SizeEnd)
     v.particleShader.End()
 
+    v.transformFeedbackShader.Begin()
+    v.transformFeedbackShader.SetUniformAttr(1, props.MaxDistance)
+    v.transformFeedbackShader.End()
+
     v.currentOffset = (vertexOffset + count) % v.maxVertexCount
 }
 
@@ -233,6 +238,8 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
         GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5)),
         // size begin
         GlFloat(props.SizeBegin + props.SizeVariation*(rand.Float32()-0.5)),
+        // origin x,y,z
+        //GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
     }
 }
 

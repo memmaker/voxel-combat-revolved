@@ -60,7 +60,8 @@ type BattleClient struct {
     debugPositions             []voxel.Int3
     transformFeedbackShader    *glhf.Shader
     particleShader             *glhf.Shader
-    particles                  *glhf.ParticleSystem
+    oneShotParticles           *glhf.ParticleSystem
+    smokeParticles             *glhf.ParticleSystem
     particleProps              map[ParticleName]glhf.ParticleProperties
     selectedBlocks             []voxel.Int3
     currentlyMovingUnits       bool
@@ -117,6 +118,7 @@ const (
     ParticlesBlood ParticleName = iota
     ParticlesBulletImpact
     ParticlesExplosion
+    ParticlesSmoke
 )
 
 func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage, settings ClientSettings) *BattleClient {
@@ -165,6 +167,18 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
                 ColorBegin:           mgl32.Vec4{0.7, 0.7, 0.7, 1},
                 ColorEnd:             mgl32.Vec4{0.01, 0.01, 0.01, 1},
             },
+            ParticlesSmoke: {
+                PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
+                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0.1, 0.1, 0.1} },
+                VelocityVariation:    mgl32.Vec3{0.08, 0.1, 0.08},
+                MaxDistance:          0.5,
+                SizeBegin:            0.2,
+                SizeVariation:        0.1,
+                SizeEnd:              0.1,
+                Lifetime:             1000,
+                ColorBegin:           mgl32.Vec4{0.7, 0.7, 0.7, 1},
+                ColorEnd:             mgl32.Vec4{0.2, 0.2, 0.2, 1},
+            },
             ParticlesExplosion: {
                 PositionVariation: mgl32.Vec3{0.02, 0.02, 0.02},
                 VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 {
@@ -188,8 +202,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
     myApp.guiShader = myApp.loadGuiShader()
-    myApp.transformFeedbackShader = loadTransformFeedbackShader()
-    myApp.particleShader = loadParticleShader()
+    myApp.transformFeedbackShader = loadTransformFeedbackShader(getParticleVertexFormat())
+    myApp.particleShader = loadParticleShader(getParticleVertexFormat())
     myApp.defaultShader = myApp.loadDefaultShader()
     myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
     myApp.DrawFunc = myApp.Draw
@@ -255,7 +269,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 
     getViewFunc := func() mgl32.Mat4 { return myApp.camera().GetViewMatrix() }
     getProjectionFunc := func() mgl32.Mat4 { return myApp.camera().GetProjectionMatrix() }
-    myApp.particles = glhf.NewParticleSystem(5000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
+    myApp.oneShotParticles = glhf.NewParticleSystem(5000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
+    myApp.smokeParticles = glhf.NewParticleSystem(20000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
 
     myApp.SwitchToBlockSelector()
 
@@ -318,7 +333,7 @@ func (a *BattleClient) Update(elapsed float64) {
 
     */
     //properties := a.particleProps[ParticlesBlood].WithOrigin(a.groundSelector.GetPosition())
-    //a.particles.Emit(properties, 1)
+    //a.oneShotParticles.Emit(properties, 1)
     a.GetVoxelMap().Update(elapsed)
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
@@ -383,7 +398,9 @@ func (a *BattleClient) Draw(elapsed float64) {
 
     a.drawLines(a.camera())
 
-    a.particles.Draw(elapsed)
+    a.oneShotParticles.Draw(elapsed)
+
+    a.smokeParticles.Draw(elapsed)
 
     a.drawDefaultShader(a.camera())
 
@@ -1099,14 +1116,14 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 }
 
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
-    // TODO: UpdateMapPosition blood particles
+    // TODO: UpdateMapPosition blood oneShotParticles
     // TODO: AddFlat blood decals on unit skin
     bloodProps := a.particleProps[ParticlesBlood].WithOrigin(entryWoundPosition)
-    a.particles.Emit(bloodProps, 10)
+    a.oneShotParticles.Emit(bloodProps, 10)
 }
 func (a *BattleClient) AddBulletImpact(worldPosition mgl32.Vec3, bulletVelocity mgl32.Vec3) {
     bloodProps := a.particleProps[ParticlesBulletImpact].WithOrigin(worldPosition)
-    a.particles.Emit(bloodProps, 10)
+    a.oneShotParticles.Emit(bloodProps, 10)
 }
 func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {
     var snapRange []voxel.Int3  // can snap fire from here
@@ -1223,10 +1240,11 @@ func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
 
 func (a *BattleClient) OnExplode(origin voxel.Int3, radius int) {
     properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3())
-    a.particles.Emit(properties, 100)
+    a.oneShotParticles.Emit(properties, 100)
 }
 
 func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {
     a.selectedBlocks = selection
 }
+
 
