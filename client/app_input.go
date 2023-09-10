@@ -137,7 +137,6 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 		a.Window.SetShouldClose(true)
 		return
 	}
-
 	if action == glfw.Press {
 		a.state().OnKeyPressed(key)
 	}

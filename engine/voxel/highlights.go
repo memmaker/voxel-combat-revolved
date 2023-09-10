@@ -87,6 +87,7 @@ func (h *Highlights) ClearAll() {
 		clear(namedHighlight)
 	}
 	clear(h.fancies)
+	h.isHidden = true
 }
 
 func (h *Highlights) Draw(uniformForDrawMode int, fancyQuadDrawMode int32) {

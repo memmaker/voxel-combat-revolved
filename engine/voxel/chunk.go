@@ -30,39 +30,39 @@ type Chunk struct {
 func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
     c := &Chunk{
         chunkShader: chunkShader,
-        data:        make([]*Block, CHUNK_SIZE_CUBED),
+        data: make([]*Block, voxelMap.ChunkSizeCube),
         m:           voxelMap,
         chunkPosX:   x,
         chunkPosY:   y,
         chunkPosZ:   z,
         chunkHelper: &ChunkHelper{
-            visitXN: make([]bool, CHUNK_SIZE_CUBED),
-            visitXP: make([]bool, CHUNK_SIZE_CUBED),
-            visitYN: make([]bool, CHUNK_SIZE_CUBED),
-            visitYP: make([]bool, CHUNK_SIZE_CUBED),
-            visitZN: make([]bool, CHUNK_SIZE_CUBED),
-            visitZP: make([]bool, CHUNK_SIZE_CUBED),
+            visitXN: make([]bool, voxelMap.ChunkSizeCube),
+            visitXP: make([]bool, voxelMap.ChunkSizeCube),
+            visitYN: make([]bool, voxelMap.ChunkSizeCube),
+            visitYP: make([]bool, voxelMap.ChunkSizeCube),
+            visitZN: make([]bool, voxelMap.ChunkSizeCube),
+            visitZP: make([]bool, voxelMap.ChunkSizeCube),
         },
         isDirty:    true,
         meshBuffer: NewMeshBuffer(),
     }
-    for i := int32(0); i < CHUNK_SIZE_CUBED; i++ {
+    for i := int32(0); i < voxelMap.ChunkSizeCube; i++ {
         c.data[i] = NewAirBlock()
     }
     return c
 }
 
-func blockIndex(i, j, k int32) int32 {
-    return i + j*CHUNK_SIZE + k*CHUNK_SIZE_SQUARED
+func (c *Chunk) blockIndex(i, j, k int32) int32 {
+    return i + j*c.m.ChunkSizeHorizontal + k*(c.m.ChunkSizeHorizontal*c.m.ChunkSizeHeight)
 }
 func (c *Chunk) Contains(x, y, z int32) bool {
-    return x >= 0 && x < CHUNK_SIZE && y >= 0 && y < CHUNK_SIZE && z >= 0 && z < CHUNK_SIZE
+    return x >= 0 && x < c.m.ChunkSizeHorizontal && y >= 0 && y < c.m.ChunkSizeHeight && z >= 0 && z < c.m.ChunkSizeHorizontal
 }
 func (c *Chunk) GetLocalBlock(i, j, k int32) *Block {
     if !c.Contains(i, j, k) {
         return nil
     }
-    block := c.data[blockIndex(i, j, k)]
+    block := c.data[c.blockIndex(i, j, k)]
     if block == nil {
         return NewAirBlock()
     }
@@ -70,22 +70,21 @@ func (c *Chunk) GetLocalBlock(i, j, k int32) *Block {
 }
 
 func (c *Chunk) SetBlock(x, y, z int32, block *Block) {
-    c.data[blockIndex(x, y, z)] = block
+    c.data[c.blockIndex(x, y, z)] = block
     c.isDirty = true
 }
 
 type VoxelFace struct {
-    transparent  bool
-    side         FaceType
+    inVisible bool
+    side      FaceType
     textureIndex byte
-    hidden       bool
 }
 
 func (v *VoxelFace) EqualForMerge(face *VoxelFace) bool {
-    if face.transparent {
-        return face.transparent == v.transparent
+    if face.inVisible {
+        return face.inVisible == v.inVisible
     }
-    return face.transparent == v.transparent && face.textureIndex == v.textureIndex
+    return face.inVisible == v.inVisible && face.textureIndex == v.textureIndex
 }
 
 func (c *Chunk) InitNeighbors() {
@@ -128,7 +127,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
     c.InitNeighbors()
 
-    c.chunkHelper.Reset()
+    c.chunkHelper.Reset(c.m.ChunkSizeCube)
     c.meshBuffer.Reset()
 
     var (
@@ -140,9 +139,11 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
         du = [3]int32{}
         dv = [3]int32{}
 
-        mask       = make([]*VoxelFace, CHUNK_SIZE*CHUNK_SIZE)
+        mask       = make([]*VoxelFace, c.m.ChunkSizeHorizontal*c.m.ChunkSizeHorizontal)
         voxelFace  *VoxelFace
         voxelFace1 *VoxelFace
+
+        axisSize = [3]int32{c.m.ChunkSizeHorizontal, c.m.ChunkSizeHeight, c.m.ChunkSizeHorizontal}
     )
 
     for backFace, b := true, false; b != backFace; backFace, b = backFace && b, !b {
@@ -164,18 +165,18 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                 side = map[bool]FaceType{true: North, false: South}[backFace]
             }
 
-            for x[d] = -1; x[d] < CHUNK_SIZE; {
+            for x[d] = -1; x[d] < axisSize[d]; {
                 n = 0
 
-                for x[v] = 0; x[v] < CHUNK_SIZE; x[v]++ {
-                    for x[u] = 0; x[u] < CHUNK_SIZE; x[u]++ {
+                for x[v] = 0; x[v] < axisSize[v]; x[v]++ {
+                    for x[u] = 0; x[u] < axisSize[u]; x[u]++ {
                         if x[d] >= 0 {
                             voxelFace = c.getVoxelFace(x[0], x[1], x[2], side)
                         } else {
                             voxelFace = nil
                         }
 
-                        if x[d] < CHUNK_SIZE-1 {
+                        if x[d] < axisSize[d]-1 {
                             voxelFace1 = c.getVoxelFace(x[0]+q[0], x[1]+q[1], x[2]+q[2], side)
                         } else {
                             voxelFace1 = nil
@@ -195,21 +196,24 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                 }
 
                 x[d]++
-
+                // TODO: GRUMBELMRZ
                 n = 0
-                for j = 0; j < CHUNK_SIZE; j++ {
-                    for i = 0; i < CHUNK_SIZE; {
+                for j = 0; j < axisSize[v]; j++ { // Dim 0 - slot 0
+                    for i = 0; i < axisSize[u]; { // Dim 1 - slot 0
                         if mask[n] != nil {
                             w = 1
-                            for i+w < CHUNK_SIZE && mask[n+w] != nil && mask[n+w].EqualForMerge(mask[n]) {
+                            // Dim 1 - slot 1
+                            for i+w < axisSize[u] && mask[n+w] != nil && mask[n+w].EqualForMerge(mask[n]) {
                                 w++
                             }
 
                             done := false
                             h = 1
-                            for h+j < CHUNK_SIZE {
+                            // Dim 0 - slot 1
+                            for h+j < axisSize[v] {
                                 for k = 0; k < w; k++ {
-                                    if mask[n+k+h*CHUNK_SIZE] == nil || !mask[n+k+h*CHUNK_SIZE].EqualForMerge(mask[n]) {
+                                    // Dim 1 - slot 2 + 3
+                                    if mask[n+k+h*axisSize[v]] == nil || !mask[n+k+h*axisSize[v]].EqualForMerge(mask[n]) {
                                         done = true
                                         break
                                     }
@@ -220,7 +224,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                                 h++
                             }
 
-                            if (!mask[n].transparent) && (!mask[n].hidden) {
+                            if !mask[n].inVisible {
                                 x[u], x[v] = i, j
                                 du[0], du[1], du[2] = 0, 0, 0
                                 du[u] = w
@@ -238,7 +242,8 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
                             for l = 0; l < h; l++ {
                                 for k = 0; k < w; k++ {
-                                    mask[n+k+l*CHUNK_SIZE] = nil
+                                    // Dim 1 - slot 4
+                                    mask[n+k+l*axisSize[u]] = nil
                                 }
                             }
 
@@ -262,24 +267,21 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
 
 func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFace {
     block := c.GetLocalBlock(x, y, z)
-    if block == nil {
-        return &VoxelFace{transparent: true}
-    }
-    if block.IsAir() {
-        return &VoxelFace{transparent: true}
+    if block == nil || block.IsAir() {
+        return &VoxelFace{inVisible: true}
     }
     var neighbor *Block
     switch side {
     case West:
         if x == 0 {
             if c.cXN != nil {
-                neighbor = c.cXN.GetLocalBlock(CHUNK_SIZE-1, y, z)
+                neighbor = c.cXN.GetLocalBlock(c.m.ChunkSizeHorizontal-1, y, z)
             }
         } else {
             neighbor = c.GetLocalBlock(x-1, y, z)
         }
     case East:
-        if x == CHUNK_SIZE-1 {
+        if x == c.m.ChunkSizeHorizontal-1 {
             if c.cXP != nil {
                 neighbor = c.cXP.GetLocalBlock(0, y, z)
             }
@@ -289,13 +291,13 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
     case Bottom:
         if y == 0 {
             if c.cYN != nil {
-                neighbor = c.cYN.GetLocalBlock(x, CHUNK_SIZE-1, z)
+                neighbor = c.cYN.GetLocalBlock(x, c.m.ChunkSizeHeight-1, z)
             }
         } else {
             neighbor = c.GetLocalBlock(x, y-1, z)
         }
     case Top:
-        if y == CHUNK_SIZE-1 {
+        if y == c.m.ChunkSizeHeight-1 {
             if c.cYP != nil {
                 neighbor = c.cYP.GetLocalBlock(x, 0, z)
             }
@@ -305,13 +307,13 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
     case North:
         if z == 0 {
             if c.cZN != nil {
-                neighbor = c.cZN.GetLocalBlock(x, y, CHUNK_SIZE-1)
+                neighbor = c.cZN.GetLocalBlock(x, y, c.m.ChunkSizeHorizontal-1)
             }
         } else {
             neighbor = c.GetLocalBlock(x, y, z-1)
         }
     case South:
-        if z == CHUNK_SIZE-1 {
+        if z == c.m.ChunkSizeHorizontal-1 {
             if c.cZP != nil {
                 neighbor = c.cZP.GetLocalBlock(x, y, 0)
             }
@@ -320,10 +322,9 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
         }
     }
 
-    face := &VoxelFace{side: side, textureIndex: c.m.getTextureIndexForSide(block, side), transparent: false}
+    face := &VoxelFace{side: side, textureIndex: c.m.getTextureIndexForSide(block, side)}
     if neighbor != nil && !neighbor.IsAir() {
-        face.hidden = true
-        face.transparent = true
+        face.inVisible = true
     }
     return face
 }
@@ -468,7 +469,7 @@ func (c *Chunk) getDiscreteCamDir(camDir mgl32.Vec3) Int3 {
 }
 
 func (c *Chunk) GetMatrix() mgl32.Mat4 {
-    return mgl32.Translate3D(float32(c.chunkPosX*CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE))
+    return mgl32.Translate3D(float32(c.chunkPosX*c.m.ChunkSizeHorizontal), float32(c.chunkPosY*c.m.ChunkSizeHeight), float32(c.chunkPosZ*c.m.ChunkSizeHorizontal))
 }
 
 func (c *Chunk) Position() Int3 {
@@ -476,7 +477,7 @@ func (c *Chunk) Position() Int3 {
 }
 
 func (c *Chunk) IsBlockAt(i int32, j int32, k int32) bool {
-    block := c.data[i+j*CHUNK_SIZE+k*CHUNK_SIZE_SQUARED]
+    block := c.data[c.blockIndex(i, j, k)]
     return block != nil && !block.IsAir()
 }
 
@@ -484,18 +485,10 @@ func (c *Chunk) SetDirty() {
     c.isDirty = true
 }
 
-func (c *Chunk) AABBMin() mgl32.Vec3 {
-    return mgl32.Vec3{float32(c.chunkPosX * CHUNK_SIZE), float32(c.chunkPosY * CHUNK_SIZE), float32(c.chunkPosZ * CHUNK_SIZE)}
-}
-
-func (c *Chunk) AABBMax() mgl32.Vec3 {
-    return mgl32.Vec3{float32(c.chunkPosX*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosY*CHUNK_SIZE + CHUNK_SIZE), float32(c.chunkPosZ*CHUNK_SIZE + CHUNK_SIZE)}
-}
-
 func (c *Chunk) ClearAllBlocks() {
-    for i := int32(0); i < CHUNK_SIZE; i++ {
-        for j := int32(0); j < CHUNK_SIZE; j++ {
-            for k := int32(0); k < CHUNK_SIZE; k++ {
+    for i := int32(0); i < c.m.ChunkSizeHorizontal; i++ {
+        for j := int32(0); j < c.m.ChunkSizeHeight; j++ {
+            for k := int32(0); k < c.m.ChunkSizeHorizontal; k++ {
                 c.SetBlock(i, j, k, NewAirBlock())
             }
         }
