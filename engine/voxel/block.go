@@ -5,8 +5,9 @@ type Block struct {
 	occupant MapObject
 }
 
+const EMPTYBLOCK = 0
 func (b *Block) IsAir() bool {
-	return b.ID == EMPTY
+	return b.ID == EMPTYBLOCK
 }
 
 func (b *Block) RemoveUnit(unit MapObject) {

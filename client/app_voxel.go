@@ -82,7 +82,7 @@ func (a *BattleClient) LoadConstructionFile(filename string) *voxel.Map {
 	terrainTexture, textureIndices := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
 	bf := voxel.NewBlockFactory(textureIndices)
 
-	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, construction)
+	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, construction, voxel.Int3{16, 16, 16})
 	loadedMap.SetTerrainTexture(terrainTexture)
 
 	loadedMap.GenerateAllMeshes()
@@ -90,39 +90,27 @@ func (a *BattleClient) LoadConstructionFile(filename string) *voxel.Map {
 	return loadedMap
 }
 
-func (a *BattleClient) LoadEmptyWorld() *voxel.Map {
-	listOfBlocks := []string{
-		"selection",
-		"brick",
-		"clay",
-		"copper_block",
-		"diamond_block",
-		"emerald_block",
-		"granite",
-		"gravel",
-		"iron_block",
-		"sand",
-		"sandstone",
-		"stone",
-	}
+func (a *BattleClient) LoadEmptyWorld(mapSize voxel.Int3, chunkSizeHorizontal, chunkSizeHeight int32) *voxel.Map {
+	listOfBlocks := game.GetDebugBlockNames()
 	var loadedMap *voxel.Map
-	terrainTextureAtlas, indexMap := util.CreateBlockAtlasFromDirectory("assets/textures/blocks/minecraft", listOfBlocks)
+
+	terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 	bl.ApplyGameplayRules(a.GameInstance)
 	//bf := voxel.NewBlockFactory(textureIndices)
-	sizeHorizontal := 3
-	sizeVertical := 1
-	loadedMap = voxel.NewMap(int32(sizeHorizontal), int32(sizeVertical), int32(sizeHorizontal))
+	loadedMap = voxel.NewMap(int32(mapSize.X), int32(mapSize.Y), int32(mapSize.Z), chunkSizeHorizontal, chunkSizeHeight)
 	loadedMap.SetLogger(util.LogVoxelInfo, util.LogGameError)
 	loadedMap.SetShader(a.chunkShader)
-	loadedMap.SetTerrainTexture(terrainTextureAtlas)
+	loadedMap.SetTerrainTexture(terrainTexture)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)
-	for x := 0; x < sizeHorizontal; x++ {
-		for z := 0; z < sizeHorizontal; z++ {
-			loadedMap.NewChunk(int32(x), 0, int32(z))
+	for x := int32(0); x < mapSize.X; x++ {
+		for y := int32(0); y < mapSize.Y; y++ {
+			for z := int32(0); z < mapSize.Z; z++ {
+				loadedMap.NewChunk(int32(x), y, int32(z))
+			}
 		}
 	}
-	loadedMap.SetFloorAtHeight(0, bl.NewBlockFromName("stone"))
+	loadedMap.SetFloorAtHeight(0, bl.NewBlockFromName("bricks"))
 	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	return loadedMap

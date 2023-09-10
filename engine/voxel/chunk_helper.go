@@ -9,11 +9,11 @@ type ChunkHelper struct {
     visitZP []bool
 }
 
-func (h *ChunkHelper) Reset() {
-    h.visitXN = make([]bool, CHUNK_SIZE_CUBED)
-    h.visitXP = make([]bool, CHUNK_SIZE_CUBED)
-    h.visitYN = make([]bool, CHUNK_SIZE_CUBED)
-    h.visitYP = make([]bool, CHUNK_SIZE_CUBED)
-    h.visitZN = make([]bool, CHUNK_SIZE_CUBED)
-    h.visitZP = make([]bool, CHUNK_SIZE_CUBED)
+func (h *ChunkHelper) Reset(chunkSizeCube int32) {
+    h.visitXN = make([]bool, chunkSizeCube)
+    h.visitXP = make([]bool, chunkSizeCube)
+    h.visitYN = make([]bool, chunkSizeCube)
+    h.visitYP = make([]bool, chunkSizeCube)
+    h.visitZN = make([]bool, chunkSizeCube)
+    h.visitZP = make([]bool, chunkSizeCube)
 }

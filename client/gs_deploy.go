@@ -56,19 +56,18 @@ func (g *GameStateDeployment) OnKeyPressed(key glfw.Key) {
         if g.currentIndex < 0 {
             g.currentIndex = 0
         }
-    }
-
-    if key == glfw.Key2 {
+    } else if key == glfw.Key2 {
         g.currentIndex += 1
         if g.currentIndex >= len(g.engine.GetDeploymentQueue()) {
             g.currentIndex = len(g.engine.GetDeploymentQueue()) - 1
         }
-    }
-
-    if key == glfw.KeyEnter {
+    } else if key == glfw.KeyEnter {
         // send deployment to server
         g.tryToSubmitDeployment()
+    } else {
+        g.IsoMovementState.OnKeyPressed(key)
     }
+
 }
 func (g *GameStateDeployment) currentUnit() *Unit {
     return g.engine.GetDeploymentQueue()[g.currentIndex]

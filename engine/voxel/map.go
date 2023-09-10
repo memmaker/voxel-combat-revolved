@@ -12,6 +12,11 @@ import (
 )
 
 type Map struct {
+	//
+	ChunkSizeHorizontal int32
+	ChunkSizeHeight     int32
+	ChunkSizeCube       int32
+
 	chunks             []*Chunk
 	width              int32
 	height             int32
@@ -22,8 +27,46 @@ type Map struct {
 	mapInfoLogger      func(string)
 	gameErrorLogger    func(string)
 
-	spawnCounter    int
-	textureCallback func(block *Block, side FaceType) byte
+	spawnCounter          int
+	textureCallback       func(block *Block, side FaceType) byte
+	maxChunkHeightForDraw int32
+}
+
+func NewDefaultMap(width, height, depth int32) *Map {
+	return NewMap(width, height, depth, 32, 32)
+}
+
+func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *Map {
+	m := &Map{
+		ChunkSizeHorizontal:   chunkSizeHorizontal,
+		ChunkSizeHeight:       chunkSizeHeight,
+		chunks:                make([]*Chunk, width*height*depth),
+		width:                 width,
+		height:                height,
+		depth:                 depth,
+		knownUnitPositions:    make(map[uint64][]Int3),
+		maxChunkHeightForDraw: height,
+	}
+	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
+	//m.culler = occlusion.NewOcclusionCuller(512, m)
+	return m
+}
+
+func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
+	m := &Map{
+		ChunkSizeHorizontal: 32,
+		ChunkSizeHeight:     32,
+		chunks:              make([]*Chunk, 0),
+		width:               0,
+		height:              0,
+		depth:               0,
+		knownUnitPositions:  make(map[uint64][]Int3),
+		chunkShader:         shader,
+		terrainTexture:      texture,
+	}
+	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
+	m.LoadFromSource(source)
+	return m
 }
 
 func (m *Map) SetLogger(mapLogger func(string), gameErrorLogger func(string)) {
@@ -55,32 +98,6 @@ func (m *Map) SetSize(width, height, depth int32) {
 		m.chunks[i] = NewChunk(m.chunkShader, m, int32(x), int32(y), int32(z))
 		println("Created empty chunk at", x, y, z)
 	}
-}
-
-func NewMap(width, height, depth int32) *Map {
-	m := &Map{
-		chunks:             make([]*Chunk, width*height*depth),
-		width:              width,
-		height:             height,
-		depth:              depth,
-		knownUnitPositions: make(map[uint64][]Int3),
-	}
-	//m.culler = occlusion.NewOcclusionCuller(512, m)
-	return m
-}
-
-func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
-	m := &Map{
-		chunks:             make([]*Chunk, 0),
-		width:              0,
-		height:             0,
-		depth:              0,
-		knownUnitPositions: make(map[uint64][]Int3),
-		chunkShader:        shader,
-		terrainTexture:     texture,
-	}
-    m.LoadFromSource(source)
-	return m
 }
 
 func (m *Map) SaveToDisk(filename string) error {
@@ -150,6 +167,7 @@ func (m *Map) LoadFromSource(source []byte) {
 	m.logVoxelInfo(fmt.Sprintf("[Map] Loading map with dimensions %d %d %d", m.width, m.height, m.depth))
 
 	// read the number of chunks
+	m.maxChunkHeightForDraw = m.height
 
 	chunkCount := int16(0)
 	binary.Read(gzipReader, binary.LittleEndian, &chunkCount)
@@ -166,7 +184,7 @@ func (m *Map) LoadFromSource(source []byte) {
 		m.logVoxelInfo(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
 		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
 		m.chunks[i] = chunk
-		for j := int32(0); j < CHUNK_SIZE_CUBED; j++ {
+		for j := int32(0); j < m.ChunkSizeCube; j++ {
 			blockID := byte(0)
 			binary.Read(gzipReader, binary.LittleEndian, &blockID)
 			chunk.data[j] = NewBlock(blockID)
@@ -178,31 +196,40 @@ func (m *Map) LoadFromSource(source []byte) {
 func (m *Map) SetChunk(x, y, z int32, c *Chunk) {
 	m.chunks[x+y*m.width+z*m.width*m.height] = c
 }
-
+func (m *Map) ChangeMaxChunkHeightForDraw(change int32) int32 {
+	newValue := m.maxChunkHeightForDraw + change
+	if newValue < 0 {
+		newValue = 0
+	} else if newValue > m.height-1 {
+		newValue = m.height - 1
+	}
+	m.maxChunkHeightForDraw = newValue
+	return newValue
+}
 func (m *Map) Draw(modelUniformIndex int, frustum []mgl32.Vec4) {
 	m.terrainTexture.Begin()
 	for _, chunk := range m.chunks {
-		if chunk == nil || !isChunkVisibleInFrustum(frustum, chunk.Position()) {
+		if chunk == nil || !m.isChunkVisibleInFrustum(frustum, chunk.Position()) || chunk.chunkPosY > m.maxChunkHeightForDraw {
 			continue
 		}
 		chunk.Draw(m.chunkShader, modelUniformIndex)
 	}
 	m.terrainTexture.End()
 }
-func isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
-	p := mgl32.Vec3{float32(chunkPos.X * CHUNK_SIZE), float32(chunkPos.Y * CHUNK_SIZE), float32(chunkPos.Z * CHUNK_SIZE)}
-	const m = float32(CHUNK_SIZE)
+func (m *Map) isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
+	p := mgl32.Vec3{float32(chunkPos.X * m.ChunkSizeHorizontal), float32(chunkPos.Y * m.ChunkSizeHeight), float32(chunkPos.Z * m.ChunkSizeHorizontal)}
+	horizOffset := float32(m.ChunkSizeHorizontal)
 
 	points := []mgl32.Vec3{
 		mgl32.Vec3{p.X(), p.Y(), p.Z()},
-		mgl32.Vec3{p.X() + m, p.Y(), p.Z()},
-		mgl32.Vec3{p.X() + m, p.Y(), p.Z() + m},
-		mgl32.Vec3{p.X(), p.Y(), p.Z() + m},
+		mgl32.Vec3{p.X() + horizOffset, p.Y(), p.Z()},
+		mgl32.Vec3{p.X() + horizOffset, p.Y(), p.Z() + horizOffset},
+		mgl32.Vec3{p.X(), p.Y(), p.Z() + horizOffset},
 
 		mgl32.Vec3{p.X(), p.Y() + 256, p.Z()},
-		mgl32.Vec3{p.X() + m, p.Y() + 256, p.Z()},
-		mgl32.Vec3{p.X() + m, p.Y() + 256, p.Z() + m},
-		mgl32.Vec3{p.X(), p.Y() + 256, p.Z() + m},
+		mgl32.Vec3{p.X() + horizOffset, p.Y() + 256, p.Z()},
+		mgl32.Vec3{p.X() + horizOffset, p.Y() + 256, p.Z() + horizOffset},
+		mgl32.Vec3{p.X(), p.Y() + 256, p.Z() + horizOffset},
 	}
 	for _, plane := range planes {
 		var in, out int
@@ -252,7 +279,7 @@ func (m *Map) GetBlockFromPosition(position mgl32.Vec3) *Block {
 }
 
 func (m *Map) GetChunkFromBlock(x, y, z int32) *Chunk {
-	return m.GetChunk(x/CHUNK_SIZE, y/CHUNK_SIZE, z/CHUNK_SIZE)
+	return m.GetChunk(x/m.ChunkSizeHorizontal, y/m.ChunkSizeHeight, z/m.ChunkSizeHorizontal)
 }
 func (m *Map) GetChunk(x, y, z int32) *Chunk {
 	i := x + y*m.width + z*m.width*m.height
@@ -266,12 +293,12 @@ func (m *Map) ChunkExists(x, y, z int32) bool {
 	return m.GetChunk(x, y, z) != nil
 }
 func (m *Map) SetBlock(x int32, y int32, z int32, block *Block) {
-	chunkX := x / CHUNK_SIZE
-	chunkY := y / CHUNK_SIZE
-	chunkZ := z / CHUNK_SIZE
+	chunkX := x / m.ChunkSizeHorizontal
+	chunkY := y / m.ChunkSizeHeight
+	chunkZ := z / m.ChunkSizeHorizontal
 	chunk := m.GetChunk(chunkX, chunkY, chunkZ)
 	if chunk != nil {
-		chunk.SetBlock(x%CHUNK_SIZE, y%CHUNK_SIZE, z%CHUNK_SIZE, block)
+		chunk.SetBlock(x%m.ChunkSizeHorizontal, y%m.ChunkSizeHeight, z%m.ChunkSizeHorizontal, block)
 	}
 }
 
@@ -286,21 +313,21 @@ func (m *Map) ContainsVec(pos mgl32.Vec3) bool {
 }
 
 func (m *Map) Contains(x int32, y int32, z int32) bool {
-	return x >= 0 && x < m.width*CHUNK_SIZE && y >= 0 && y < m.height*CHUNK_SIZE && z >= 0 && z < m.depth*CHUNK_SIZE
+	return x >= 0 && x < m.width*m.ChunkSizeHorizontal && y >= 0 && y < m.height*m.ChunkSizeHeight && z >= 0 && z < m.depth*m.ChunkSizeHorizontal
 }
 
 func (m *Map) GetBlockFromVec(pos Int3) *Block {
 	return m.GetGlobalBlock(int32(pos.X), int32(pos.Y), int32(pos.Z))
 }
 func (m *Map) GetGlobalBlock(x int32, y int32, z int32) *Block {
-	chunkX := x / CHUNK_SIZE
-	chunkY := y / CHUNK_SIZE
-	chunkZ := z / CHUNK_SIZE
+	chunkX := x / m.ChunkSizeHorizontal
+	chunkY := y / m.ChunkSizeHeight
+	chunkZ := z / m.ChunkSizeHorizontal
 	chunk := m.GetChunk(chunkX, chunkY, chunkZ)
 	if chunk != nil {
-		blockX := x % CHUNK_SIZE
-		blockY := y % CHUNK_SIZE
-		blockZ := z % CHUNK_SIZE
+		blockX := x % m.ChunkSizeHorizontal
+		blockY := y % m.ChunkSizeHeight
+		blockZ := z % m.ChunkSizeHorizontal
 		return chunk.GetLocalBlock(blockX, blockY, blockZ)
 	} else {
 		return nil
@@ -332,8 +359,11 @@ func (m *Map) NewChunk(cX int32, cY int32, cZ int32) *Chunk {
 
 func (m *Map) SetFloorAtHeight(yLevel int, block *Block) {
 	for _, chunk := range m.chunks {
-		for x := int32(0); x < CHUNK_SIZE; x++ {
-			for z := int32(0); z < CHUNK_SIZE; z++ {
+		if chunk.chunkPosY != 0 {
+			continue
+		}
+		for x := int32(0); x < m.ChunkSizeHorizontal; x++ {
+			for z := int32(0); z < m.ChunkSizeHorizontal; z++ {
 				chunk.SetBlock(x, int32(yLevel), z, block)
 			}
 		}
@@ -464,7 +494,7 @@ func GetBlockEntitiesNeededByConstruction(construction *Construction) []string {
 	}
 	return blockEntityNames
 }
-func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construction *Construction) *Map {
+func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construction *Construction, chunkSize Int3) *Map {
 	minX, minY, minZ := int32(math.MaxInt32), int32(math.MaxInt32), int32(math.MaxInt32)
 	maxX, maxY, maxZ := int32(math.MinInt32), int32(math.MinInt32), int32(math.MinInt32)
 	for _, section := range construction.Sections {
@@ -487,10 +517,10 @@ func NewMapFromConstruction(bf *BlockFactory, chunkShader *glhf.Shader, construc
 			maxZ = section.MinBlockZ + int32(section.ShapeZ)
 		}
 	}
-	chunkCountX := int32(math.Ceil(float64(maxX-minX) / float64(CHUNK_SIZE)))
-	chunkCountY := int32(math.Ceil(float64(maxY-minY) / float64(CHUNK_SIZE)))
-	chunkCountZ := int32(math.Ceil(float64(maxZ-minZ) / float64(CHUNK_SIZE)))
-	voxelMap := NewMap(chunkCountX, chunkCountY, chunkCountZ)
+	chunkCountX := int32(math.Ceil(float64(maxX-minX) / float64(chunkSize.X)))
+	chunkCountY := int32(math.Ceil(float64(maxY-minY) / float64(chunkSize.Y)))
+	chunkCountZ := int32(math.Ceil(float64(maxZ-minZ) / float64(chunkSize.Z)))
+	voxelMap := NewDefaultMap(chunkCountX, chunkCountY, chunkCountZ)
 	voxelMap.SetShader(chunkShader)
 	chunkCounter := 0
 	for cX := int32(0); cX < chunkCountX; cX++ {
@@ -682,5 +712,9 @@ func (m *Map) DebugGetOccupiedBlocks(id uint64) []Int3 {
 		return []Int3{}
 	}
 	return blocks
+}
+
+func (m *Map) GetSize() Int3 {
+	return Int3{m.width, m.height, m.depth}
 }
 

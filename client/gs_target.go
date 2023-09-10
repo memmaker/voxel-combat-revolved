@@ -35,6 +35,8 @@ func (g *GameStateAction) OnKeyPressed(key glfw.Key) {
 	if !g.engine.actionbar.HandleKeyEvent(key) {
 		if key == glfw.KeyTab {
 			g.engine.SwitchToNextUnit(g.selectedUnit)
+		} else {
+			g.IsoMovementState.OnKeyPressed(key)
 		}
 	}
 }

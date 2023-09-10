@@ -21,7 +21,7 @@ func (g *GameStateWaitForEvents) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateWaitForEvents) OnKeyPressed(key glfw.Key) {
-
+	g.IsoMovementState.OnKeyPressed(key)
 }
 
 func (g *GameStateWaitForEvents) Init(wasPopped bool) {

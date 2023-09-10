@@ -66,6 +66,8 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 		g.engine.Print(fmt.Sprintf("Fill: %v", fill))
 	} else if key == glfw.KeyDelete {
 		g.ClearMap()
+	} else {
+		g.IsoMovementState.OnKeyPressed(key)
 	}
 }
 
@@ -188,10 +190,13 @@ func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
 	g.engine.SetSelectedBlocks(nil)
 }
 func (g *GameStateEditMap) ClearMap() {
+	g.engine.LoadEmptyWorld(voxel.Int3{X: 2, Y: 4, Z: 2}, 32, 4)
+	/*
 	loadedMap := g.engine.GetVoxelMap()
 	loadedMap.ClearAllChunks()
 	loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
 	loadedMap.GenerateAllMeshes()
+	*/
 }
 
 func (g *GameStateEditMap) switchToBlocks() {
