@@ -24,7 +24,7 @@ type ChunkMesh interface {
 	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8)
 	Reset()
 	Draw()
-	FlushMesh(shader *glhf.Shader)
+	UploadMeshToGPU(shader *glhf.Shader)
 	TriangleCount() int
 	MergeBuffer(buffer ChunkMesh)
 }

@@ -259,7 +259,7 @@ func (m *Map) GenerateAllMeshes() {
 			meshBuffer := chunk.GreedyMeshing()
 			totalTriangles += meshBuffer.TriangleCount()
 			if meshBuffer.TriangleCount() > 0 {
-				meshBuffer.FlushMesh(m.chunkShader)
+				meshBuffer.UploadMeshToGPU(m.chunkShader)
 			}
 		}
 	}
