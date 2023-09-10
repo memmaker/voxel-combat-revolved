@@ -24,12 +24,12 @@ type Chunk struct {
     cZP         *Chunk
     isDirty     bool
     meshBuffer  ChunkMesh
-    chunkShader *glhf.Shader
+
+    meshChannel chan ChunkMesh
 }
 
-func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
+func NewChunk(voxelMap *Map, x, y, z int32) *Chunk {
     c := &Chunk{
-        chunkShader: chunkShader,
         data: make([]*Block, voxelMap.ChunkSizeCube),
         m:           voxelMap,
         chunkPosX:   x,
@@ -45,6 +45,7 @@ func NewChunk(chunkShader *glhf.Shader, voxelMap *Map, x, y, z int32) *Chunk {
         },
         isDirty:    true,
         meshBuffer: NewMeshBuffer(),
+        meshChannel: make(chan ChunkMesh, 20),
     }
     for i := int32(0); i < voxelMap.ChunkSizeCube; i++ {
         c.data[i] = NewAirBlock()
@@ -60,7 +61,7 @@ func (c *Chunk) Contains(x, y, z int32) bool {
 }
 func (c *Chunk) GetLocalBlock(i, j, k int32) *Block {
     if !c.Contains(i, j, k) {
-        return nil
+        return NewAirBlock()
     }
     block := c.data[c.blockIndex(i, j, k)]
     if block == nil {
@@ -88,47 +89,42 @@ func (v *VoxelFace) EqualForMerge(face *VoxelFace) bool {
 }
 
 func (c *Chunk) InitNeighbors() {
-    if c.chunkPosX > 0 {
+    if c.chunkPosX > 0 && c.cXN == nil {
         c.cXN = c.m.GetChunk(c.chunkPosX-1, c.chunkPosY, c.chunkPosZ)
     }
 
     // Positive CollisionX side
-    if c.chunkPosX < c.m.width-1 {
+    if c.chunkPosX < c.m.width-1 && c.cXP == nil {
         c.cXP = c.m.GetChunk(c.chunkPosX+1, c.chunkPosY, c.chunkPosZ)
     }
 
     // Negative CollisionY side
-    if c.chunkPosY > 0 {
+    if c.chunkPosY > 0 && c.cYN == nil {
         c.cYN = c.m.GetChunk(c.chunkPosX, c.chunkPosY-1, c.chunkPosZ)
     }
 
     // Positive CollisionY side
-    if c.chunkPosY < c.m.height-1 {
+    if c.chunkPosY < c.m.height-1 && c.cYP == nil {
         c.cYP = c.m.GetChunk(c.chunkPosX, c.chunkPosY+1, c.chunkPosZ)
     }
 
     // Negative Z neighbour
-    if c.chunkPosZ > 0 {
+    if c.chunkPosZ > 0 && c.cZN == nil {
         c.cZN = c.m.GetChunk(c.chunkPosX, c.chunkPosY, c.chunkPosZ-1)
     }
 
     // Positive Z side
-    if c.chunkPosZ < c.m.depth-1 {
+    if c.chunkPosZ < c.m.depth-1 && c.cZP == nil {
         c.cZP = c.m.GetChunk(c.chunkPosX, c.chunkPosY, c.chunkPosZ+1)
     }
 }
 
-func (c *Chunk) GreedyMeshing() ChunkMesh {
+func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
     // adapted from: https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
-
-    if !c.isDirty {
-        return c.meshBuffer
-    }
-
     c.InitNeighbors()
 
     c.chunkHelper.Reset(c.m.ChunkSizeCube)
-    c.meshBuffer.Reset()
+    mesh := NewMeshBuffer()
 
     var (
         i, j, k, l, w, h, u, v, n int32
@@ -235,7 +231,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                                 topLeft := Int3{x[0] + du[0], x[1] + du[1], x[2] + du[2]}
                                 bottomRight := Int3{x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]}
                                 topRight := Int3{x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]}
-                                c.meshBuffer.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, [4]uint8{})
+                                mesh.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, [4]uint8{})
                                 // we also would have width (w) and height (h) here
                                 // backface is a bool, true if we are rendering the backface of a block
                             }
@@ -244,6 +240,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                                 for k = 0; k < w; k++ {
                                     // Dim 1 - slot 4
                                     // NOT axisSize[d]
+                                    // NOT axisSize[v]
                                     mask[n+k+l*axisSize[u]] = nil
                                 }
                             }
@@ -263,7 +260,8 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
     c.isDirty = false
 
     c.m.logVoxelInfo(fmt.Sprintf("[Greedy] Chunk %d,%d,%d was meshed into %d triangles", c.chunkPosX, c.chunkPosY, c.chunkPosZ, c.meshBuffer.TriangleCount()))
-    return c.meshBuffer
+    //return c.meshBuffer
+    outChannel <- mesh
 }
 
 func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFace {
@@ -497,4 +495,25 @@ func (c *Chunk) ClearAllBlocks() {
             }
         }
     }
+}
+
+func (c *Chunk) GenerateMesh() {
+    if !c.isDirty {
+        return
+    }
+
+    go c.GreedyMeshing(c.meshChannel) // will set isDirty to false
+}
+
+func (c *Chunk) CheckForNewMeshes() bool {
+    select {
+    case meshBuffer := <-c.meshChannel:
+        if meshBuffer.TriangleCount() > 0 {
+            meshBuffer.UploadMeshToGPU(c.m.chunkShader)
+            c.meshBuffer = meshBuffer
+            return true
+        }
+    default:
+    }
+    return false
 }

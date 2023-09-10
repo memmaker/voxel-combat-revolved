@@ -319,6 +319,7 @@ func (a *BattleClient) Update(elapsed float64) {
     */
     //properties := a.particleProps[ParticlesBlood].WithOrigin(a.groundSelector.GetPosition())
     //a.particles.Emit(properties, 1)
+    a.GetVoxelMap().Update(elapsed)
 
     waitForCameraAnimation := a.handleCameraAnimation(elapsed)
     a.currentlyMovingUnits = a.isBusyMovingUnits()
