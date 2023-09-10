@@ -119,7 +119,7 @@ func (m *MeshBuffer) Reset() {
 	m.vertexCount = 0
 }
 
-func (m *MeshBuffer) FlushMesh(shader *glhf.Shader) {
+func (m *MeshBuffer) UploadMeshToGPU(shader *glhf.Shader) {
 	if shader == nil {
 		return
 	}
