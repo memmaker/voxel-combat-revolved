@@ -2,6 +2,7 @@
 
 uniform float deltaTime;
 uniform float maxDistance;
+uniform float lifetime;
 
 in vec3 position;
 in float lifetimeLeft;
@@ -23,15 +24,21 @@ void main() {
     vec3 newPos = position + (velocity * deltaTime);
     vec3 newVelocity = velocity;
 
+    if (maxDistance > 0.0) {
+        float distance = length(newPos - origin);
+        if (distance > maxDistance) {
+            newVelocity = -velocity;
+            newPos = position + (newVelocity * deltaTime);
+        }
+    }
 
-    float distance = length(newPos - origin);
-    if (distance > maxDistance) {
-        newVelocity = -velocity;
-        newPos = position + (newVelocity * deltaTime);
+    float newLifetimeLeft = max(lifetimeLeft - deltaTime, 0.0);
+    if (lifetime < 0.0) { // no reduction for infinite lifetime particles
+        newLifetimeLeft = lifetimeLeft;
     }
 
     vs_out.position = newPos;
-    vs_out.lifetimeLeft = max(lifetimeLeft - deltaTime, 0.0);
+    vs_out.lifetimeLeft = newLifetimeLeft;
 
     vs_out.velocity = newVelocity;
     vs_out.sizeBegin = sizeBegin;

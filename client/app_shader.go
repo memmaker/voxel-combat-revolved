@@ -90,6 +90,7 @@ func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "deltaTime", Type: glhf.Float},
 		glhf.Attr{Name: "maxDistance", Type: glhf.Float},
+		glhf.Attr{Name: "lifetime", Type: glhf.Float},
 	}
 
 	tfShader, shaderErr := glhf.NewShader(

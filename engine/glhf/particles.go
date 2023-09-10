@@ -3,6 +3,7 @@ package glhf
 import (
     "github.com/go-gl/gl/v4.1-core/gl"
     "github.com/go-gl/mathgl/mgl32"
+    "math"
     "math/rand"
 )
 
@@ -55,6 +56,7 @@ type ParticleSystem struct {
     lastParticleLifetime float32
     flatData             []GlFloat
     totalTime            float32
+    isInfiteEmitter      bool
 }
 
 // idea: use transform feedback, so we have two buffers and can swap them
@@ -105,7 +107,7 @@ func (v *ParticleSystem) initializeBuffers(particleCount int) {
     }
 }
 func (v *ParticleSystem) Draw(deltaTime float64) {
-    if v.lastParticleLifetime <= 0.00 {
+    if v.lastParticleLifetime <= 0.00 && !v.isInfiteEmitter {
         return
     }
     v.lastParticleLifetime -= float32(deltaTime)
@@ -188,9 +190,11 @@ func (v *ParticleSystem) draw(deltaTime float64, drawBuffer *vertexArray[GlFloat
 
     v.particleShader.End()
 }
-func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
+func (v *ParticleSystem) Emit(props ParticleProperties, count int) int {
     if props.Lifetime > v.lastParticleLifetime {
         v.lastParticleLifetime = props.Lifetime
+    } else if props.Lifetime < 0.00 {
+        v.isInfiteEmitter = true
     }
     vertexOffset := v.currentOffset
     if count >= v.maxVertexCount {
@@ -225,6 +229,7 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
     var maxComponents int32
     gl.GetIntegerv(gl.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS, &maxComponents)
 
+    // hmm3: we will overwrite the lifetime of an infite emitter with the lifetime of a finite emitter
     v.particleShader.Begin()
     v.particleShader.SetUniformAttr(2, props.Lifetime)
     v.particleShader.SetUniformAttr(3, props.ColorEnd)
@@ -233,9 +238,12 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
 
     v.transformFeedbackShader.Begin()
     v.transformFeedbackShader.SetUniformAttr(1, props.MaxDistance)
+    v.transformFeedbackShader.SetUniformAttr(2, props.Lifetime)
     v.transformFeedbackShader.End()
 
     v.currentOffset = (vertexOffset + count) % v.maxVertexCount
+
+    return vertexOffset
 }
 
 func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []GlFloat {
@@ -247,13 +255,14 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
     velocityY := GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5))
     velocityZ := GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5))
     colorVariation := props.ColorVariation * (rand.Float32() - 0.5)
+    lifetimeLeft := GlFloat(math.Abs(float64(props.Lifetime)))
     return []GlFloat{
         // position x,y,z
         GlFloat(x),
         GlFloat(y),
         GlFloat(z),
         // lifetime left
-        GlFloat(props.Lifetime),
+        lifetimeLeft,
         // velocity X
         velocityX,
         // velocity Y
@@ -269,6 +278,30 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
         // origin x,y,z
         GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
     }
+}
+
+func (v *ParticleSystem) Clear(vertexOffset int, vertexCount int) {
+    // we want to write a zero to the lifetime of each particle
+    buffer := v.currentBackBuffer()
+    flatStride := v.particleShader.VertexFormat().Size() / SizeOfFloat32 // distance between two particles in a list of GlFloats == number of floats per particle/vertex
+    flatOffset := vertexOffset * flatStride
+    flatCount := vertexCount * flatStride
+    for index := 0; index < vertexCount; index++ {
+        flatIndex := (flatOffset + index*flatStride) % len(v.flatData)
+        for i := 0; i < flatStride; i++ {
+            v.flatData[flatIndex+i] = 0
+        }
+    }
+    buffer.begin()
+    if vertexOffset+vertexCount > v.maxVertexCount {
+        flatSpaceAtTheEnd := (v.maxVertexCount - vertexOffset) * flatStride
+        flatRemainingSpace := flatCount - flatSpaceAtTheEnd
+        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatSpaceAtTheEnd])
+        buffer.setVertexDataWithOffset(0, v.flatData[0:flatRemainingSpace])
+    } else {
+        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatCount])
+    }
+    buffer.end()
 }
 
 const SizeOfFloat32 = 4
