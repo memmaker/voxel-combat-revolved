@@ -262,6 +262,9 @@ func (m *Map) isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
 }
 
 func (m *Map) GenerateAllMeshes() {
+	if m.chunkShader == nil {
+		return
+	}
 	for _, chunk := range m.chunks {
 		if chunk != nil {
 			chunk.GenerateMesh()
@@ -726,5 +729,17 @@ func (m *Map) GetSize() Int3 {
 func (m *Map) CurrentlyDraws(x int32, y int32, z int32) bool {
 	chunk := m.GetChunkFromBlock(x, y, z)
 	return chunk != nil && chunk.chunkPosY <= m.maxChunkHeightForDraw
+}
+
+func (m *Map) ForBlockInHalfSphere(origin Int3, radius int, applyToBlock func(origin Int3, radius int, x int32, y int32, z int32)) {
+	for x := int32(-radius); x <= int32(radius); x++ {
+		for y := int32(0); y <= int32(radius); y++ {
+			for z := int32(-radius); z <= int32(radius); z++ {
+				if x*x+y*y+z*z <= int32(radius*radius) {
+					applyToBlock(origin, radius, origin.X+x, origin.Y+y, origin.Z+z)
+				}
+			}
+		}
+	}
 }
 

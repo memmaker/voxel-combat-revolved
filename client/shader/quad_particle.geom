@@ -1,7 +1,6 @@
 #version 330 core
 
 layout (points) in;
-// TODO: what is a meaningful max_vertices value?
 layout (triangle_strip, max_vertices = 4) out;
 
 in VS_OUT {
@@ -18,6 +17,7 @@ uniform mat4 projection;
 uniform mat4 modelView;
 uniform float lifetime;
 uniform float sizeEnd;
+
 
 // take a point as input and output a quad as triangle strip
 void main() {
