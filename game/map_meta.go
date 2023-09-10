@@ -9,7 +9,6 @@ import (
 
 type MapMetadata struct {
 	Name                string
-	FloorCeilingHeights [][2]int
 	SpawnPositions      [][]voxel.Int3
 	PoIPlacements       []voxel.Int3
 }
@@ -39,7 +38,6 @@ func NewMapMetadataFromFile(filename string) MapMetadata {
 	}
 	return MapMetadata{
 		Name:                "Unnamed Map",
-		FloorCeilingHeights: [][2]int{{1, 4}},
 		SpawnPositions:      [][]voxel.Int3{{}},
 	}
 }

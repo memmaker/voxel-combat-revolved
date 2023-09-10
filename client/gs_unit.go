@@ -44,12 +44,14 @@ func NewGameStateUnitNoCamMove(engine *BattleClient, unit *Unit) *GameStateUnit 
 	}
 }
 func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
-	if !g.engine.actionbar.HandleKeyEvent(key) {
-		if key == glfw.KeyTab {
-			g.nextUnit()
-			return
-		}
-	} else if key == glfw.KeyF1 {
+	if g.engine.actionbar.HandleKeyEvent(key) {
+		return
+	}
+	if key == glfw.KeyTab {
+		g.nextUnit()
+		return
+	}
+	if key == glfw.KeyF1 {
 		g.engine.showDebugInfo = !g.engine.showDebugInfo
 		if !g.engine.showDebugInfo {
 			g.engine.textLabel.Clear()

@@ -1,11 +1,5 @@
 {
   "Name": "Unnamed Map",
-  "FloorCeilingHeights": [
-    [
-      1,
-      4
-    ]
-  ],
   "SpawnPositions": [
     [
       {
@@ -978,5 +972,6 @@
       "Y": 4,
       "Z": 9
     }
-  ]
+  ],
+  "FloorHeight": 4
 }

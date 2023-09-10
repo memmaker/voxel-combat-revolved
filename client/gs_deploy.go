@@ -116,8 +116,7 @@ func (g *GameStateDeployment) setSpawnHighlights(mapMeta *game.MapMetadata, play
         }
     }
     g.engine.highlights.ShowAsFlat(voxel.HighlightEditor)
-    floor, _ := mapMeta.FloorCeilingHeights[0][0], mapMeta.FloorCeilingHeights[0][1]
-    center := voxel.Int3{X: (minX + maxX) / 2, Y: int32(floor), Z: (minZ + maxZ) / 2}
+    center := voxel.Int3{X: (minX + maxX) / 2, Y: 1, Z: (minZ + maxZ) / 2}
     return center, spawnMap
 }
 

@@ -243,6 +243,7 @@ func (c *Chunk) GreedyMeshing() ChunkMesh {
                             for l = 0; l < h; l++ {
                                 for k = 0; k < w; k++ {
                                     // Dim 1 - slot 4
+                                    // NOT axisSize[d]
                                     mask[n+k+l*axisSize[u]] = nil
                                 }
                             }
@@ -271,6 +272,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
         return &VoxelFace{inVisible: true}
     }
     var neighbor *Block
+    neighborIsFromChunkAboveOrBelow := false
     switch side {
     case West:
         if x == 0 {
@@ -292,6 +294,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
         if y == 0 {
             if c.cYN != nil {
                 neighbor = c.cYN.GetLocalBlock(x, c.m.ChunkSizeHeight-1, z)
+                neighborIsFromChunkAboveOrBelow = true
             }
         } else {
             neighbor = c.GetLocalBlock(x, y-1, z)
@@ -300,6 +303,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
         if y == c.m.ChunkSizeHeight-1 {
             if c.cYP != nil {
                 neighbor = c.cYP.GetLocalBlock(x, 0, z)
+                neighborIsFromChunkAboveOrBelow = true
             }
         } else {
             neighbor = c.GetLocalBlock(x, y+1, z)
@@ -323,7 +327,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
     }
 
     face := &VoxelFace{side: side, textureIndex: c.m.getTextureIndexForSide(block, side)}
-    if neighbor != nil && !neighbor.IsAir() {
+    if neighbor != nil && !neighbor.IsAir() && !neighborIsFromChunkAboveOrBelow {
         face.inVisible = true
     }
     return face

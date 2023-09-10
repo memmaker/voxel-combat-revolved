@@ -12,7 +12,6 @@ import (
 )
 
 type Map struct {
-	//
 	ChunkSizeHorizontal int32
 	ChunkSizeHeight     int32
 	ChunkSizeCube       int32
@@ -45,7 +44,7 @@ func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *M
 		height:                height,
 		depth:                 depth,
 		knownUnitPositions:    make(map[uint64][]Int3),
-		maxChunkHeightForDraw: height,
+		maxChunkHeightForDraw: height - 1,
 	}
 	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
@@ -54,17 +53,11 @@ func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *M
 
 func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
 	m := &Map{
-		ChunkSizeHorizontal: 32,
-		ChunkSizeHeight:     32,
 		chunks:              make([]*Chunk, 0),
-		width:               0,
-		height:              0,
-		depth:               0,
 		knownUnitPositions:  make(map[uint64][]Int3),
 		chunkShader:         shader,
 		terrainTexture:      texture,
 	}
-	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
 	m.LoadFromSource(source)
 	return m
 }
@@ -110,6 +103,10 @@ func (m *Map) SaveToDisk(filename string) error {
 	// then write the compressed byte array to the file
 
 	gzipWriter := gzip.NewWriter(outfile)
+	// write 2xint32
+	binary.Write(gzipWriter, binary.LittleEndian, m.ChunkSizeHorizontal)
+	binary.Write(gzipWriter, binary.LittleEndian, m.ChunkSizeHeight)
+
 	// write 3xint32
 	binary.Write(gzipWriter, binary.LittleEndian, m.width)
 	binary.Write(gzipWriter, binary.LittleEndian, m.height)
@@ -159,6 +156,11 @@ func (m *Map) LoadFromSource(source []byte) {
 	if err != nil {
 		panic(err)
 	}
+	// read chunk size
+	binary.Read(gzipReader, binary.LittleEndian, &m.ChunkSizeHorizontal)
+	binary.Read(gzipReader, binary.LittleEndian, &m.ChunkSizeHeight)
+
+	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
 
 	// read the map dimensions
 	binary.Read(gzipReader, binary.LittleEndian, &m.width)
@@ -167,7 +169,7 @@ func (m *Map) LoadFromSource(source []byte) {
 	m.logVoxelInfo(fmt.Sprintf("[Map] Loading map with dimensions %d %d %d", m.width, m.height, m.depth))
 
 	// read the number of chunks
-	m.maxChunkHeightForDraw = m.height
+	m.maxChunkHeightForDraw = m.height - 1
 
 	chunkCount := int16(0)
 	binary.Read(gzipReader, binary.LittleEndian, &chunkCount)
@@ -716,5 +718,10 @@ func (m *Map) DebugGetOccupiedBlocks(id uint64) []Int3 {
 
 func (m *Map) GetSize() Int3 {
 	return Int3{m.width, m.height, m.depth}
+}
+
+func (m *Map) CurrentlyDraws(x int32, y int32, z int32) bool {
+	chunk := m.GetChunkFromBlock(x, y, z)
+	return chunk != nil && chunk.chunkPosY <= m.maxChunkHeightForDraw
 }
 
