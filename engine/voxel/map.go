@@ -62,6 +62,15 @@ func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture)
 	return m
 }
 
+func (m *Map) Update(delta float64) {
+	for _, chunk := range m.chunks {
+		if chunk != nil {
+			if chunk.CheckForNewMeshes() {
+				return
+			}
+		}
+	}
+}
 func (m *Map) SetLogger(mapLogger func(string), gameErrorLogger func(string)) {
 	m.mapInfoLogger = mapLogger
 	m.gameErrorLogger = gameErrorLogger
@@ -88,7 +97,7 @@ func (m *Map) SetSize(width, height, depth int32) {
 		x := i % int(width)
 		y := (i / int(width)) % int(height)
 		z := i / (int(width) * int(height))
-		m.chunks[i] = NewChunk(m.chunkShader, m, int32(x), int32(y), int32(z))
+		m.chunks[i] = NewChunk(m, int32(x), int32(y), int32(z))
 		println("Created empty chunk at", x, y, z)
 	}
 }
@@ -184,7 +193,7 @@ func (m *Map) LoadFromSource(source []byte) {
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[1])
 		binary.Read(gzipReader, binary.LittleEndian, &chunkPos[2])
 		m.logVoxelInfo(fmt.Sprintf("[Map] Loading chunk %d %d %d", chunkPos[0], chunkPos[1], chunkPos[2]))
-		chunk := NewChunk(m.chunkShader, m, chunkPos[0], chunkPos[1], chunkPos[2])
+		chunk := NewChunk(m, chunkPos[0], chunkPos[1], chunkPos[2])
 		m.chunks[i] = chunk
 		for j := int32(0); j < m.ChunkSizeCube; j++ {
 			blockID := byte(0)
@@ -253,17 +262,11 @@ func (m *Map) isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
 }
 
 func (m *Map) GenerateAllMeshes() {
-	totalTriangles := 0
 	for _, chunk := range m.chunks {
-		if chunk != nil && chunk.isDirty {
-			meshBuffer := chunk.GreedyMeshing()
-			totalTriangles += meshBuffer.TriangleCount()
-			if meshBuffer.TriangleCount() > 0 {
-				meshBuffer.UploadMeshToGPU(m.chunkShader)
-			}
+		if chunk != nil {
+			chunk.GenerateMesh()
 		}
 	}
-	m.logVoxelInfo(fmt.Sprintf("[Greedy] Total triangles: %d", totalTriangles))
 }
 
 func (m *Map) GetChunkFromPosition(pos mgl32.Vec3) *Chunk {
@@ -354,7 +357,7 @@ func (m *Map) SetTerrainTexture(texture *glhf.Texture) {
 }
 
 func (m *Map) NewChunk(cX int32, cY int32, cZ int32) *Chunk {
-	chunk := NewChunk(m.chunkShader, m, cX, cY, cZ)
+	chunk := NewChunk(m, cX, cY, cZ)
 	m.SetChunk(cX, cY, cZ, chunk)
 	return chunk
 }
