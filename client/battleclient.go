@@ -58,10 +58,8 @@ type BattleClient struct {
     selectedUnit               *Unit
     aspectRatio                float32
     debugPositions             []voxel.Int3
-    transformFeedbackShader    *glhf.Shader
-    particleShader             *glhf.Shader
     oneShotParticles           *glhf.ParticleSystem
-    smokeParticles             *glhf.ParticleSystem
+    smoker                     *Smoker
     particleProps              map[ParticleName]glhf.ParticleProperties
     selectedBlocks             []voxel.Int3
     currentlyMovingUnits       bool
@@ -167,19 +165,6 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
                 ColorBegin: mgl32.Vec3{0.7, 0.7, 0.7},
                 ColorEnd:   mgl32.Vec3{0.01, 0.01, 0.01},
             },
-            ParticlesSmoke: {
-                PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
-                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0.0, 0.0, 0.0} },
-                VelocityVariation:    mgl32.Vec3{0.08, 0.1, 0.08},
-                MaxDistance:          0.5,
-                SizeBegin:            0.2,
-                SizeVariation:        0.1,
-                SizeEnd:              0.1,
-                Lifetime:             1000,
-                ColorBegin:     mgl32.Vec3{0.3, 0.3, 0.3},
-                ColorVariation: 0.1,
-                ColorEnd:       mgl32.Vec3{0.2, 0.2, 0.2},
-            },
             ParticlesExplosion: {
                 PositionVariation: mgl32.Vec3{0.02, 0.02, 0.02},
                 VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 {
@@ -203,8 +188,6 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
     myApp.guiShader = myApp.loadGuiShader()
-    myApp.transformFeedbackShader = loadTransformFeedbackShader(getParticleVertexFormat())
-    myApp.particleShader = loadParticleShader(getParticleVertexFormat())
     myApp.defaultShader = myApp.loadDefaultShader()
     myApp.projectileTexture = glhf.NewSolidColorTexture([3]uint8{255, 12, 255})
     myApp.DrawFunc = myApp.Draw
@@ -270,9 +253,8 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 
     getViewFunc := func() mgl32.Mat4 { return myApp.camera().GetViewMatrix() }
     getProjectionFunc := func() mgl32.Mat4 { return myApp.camera().GetProjectionMatrix() }
-    myApp.oneShotParticles = glhf.NewParticleSystem(5000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
-    myApp.smokeParticles = glhf.NewParticleSystem(20000, myApp.transformFeedbackShader, myApp.particleShader, getViewFunc, getProjectionFunc)
-
+    myApp.oneShotParticles = glhf.NewParticleSystem(5000, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+    myApp.smoker = NewSmoker(myApp.GetVoxelMap, glhf.NewParticleSystem(20000, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc))
     myApp.SwitchToBlockSelector()
 
     crosshair := NewCrosshair(myApp.defaultShader, myApp.fpsCamera)
@@ -370,6 +352,9 @@ func (a *BattleClient) updateProjectiles(elapsed float64) {
     for i := len(a.projectiles) - 1; i >= 0; i-- {
         projectile := a.projectiles[i]
         projectile.Update(elapsed)
+        blockPos := projectile.GetBlockPosition()
+        a.smoker.ClearParticlesAt(blockPos) // TODO: not hacky solution
+
         if projectile.IsDead() {
             a.projectiles = append(a.projectiles[:i], a.projectiles[i+1:]...)
         }
@@ -401,7 +386,7 @@ func (a *BattleClient) Draw(elapsed float64) {
 
     a.oneShotParticles.Draw(elapsed)
 
-    a.smokeParticles.Draw(elapsed)
+    a.smoker.Draw(elapsed)
 
     a.drawDefaultShader(a.camera())
 

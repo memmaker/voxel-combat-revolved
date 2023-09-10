@@ -3,7 +3,6 @@ package client
 import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"log"
 	"os"
@@ -109,19 +108,13 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 	}
 	if key == glfw.KeyF7 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
-		a.GetVoxelMap().ForBlockInHalfSphere(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 5, func(origin voxel.Int3, radius int, x int32, y int32, z int32) {
-			if y < 1 {
-				return
-			}
-			pos := voxel.Int3{X: int32(x), Y: int32(y), Z: int32(z)}
-			particleProperties := a.particleProps[ParticlesSmoke].WithOrigin(pos.ToBlockCenterVec3D())
-			a.smokeParticles.Emit(particleProperties, 5)
-		})
+		a.smoker.CreateSmokeAt(voxel.PositionToGridInt3(a.groundSelector.GetPosition()))
 		//a.CreateSmokeEffect()
 	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)
-		util.MustSend(a.server.DebugRequest(""))
+		a.smoker.ClearAllAbove()
+		//util.MustSend(a.server.DebugRequest(""))
 	}
 	if key == glfw.KeyF10 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)

@@ -30,7 +30,10 @@ void main() {
         return;
     }
     float percentOfLifeLeft = lifeLeft / lifetime;
-
+    if (lifetime < 0.0) {
+        percentOfLifeLeft = 1.0;
+        lifeLeft = 1.0;
+    }
     float currentSize = mix(gs_in[0].sizeBegin, sizeEnd, 1-percentOfLifeLeft);
     vec3 currentColor = mix(gs_in[0].colorBegin, colorEnd, 1-percentOfLifeLeft);
 
