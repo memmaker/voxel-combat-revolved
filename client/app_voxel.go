@@ -52,15 +52,23 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 	return a.lastHitInfo
 }
 
-func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) {
-	voxelMap := a.GetVoxelMap()
-	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
-		voxelMap.SetBlock(int32(pos.X), int32(pos.Y), int32(pos.Z), block)
+func (a *BattleClient) PlaceBlockAndRemesh(pos voxel.Int3, block *voxel.Block) {
+	if a.PlaceBlock(pos, block) {
+		voxelMap := a.GetVoxelMap()
 		voxelMap.GenerateAllMeshes()
 	}
 }
 
-func (a *BattleClient) RemoveBlock() {
+func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) bool {
+	voxelMap := a.GetVoxelMap()
+	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
+		voxelMap.SetBlock(int32(pos.X), int32(pos.Y), int32(pos.Z), block)
+		return true
+	}
+	return false
+}
+
+func (a *BattleClient) RemoveBlockAndRemesh() {
 	voxelMap := a.GetVoxelMap()
 	if a.lastHitInfo == nil {
 		return
