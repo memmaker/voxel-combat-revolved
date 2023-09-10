@@ -6,11 +6,13 @@ layout (triangle_strip, max_vertices = 4) out;
 in VS_OUT {
     float lifetimeLeft;
     float sizeBegin;
-    vec4 origin;
+    vec3 colorBegin;
+    vec3 origin;
 } gs_in[];
 
 out GS_OUT {
     float lifetimeLeft;
+    vec3 color;
 } gs_out;
 
 
@@ -18,7 +20,7 @@ uniform mat4 projection;
 uniform mat4 modelView;
 uniform float lifetime;
 uniform float sizeEnd;
-
+uniform vec3 colorEnd;
 
 // take a point as input and output a quad as triangle strip
 void main() {
@@ -28,10 +30,11 @@ void main() {
         return;
     }
     float percentOfLifeLeft = lifeLeft / lifetime;
-    float sizeBegin = gs_in[0].sizeBegin;
 
-    float currentSize = mix(sizeBegin, sizeEnd, 1-percentOfLifeLeft);
+    float currentSize = mix(gs_in[0].sizeBegin, sizeEnd, 1-percentOfLifeLeft);
+    vec3 currentColor = mix(gs_in[0].colorBegin, colorEnd, 1-percentOfLifeLeft);
 
+    gs_out.color = currentColor;
     gs_out.lifetimeLeft = lifeLeft;
 
     vec4 inputPosition = gl_in[0].gl_Position;
