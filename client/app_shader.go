@@ -82,7 +82,7 @@ func getParticleVertexFormat() glhf.AttrFormat {
 		{Name: "lifetimeLeft", Type: glhf.Float},
 		{Name: "velocity", Type: glhf.Vec3},
 		{Name: "sizeBegin", Type: glhf.Float},
-		//{Name: "origin", Type: glhf.Vec3},
+		{Name: "origin", Type: glhf.Vec4},
 	}
 }
 func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
@@ -97,7 +97,7 @@ func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 		transformFeedbackVertexShaderSource,
 		"",
 		"",
-		[]string{"VS_OUT.position\x00", "VS_OUT.lifetimeLeft\x00", "VS_OUT.velocity\x00", "VS_OUT.sizeBegin\x00"}, //, "VS_OUT.origin\x00"},
+		[]string{"VS_OUT.position\x00", "VS_OUT.lifetimeLeft\x00", "VS_OUT.velocity\x00", "VS_OUT.sizeBegin\x00", "VS_OUT.origin\x00"},
 	)
 	if shaderErr != nil {
 		panic(shaderErr)

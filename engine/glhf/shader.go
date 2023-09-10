@@ -99,7 +99,7 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, geometryShader, f
 		defer gl.DeleteShader(gshader)
 	}
 
-	// fragment transformFeedbackShader
+	// fragment shader
 	if fragmentShader != "" {
 		fshader = gl.CreateShader(gl.FRAGMENT_SHADER)
 		src, free := gl.Strs(fragmentShader)
@@ -128,24 +128,25 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, geometryShader, f
 		defer gl.DeleteShader(fshader)
 	}
 
-	// transformFeedbackShader program
+	// shader program
 	{
 		shader.program.obj = gl.CreateProgram()
 		gl.AttachShader(shader.program.obj, vshader)
-		AppendGLErrorMessage(errorMessages, "failed to attach vertex transformFeedbackShader: %d")
+		AppendGLErrorMessage(errorMessages, "failed to attach vertex shader: %d")
 
 		if geometryShader != "" {
 			gl.AttachShader(shader.program.obj, gshader)
-			AppendGLErrorMessage(errorMessages, "failed to attach geometry transformFeedbackShader: %d")
+			AppendGLErrorMessage(errorMessages, "failed to attach geometry shader: %d")
 		}
 
 		if fragmentShader != "" {
 			gl.AttachShader(shader.program.obj, fshader)
-			AppendGLErrorMessage(errorMessages, "failed to attach fragment transformFeedbackShader: %d")
+			AppendGLErrorMessage(errorMessages, "failed to attach fragment shader: %d")
 		}
 
 		if outputVariables != nil && len(outputVariables) > 0 {
 			// this must be right, since it works perfectly fine for the vertex shader only!
+			// when using 4 variables or less..
 			cstrs, free := gl.Strs(outputVariables...)
 			gl.TransformFeedbackVaryings(shader.program.obj, int32(len(outputVariables)), cstrs, gl.INTERLEAVED_ATTRIBS)
 			AppendGLErrorMessage(errorMessages, "failed to set transform feedback varyings: %d")
@@ -153,7 +154,7 @@ func NewShader(vertexFmt, uniformFmt AttrFormat, vertexShader, geometryShader, f
 		}
 
 		gl.LinkProgram(shader.program.obj)
-		AppendGLErrorMessage(errorMessages, "failed to link transformFeedbackShader program: %d")
+		AppendGLErrorMessage(errorMessages, "failed to link shader program: %d")
 
 		var success int32
 		gl.GetProgramiv(shader.program.obj, gl.LINK_STATUS, &success)

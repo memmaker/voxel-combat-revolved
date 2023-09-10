@@ -6,6 +6,7 @@ layout (triangle_strip, max_vertices = 4) out;
 in VS_OUT {
     float lifetimeLeft;
     float sizeBegin;
+    vec4 origin;
 } gs_in[];
 
 out GS_OUT {

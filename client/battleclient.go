@@ -169,14 +169,15 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
             },
             ParticlesSmoke: {
                 PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
-                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0.1, 0.1, 0.1} },
+                VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0.0, 0.0, 0.0} },
                 VelocityVariation:    mgl32.Vec3{0.08, 0.1, 0.08},
                 MaxDistance:          0.5,
                 SizeBegin:            0.2,
                 SizeVariation:        0.1,
                 SizeEnd:              0.1,
                 Lifetime:             1000,
-                ColorBegin:           mgl32.Vec4{0.7, 0.7, 0.7, 1},
+                ColorBegin:           mgl32.Vec4{0.3, 0.3, 0.3, 1},
+                ColorVariation:       mgl32.Vec4{0.1, 0.1, 0.1, 0.0},
                 ColorEnd:             mgl32.Vec4{0.2, 0.2, 0.2, 1},
             },
             ParticlesExplosion: {

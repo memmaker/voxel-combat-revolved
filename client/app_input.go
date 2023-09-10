@@ -114,7 +114,8 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 				return
 			}
 			pos := voxel.Int3{X: int32(x), Y: int32(y), Z: int32(z)}
-			a.smokeParticles.Emit(a.particleProps[ParticlesSmoke].WithOrigin(pos.ToBlockCenterVec3D()), 5)
+			particleProperties := a.particleProps[ParticlesSmoke].WithOrigin(pos.ToBlockCenterVec3D())
+			a.smokeParticles.Emit(particleProperties, 5)
 		})
 		//a.CreateSmokeEffect()
 	}
