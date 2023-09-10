@@ -25,8 +25,8 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetai
 		units:          make(map[uint64]*UnitInstance),
 		playersNeeded:  2,
 		waitForDeployment: details.Placement == PlacementModeManual,
-		voxelMap:          voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
-		mapMeta: &mapMetadata,
+		voxelMap: voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
+		mapMeta:  &mapMetadata,
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 		missionDetails: details,
 	}

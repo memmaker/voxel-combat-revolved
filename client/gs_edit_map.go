@@ -126,6 +126,7 @@ func (g *GameStateEditMap) updateMetaHighlights(mapMeta *game.MapMetadata) {
 func (g *GameStateEditMap) Init(bool) {
 	g.engine.SwitchToBlockSelector()
 	g.engine.highlights.ClearAll()
+	g.engine.lines.Clear()
 
 	g.objectMenu = g.createObjectMenu(util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"spawn", "poi"}))
 	g.blockMenu = gui.NewActionBar(g.engine.guiShader, g.engine.GetVoxelMap().GetTerrainTexture(), g.engine.WindowWidth, g.engine.WindowHeight, 16, 16)

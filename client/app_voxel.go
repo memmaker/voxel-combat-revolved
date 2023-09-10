@@ -36,7 +36,7 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 	var unitHit voxel.MapObject
 	stopRay := func(x, y, z int32) bool {
 		visitedBlocks = append(visitedBlocks, voxel.Int3{X: x, Y: y, Z: z})
-		if voxelMap.Contains(x, y, z) {
+		if voxelMap.Contains(x, y, z) && voxelMap.CurrentlyDraws(x, y, z) {
 			block := voxelMap.GetGlobalBlock(x, y, z)
 			if block != nil && !block.IsAir() {
 				return true
@@ -128,9 +128,10 @@ func (a *BattleClient) LoadMap(filename string) {
 	// NOTE: The order of the list of blocks does matter!
 	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 	bl.ApplyGameplayRules(a.GameInstance)
-
-    loadedMap = voxel.NewMapFromSource(a.GetAssets().LoadMap(filename), a.chunkShader, terrainTexture)
+	loadedMap = a.GetVoxelMap()
+	loadedMap.SetTerrainTexture(terrainTexture)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)
+	loadedMap.SetShader(a.chunkShader)
 	loadedMap.GenerateAllMeshes()
 
 	a.SetVoxelMap(loadedMap)
