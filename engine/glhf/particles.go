@@ -12,6 +12,7 @@ type ParticleProperties struct {
     VelocityFromPosition      func(origin, pos mgl32.Vec3) mgl32.Vec3
     //RotationVariation                 float32
     ColorBegin, ColorEnd              mgl32.Vec4
+    ColorVariation                    mgl32.Vec4
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
     MaxDistance                       float32
@@ -145,12 +146,28 @@ func (v *ParticleSystem) doTransfer(src, dest *vertexArray[GlFloat], deltaTime f
 
     gl.BindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, 0)
 
+    //srcData := src.vertexData(0, 2)
+
     src.end()
     v.transformFeedbackShader.End()
 
     gl.Disable(gl.RASTERIZER_DISCARD)
 
     //gl.Flush()
+    /*
+       dest.begin()
+       dstData := dest.vertexData(0, 2)
+       dest.end()
+
+       for i := 0; i < len(srcData); i++ {
+           if srcData[i] != dstData[i] {
+               println("srcData[", i, "] != dstData[", i, "]")
+               println("srcData[", i, "] = ", srcData[i])
+               println("dstData[", i, "] = ", dstData[i])
+           }
+       }
+
+    */
 }
 
 func (v *ParticleSystem) draw(deltaTime float64, drawBuffer *vertexArray[GlFloat]) {
@@ -189,6 +206,7 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
     for index := 0; index < count; index++ {
         flatIndex := (flatOffset + index*flatStride) % len(v.flatData)
         particle := v.createParticle(props, index)
+        // copy particle data into flatData
         for i := 0; i < flatStride; i++ {
             v.flatData[flatIndex+i] = particle[i]
         }
@@ -203,6 +221,9 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) {
         buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatCount])
     }
     buffer.end()
+
+    var maxComponents int32
+    gl.GetIntegerv(gl.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS, &maxComponents)
 
     v.particleShader.Begin()
     v.particleShader.SetUniformAttr(2, props.Lifetime)
@@ -223,6 +244,9 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
     y := props.Origin.Y() + props.PositionVariation.Y()*(rand.Float32()-0.5)
     z := props.Origin.Z() + props.PositionVariation.Z()*(rand.Float32()-0.5)
     velocity := props.VelocityFromPosition(props.Origin, mgl32.Vec3{x, y, z})
+    velocityX := GlFloat(velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5))
+    velocityY := GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5))
+    velocityZ := GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5))
     return []GlFloat{
         // position x,y,z
         GlFloat(x),
@@ -231,15 +255,15 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
         // lifetime left
         GlFloat(props.Lifetime),
         // velocity X
-        GlFloat(velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5)),
+        velocityX,
         // velocity Y
-        GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5)),
+        velocityY,
         // velocity Z
-        GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5)),
+        velocityZ,
         // size begin
         GlFloat(props.SizeBegin + props.SizeVariation*(rand.Float32()-0.5)),
         // origin x,y,z
-        //GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
+        GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()), 1,
     }
 }
 
