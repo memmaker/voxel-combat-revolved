@@ -5,8 +5,8 @@ import (
     termColor "github.com/fatih/color"
 )
 
-var GLOBAL_LOG_LEVEL = LogLevelDebug
-var GLOBAL_LOG_CATEGORIES = LogNetwork | LogUnitState | LogGameStateGlobal | LogAnimation
+var GLOBAL_LOG_LEVEL = LogLevelInfo
+var GLOBAL_LOG_CATEGORIES = LogVoxel
 var GLOBAL_LOG_ENVIRONMENT = LogEnvironmentServer | LogEnvironmentGraphicalClient
 
 type LogEnvironment int

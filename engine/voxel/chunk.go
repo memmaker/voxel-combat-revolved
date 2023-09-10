@@ -122,7 +122,7 @@ func (c *Chunk) InitNeighbors() {
 func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
     // adapted from: https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     c.InitNeighbors()
-
+    //println(fmt.Sprintf("Greedy meshing chunk %d,%d,%d", c.chunkPosX, c.chunkPosY, c.chunkPosZ))
     c.chunkHelper.Reset(c.m.ChunkSizeCube)
     mesh := NewMeshBuffer()
 
@@ -163,16 +163,18 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
 
             for x[d] = -1; x[d] < axisSize[d]; {
                 n = 0
-
+                // this part will fill the mask with 2d slices for the current axis
+                // size of mask should now be axisSize[u] * axisSize[v]
                 for x[v] = 0; x[v] < axisSize[v]; x[v]++ {
                     for x[u] = 0; x[u] < axisSize[u]; x[u]++ {
-                        if x[d] >= 0 {
+
+                        if x[d] >= 0 { // not at the edge of the chunk
                             voxelFace = c.getVoxelFace(x[0], x[1], x[2], side)
                         } else {
                             voxelFace = nil
                         }
 
-                        if x[d] < axisSize[d]-1 {
+                        if x[d] < axisSize[d]-1 { // not at the edge of the chunk
                             voxelFace1 = c.getVoxelFace(x[0]+q[0], x[1]+q[1], x[2]+q[2], side)
                         } else {
                             voxelFace1 = nil
@@ -191,8 +193,9 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
                     }
                 }
 
+                // step in the main direction
                 x[d]++
-                // TODO: GRUMBELMRZ
+                // assemble the mesh for the current plane, iterating through axisSize[u] * axisSize[v]
                 n = 0
                 for j = 0; j < axisSize[v]; j++ { // Dim 0 - slot 0
                     for i = 0; i < axisSize[u]; { // Dim 1 - slot 0
@@ -209,7 +212,7 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
                             for h+j < axisSize[v] {
                                 for k = 0; k < w; k++ {
                                     // Dim 1 - slot 2 + 3
-                                    if mask[n+k+h*axisSize[v]] == nil || !mask[n+k+h*axisSize[v]].EqualForMerge(mask[n]) {
+                                    if mask[n+k+h*axisSize[u]] == nil || !mask[n+k+h*axisSize[u]].EqualForMerge(mask[n]) {
                                         done = true
                                         break
                                     }
@@ -257,9 +260,7 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
         }
     }
 
-    c.isDirty = false
-
-    c.m.logVoxelInfo(fmt.Sprintf("[Greedy] Chunk %d,%d,%d was meshed into %d triangles", c.chunkPosX, c.chunkPosY, c.chunkPosZ, c.meshBuffer.TriangleCount()))
+    println(fmt.Sprintf("[Greedy] Chunk %d,%d,%d was meshed into %d triangles", c.chunkPosX, c.chunkPosY, c.chunkPosZ, c.meshBuffer.TriangleCount()))
     //return c.meshBuffer
     outChannel <- mesh
 }
@@ -501,7 +502,7 @@ func (c *Chunk) GenerateMesh() {
     if !c.isDirty {
         return
     }
-
+    c.isDirty = false
     go c.GreedyMeshing(c.meshChannel) // will set isDirty to false
 }
 

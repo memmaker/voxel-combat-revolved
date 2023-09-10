@@ -35,7 +35,7 @@ func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
 	if key == glfw.KeyF {
 		g.PlaceBlockAtCurrentSelection()
 	} else if key == glfw.KeyR {
-		g.engine.RemoveBlock()
+		g.engine.RemoveBlockAndRemesh()
 	} else if key == glfw.KeyF5 {
 		g.engine.SaveMapToDisk()
 	} else if key == glfw.KeyF9 {
@@ -80,13 +80,14 @@ func (g *GameStateEditMap) PlaceBlockAtCurrentSelection() {
 	}
 	previousGridPosition := g.engine.lastHitInfo.PreviousGridPosition
 
-	g.engine.PlaceBlock(previousGridPosition, voxel.NewBlock(g.blockTypeToPlace))
+	g.engine.PlaceBlockAndRemesh(previousGridPosition, voxel.NewBlock(g.blockTypeToPlace))
 }
 
 func (g *GameStateEditMap) placeBlocksAtRange(selection []voxel.Int3) {
 	for _, pos := range selection {
 		g.engine.PlaceBlock(pos, voxel.NewBlock(g.blockTypeToPlace))
 	}
+	g.engine.GetVoxelMap().GenerateAllMeshes()
 }
 
 func (g *GameStateEditMap) placeSpawnPointsAtRange(teamIndex int) func(selection []voxel.Int3) {
