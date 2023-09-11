@@ -42,6 +42,7 @@ type Ruleset struct {
 	OverwatchAccuracyModifier float64
 	OverwatchDamageModifier   float64
 	IsRangedAttackTurnEnding  bool
+	IsGroundLayerDestructible bool
 }
 
 func NewDefaultRuleset(engine *GameInstance) *Ruleset {
@@ -51,6 +52,8 @@ func NewDefaultRuleset(engine *GameInstance) *Ruleset {
 		MaxOverwatchRange:         20,
 		OverwatchAccuracyModifier: 0.8, // 20% penalty for overwatch shots
 		OverwatchDamageModifier:   1.1, // 10% bonus damage for overwatch shots
+		IsRangedAttackTurnEnding:  true,
+		IsGroundLayerDestructible: false,
 	}
 }
 
@@ -382,9 +385,8 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 }
 
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
-	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
-	g.voxelMap.ForBlockInHalfSphere(position, radius, g.ApplyExplosionToSingleBlock)
-	g.voxelMap.GenerateAllMeshes()
+	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %0.2f", g.environment, position.ToString(), radius))
+	g.voxelMap.ForBlockInSphere(position, radius, g.ApplyExplosionToSingleBlock)
 	if g.onExplode != nil {
 		g.onExplode(position, radius)
 	}
@@ -395,7 +397,6 @@ func (g *GameInstance) CreateSmokeEffect(position voxel.Int3, radius float64) {
 	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius float64, x int32, y int32, z int32) {
 		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z})
 	})
-	g.voxelMap.GenerateAllMeshes()
 }
 func (g *GameInstance) AddSmokeAt(location voxel.Int3) {
 	if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
@@ -412,21 +413,20 @@ func (g *GameInstance) GetSmokeLocations() map[voxel.Int3]int {
 }
 
 func (g *GameInstance) ApplyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
-	if !g.voxelMap.Contains(int32(x), int32(y), int32(z)) {
-		return
-	}
-	dist := math.Sqrt(math.Pow(float64(x-origin.X), 2) + math.Pow(float64(y-origin.Y), 2) + math.Pow(float64(z-origin.Z), 2))
-	if dist > float64(radius) {
-		return
-	}
 	explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
 	if explodingBlock.IsOccupied() {
 		affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
 		g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone?
 	}
-	g.voxelMap.SetBlock(x, y, z, voxel.NewAirBlock())
+	g.DestroyBlock(voxel.Int3{X: x, Y: y, Z: z})
 }
 
+func (g *GameInstance) DestroyBlock(pos voxel.Int3) {
+	if !g.rules.IsGroundLayerDestructible && pos.Y == 0 { // don't allow in-game destruction of the last ground layer
+		return
+	}
+	g.voxelMap.SetAir(pos)
+}
 func (g *GameInstance) SetBlockLibrary(bl *BlockLibrary) {
 	g.blockLibrary = bl
 }
@@ -585,3 +585,4 @@ func (g *GameInstance) logGameError(text string) {
 		util.LogServerGameError(text)
 	}
 }
+

@@ -52,12 +52,6 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 	return a.lastHitInfo
 }
 
-func (a *BattleClient) PlaceBlockAndRemesh(pos voxel.Int3, block *voxel.Block) {
-	if a.PlaceBlock(pos, block) {
-		voxelMap := a.GetVoxelMap()
-		voxelMap.GenerateAllMeshes()
-	}
-}
 
 func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) bool {
 	voxelMap := a.GetVoxelMap()
@@ -77,7 +71,6 @@ func (a *BattleClient) RemoveBlockAndRemesh() {
 
 	if voxelMap.Contains(int32(collisionGridPosition.X), int32(collisionGridPosition.Y), int32(collisionGridPosition.Z)) {
 		voxelMap.SetBlock(int32(collisionGridPosition.X), int32(collisionGridPosition.Y), int32(collisionGridPosition.Z), voxel.NewAirBlock())
-		voxelMap.GenerateAllMeshes()
 	}
 }
 
@@ -93,7 +86,6 @@ func (a *BattleClient) LoadConstructionFile(filename string) *voxel.Map {
 	loadedMap := voxel.NewMapFromConstruction(bf, a.chunkShader, construction, voxel.Int3{16, 16, 16})
 	loadedMap.SetTerrainTexture(terrainTexture)
 
-	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
 }
@@ -119,7 +111,6 @@ func (a *BattleClient) LoadEmptyWorld(mapSize voxel.Int3, chunkSizeHorizontal, c
 		}
 	}
 	loadedMap.SetFloorAtHeight(0, bl.NewBlockFromName("bricks"))
-	loadedMap.GenerateAllMeshes()
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
 }
@@ -140,7 +131,6 @@ func (a *BattleClient) LoadMap(filename string) {
 	loadedMap.SetTerrainTexture(terrainTexture)
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)
 	loadedMap.SetShader(a.chunkShader)
-	loadedMap.GenerateAllMeshes()
 
 	a.SetVoxelMap(loadedMap)
 	a.SetBlockLibrary(bl)

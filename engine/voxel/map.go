@@ -65,6 +65,7 @@ func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture)
 func (m *Map) Update(delta float64) {
 	for _, chunk := range m.chunks {
 		if chunk != nil {
+			chunk.GenerateMesh()
 			if chunk.CheckForNewMeshes() {
 				return
 			}
@@ -259,17 +260,6 @@ func (m *Map) isChunkVisibleInFrustum(planes []mgl32.Vec4, chunkPos Int3) bool {
 		}
 	}
 	return true
-}
-
-func (m *Map) GenerateAllMeshes() {
-	if m.chunkShader == nil {
-		return
-	}
-	for _, chunk := range m.chunks {
-		if chunk != nil {
-			chunk.GenerateMesh()
-		}
-	}
 }
 
 func (m *Map) GetChunkFromPosition(pos mgl32.Vec3) *Chunk {
@@ -742,6 +732,23 @@ func (m *Map) ForBlockInHalfSphere(origin Int3, radius float64, applyToBlock fun
 		for y := int32(0); y <= int32(radius); y++ {
 			for z := int32(-radius); z <= int32(radius); z++ {
 				if float64(x*x+y*y+z*z) <= radius*radius {
+					if !m.Contains(origin.X+x, origin.Y+y, origin.Z+z) {
+						continue
+					}
+					applyToBlock(origin, radius, origin.X+x, origin.Y+y, origin.Z+z)
+				}
+			}
+		}
+	}
+}
+func (m *Map) ForBlockInSphere(origin Int3, radius float64, applyToBlock func(origin Int3, radius float64, x int32, y int32, z int32)) {
+	for x := int32(-radius); x <= int32(radius); x++ {
+		for y := int32(-radius); y <= int32(radius); y++ {
+			for z := int32(-radius); z <= int32(radius); z++ {
+				if float64(x*x+y*y+z*z) <= radius*radius {
+					if !m.Contains(origin.X+x, origin.Y+y, origin.Z+z) {
+						continue
+					}
 					applyToBlock(origin, radius, origin.X+x, origin.Y+y, origin.Z+z)
 				}
 			}
