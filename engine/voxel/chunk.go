@@ -438,8 +438,11 @@ func (i Int3) IsBelow(grid Int3) bool {
     return i.Y == grid.Y-1
 }
 
-func (i Int3) Length() int32 {
+func (i Int3) LengthInt() int32 {
     return int32(math.Sqrt(float64(i.X*i.X + i.Y*i.Y + i.Z*i.Z)))
+}
+func (i Int3) Length() float64 {
+    return math.Sqrt(float64(i.X*i.X + i.Y*i.Y + i.Z*i.Z))
 }
 
 func (c *Chunk) Draw(shader *glhf.Shader, modelUniformIndex int) {

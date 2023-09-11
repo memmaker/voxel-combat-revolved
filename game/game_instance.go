@@ -107,7 +107,7 @@ type GameInstance struct {
 	overwatch         map[voxel.Int3][]*UnitInstance
 	pressureMatrix    map[uint64]map[uint64]float64
 	waitForDeployment bool
-	onExplode         func(voxel.Int3, int)
+	onExplode         func(voxel.Int3, float64)
 	onNotification    func(string)
 	turnCounter       int
 
@@ -117,7 +117,7 @@ type GameInstance struct {
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
 }
-func (g *GameInstance) SetOnExplode(onExplode func(voxel.Int3, int)) {
+func (g *GameInstance) SetOnExplode(onExplode func(voxel.Int3, float64)) {
 	g.onExplode = onExplode
 }
 func (g *GameInstance) SetOnNotification(onNotification func(string)) {
@@ -381,7 +381,7 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 	return false
 }
 
-func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
+func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
 	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %d", g.environment, position.ToString(), radius))
 	g.voxelMap.ForBlockInHalfSphere(position, radius, g.ApplyExplosionToSingleBlock)
 	g.voxelMap.GenerateAllMeshes()
@@ -390,9 +390,9 @@ func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius int) {
 	}
 }
 
-func (g *GameInstance) CreateSmokeEffect(position voxel.Int3, radius int) {
+func (g *GameInstance) CreateSmokeEffect(position voxel.Int3, radius float64) {
 	g.logGameInfo(fmt.Sprintf("[%s] Smoke at %s with radius %d", g.environment, position.ToString(), radius))
-	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius int, x int32, y int32, z int32) {
+	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius float64, x int32, y int32, z int32) {
 		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z})
 	})
 	g.voxelMap.GenerateAllMeshes()
@@ -411,7 +411,7 @@ func (g *GameInstance) GetSmokeLocations() map[voxel.Int3]int {
 	return g.smokeLocations
 }
 
-func (g *GameInstance) ApplyExplosionToSingleBlock(origin voxel.Int3, radius int, x, y, z int32) {
+func (g *GameInstance) ApplyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
 	if !g.voxelMap.Contains(int32(x), int32(y), int32(z)) {
 		return
 	}

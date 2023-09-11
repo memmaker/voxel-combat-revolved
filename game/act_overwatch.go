@@ -71,7 +71,7 @@ func GetSphere(origin voxel.Int3, radius uint, keep func(pos voxel.Int3) bool) [
 		for y := -int(radius); y <= int(radius); y++ {
 			for z := -int(radius); z <= int(radius); z++ {
 				pos := voxel.Int3{X: int32(x), Y: int32(y), Z: int32(z)}
-				if pos.Length() <= int32(radius) {
+				if pos.LengthInt() <= int32(radius) {
 					if keep(origin.Add(pos)) {
 						valid = append(valid, origin.Add(pos))
 					}

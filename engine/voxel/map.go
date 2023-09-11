@@ -597,6 +597,12 @@ var cardinalNeighbors = []Int3{
 	{0, 0, 1},
 	{0, 0, -1},
 }
+
+var cardinalNeighborsUpDown = []Int3{
+	{0, 1, 0},
+	{0, -1, 0},
+}
+var cardinalNeighbors3D = append(cardinalNeighbors, cardinalNeighborsUpDown...)
 var diagonalNeighbors = []Int3{
 	{1, 0, 1},
 	{-1, 0, 1},
@@ -731,14 +737,54 @@ func (m *Map) CurrentlyDraws(x int32, y int32, z int32) bool {
 	return chunk != nil && chunk.chunkPosY <= m.maxChunkHeightForDraw
 }
 
-func (m *Map) ForBlockInHalfSphere(origin Int3, radius int, applyToBlock func(origin Int3, radius int, x int32, y int32, z int32)) {
+func (m *Map) ForBlockInHalfSphere(origin Int3, radius float64, applyToBlock func(origin Int3, radius float64, x int32, y int32, z int32)) {
 	for x := int32(-radius); x <= int32(radius); x++ {
 		for y := int32(0); y <= int32(radius); y++ {
 			for z := int32(-radius); z <= int32(radius); z++ {
-				if x*x+y*y+z*z <= int32(radius*radius) {
+				if float64(x*x+y*y+z*z) <= radius*radius {
 					applyToBlock(origin, radius, origin.X+x, origin.Y+y, origin.Z+z)
 				}
 			}
+		}
+	}
+}
+
+type DistLocPair struct {
+	Steps    int
+	Distance float64
+	Location Int3
+}
+
+func (m *Map) ForBlockInSphericFloodFill(origin Int3, radius float64, applyToBlock func(origin Int3, steps int, distance float64, x int32, y int32, z int32)) {
+	visited := make(map[Int3]bool)
+	visited[origin] = true
+	queue := []DistLocPair{{0, 0, origin}}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		applyToBlock(origin, current.Steps, current.Distance, current.Location.X, current.Location.Y, current.Location.Z)
+		for _, offset := range cardinalNeighbors3D {
+			neighbor := current.Location.Add(offset)
+			if !m.ContainsGrid(neighbor) {
+				continue
+			}
+			_, alreadyVisited := visited[neighbor]
+			if alreadyVisited {
+				continue
+			}
+			if m.IsSolidBlockAt(neighbor.X, neighbor.Y, neighbor.Z) {
+				continue
+			}
+			neighborDistance := origin.Sub(neighbor).Length()
+			neighborSteps := current.Steps + 1
+			if neighborDistance > radius {
+				continue
+			}
+			if float64(neighborSteps) > 2*radius {
+				continue
+			}
+			visited[neighbor] = true
+			queue = append(queue, DistLocPair{neighborSteps, neighborDistance, neighbor})
 		}
 	}
 }

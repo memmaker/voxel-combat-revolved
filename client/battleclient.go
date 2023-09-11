@@ -342,6 +342,7 @@ func (a *BattleClient) Update(elapsed float64) {
     }
     a.updateProjectiles(elapsed)
     a.updateUnits(elapsed)
+    a.smoker.Update(elapsed)
 
     a.updateDebugInfo()
     stopUpdateTimer()
@@ -353,7 +354,7 @@ func (a *BattleClient) updateProjectiles(elapsed float64) {
         projectile := a.projectiles[i]
         projectile.Update(elapsed)
         blockPos := projectile.GetBlockPosition()
-        a.smoker.ClearParticlesAt(blockPos) // TODO: not hacky solution
+        a.smoker.ClearSmokeAt(blockPos) // TODO: not hacky solution
 
         if projectile.IsDead() {
             a.projectiles = append(a.projectiles[:i], a.projectiles[i+1:]...)
@@ -1224,7 +1225,7 @@ func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
     })
 }
 
-func (a *BattleClient) OnExplode(origin voxel.Int3, radius int) {
+func (a *BattleClient) OnExplode(origin voxel.Int3, radius float64) {
     properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3())
     a.oneShotParticles.Emit(properties, 100)
 }
