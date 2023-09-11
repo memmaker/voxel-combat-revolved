@@ -196,3 +196,11 @@ func EaseInOutExpo(x float64) float64 {
 		return (2 - math.Pow(2, -20*x+10)) / 2
 	}
 }
+
+func EaseSlowEnd(x float64) float64 {
+	if x < 0.5 {
+		return float64(2) * (x * x)
+	} else {
+		return 1.0 - (1.0 / (5.0*((2.0*x)+0.8) + 1.0))
+	}
+}

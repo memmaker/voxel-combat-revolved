@@ -3,6 +3,12 @@
  - Own unit not visually dying, when hit by enemy units during fps view
  - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
 
+# On Smoke
+ - Smoke needs to be managed server side
+ - Smoke needs to be rendered client side
+ - Smoke should interact with bullets & explosions
+
+
 # Design Guidelines
  - Turn based
  - Free aim
