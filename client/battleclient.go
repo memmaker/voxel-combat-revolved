@@ -1024,7 +1024,10 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
     }
 
     */
+
     if msg.YourTurn {
+        a.smoker.NextTurn()
+
         a.ResetOverwatch()
         a.ResetUnitsForNextTurn()
         //a.Print("It's your turn!")

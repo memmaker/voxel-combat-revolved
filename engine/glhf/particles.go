@@ -282,7 +282,7 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
 
 func (v *ParticleSystem) Clear(vertexOffset int, vertexCount int) {
     // we want to write a zero to the lifetime of each particle
-    buffer := v.currentBackBuffer()
+    //buffer := v.currentBackBuffer()
     flatStride := v.particleShader.VertexFormat().Size() / SizeOfFloat32 // distance between two particles in a list of GlFloats == number of floats per particle/vertex
     flatOffset := vertexOffset * flatStride
     flatCount := vertexCount * flatStride
@@ -292,16 +292,18 @@ func (v *ParticleSystem) Clear(vertexOffset int, vertexCount int) {
             v.flatData[flatIndex+i] = 0
         }
     }
-    buffer.begin()
-    if vertexOffset+vertexCount > v.maxVertexCount {
-        flatSpaceAtTheEnd := (v.maxVertexCount - vertexOffset) * flatStride
-        flatRemainingSpace := flatCount - flatSpaceAtTheEnd
-        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatSpaceAtTheEnd])
-        buffer.setVertexDataWithOffset(0, v.flatData[0:flatRemainingSpace])
-    } else {
-        buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatCount])
+    for _, buffer := range []*vertexArray[GlFloat]{v.frontBuffer, v.backBuffer} {
+        buffer.begin()
+        if vertexOffset+vertexCount > v.maxVertexCount {
+            flatSpaceAtTheEnd := (v.maxVertexCount - vertexOffset) * flatStride
+            flatRemainingSpace := flatCount - flatSpaceAtTheEnd
+            buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatSpaceAtTheEnd])
+            buffer.setVertexDataWithOffset(0, v.flatData[0:flatRemainingSpace])
+        } else {
+            buffer.setVertexDataWithOffset(vertexOffset, v.flatData[flatOffset:flatOffset+flatCount])
+        }
+        buffer.end()
     }
-    buffer.end()
 }
 
 const SizeOfFloat32 = 4
