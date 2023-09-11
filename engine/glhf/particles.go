@@ -17,6 +17,7 @@ type ParticleProperties struct {
     SizeBegin, SizeEnd, SizeVariation float32
     Lifetime                          float32
     MaxDistance                       float32
+    SpreadLifetime                    float32
 }
 
 func (p ParticleProperties) WithOrigin(newPos mgl32.Vec3) ParticleProperties {
@@ -193,7 +194,7 @@ func (v *ParticleSystem) draw(deltaTime float64, drawBuffer *vertexArray[GlFloat
 func (v *ParticleSystem) Emit(props ParticleProperties, count int) int {
     if props.Lifetime > v.lastParticleLifetime {
         v.lastParticleLifetime = props.Lifetime
-    } else if props.Lifetime < 0.00 {
+    } else if props.Lifetime < 0 {
         v.isInfiteEmitter = true
     }
     vertexOffset := v.currentOffset
@@ -255,7 +256,11 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
     velocityY := GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5))
     velocityZ := GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5))
     colorVariation := props.ColorVariation * (rand.Float32() - 0.5)
-    lifetimeLeft := GlFloat(math.Abs(float64(props.Lifetime)))
+    lifeTimeAbs := math.Abs(float64(props.Lifetime))
+    if props.SpreadLifetime > 0.0 {
+        lifeTimeAbs = lifeTimeAbs - (float64(index) * float64(props.SpreadLifetime))
+    }
+    lifetimeLeft := GlFloat(lifeTimeAbs)
     return []GlFloat{
         // position x,y,z
         GlFloat(x),
@@ -276,7 +281,11 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
         GlFloat(mgl32.Clamp(props.ColorBegin.Y()+colorVariation, 0, 1)),
         GlFloat(mgl32.Clamp(props.ColorBegin.Z()+colorVariation, 0, 1)),
         // origin x,y,z
-        GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
+        //GlFloat(props.Origin.X()), GlFloat(props.Origin.Y()), GlFloat(props.Origin.Z()),
+        // debug: what if we just use the variation as the origin?
+        GlFloat(x),
+        GlFloat(y),
+        GlFloat(z),
     }
 }
 

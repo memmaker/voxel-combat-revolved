@@ -15,11 +15,12 @@ const (
 )
 
 type SmokeEffectInfo struct {
-    Effect       SmokeEffect
-    TurnsLeft    int
-    Color        mgl32.Vec3
-    BufferOffset int
-    Origin       voxel.Int3
+    Effect        SmokeEffect
+    TurnsLeft     int
+    Color         mgl32.Vec3
+    BufferOffset  int
+    Origin        voxel.Int3
+    ParticleCount int
 }
 
 func (i SmokeEffectInfo) WithBufferOffset(offset int) SmokeEffectInfo {
@@ -29,6 +30,11 @@ func (i SmokeEffectInfo) WithBufferOffset(offset int) SmokeEffectInfo {
 
 func (i SmokeEffectInfo) WithOrigin(origin voxel.Int3) SmokeEffectInfo {
     i.Origin = origin
+    return i
+}
+
+func (i SmokeEffectInfo) WithParticleCount(count int) SmokeEffectInfo {
+    i.ParticleCount = count
     return i
 }
 type Smoker struct {
@@ -49,6 +55,23 @@ func NewSmoker(getMap func() *voxel.Map, system *glhf.ParticleSystem) *Smoker {
         locationInfo:      make(map[voxel.Int3]SmokeEffectInfo),
     }
 }
+func (s *Smoker) getFireProps(origin mgl32.Vec3, color mgl32.Vec3) glhf.ParticleProperties {
+    return glhf.ParticleProperties{
+        Origin:               origin,
+        PositionVariation:    mgl32.Vec3{0.5, 0.2, 0.5},
+        VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{0.0, 0.6, 0.0} },
+        VelocityVariation:    mgl32.Vec3{0.56, 0.84, 0.56},
+        MaxDistance:          0.0,
+        SizeBegin:            0.2,
+        SizeVariation:        0.1,
+        SizeEnd:              0.1,
+        Lifetime:             -0.8, // loop
+        SpreadLifetime:       0.15,
+        ColorBegin:           color,
+        ColorVariation:       0.1,
+        ColorEnd:             mgl32.Vec3{0.1, 0.1, 0.1},
+    }
+}
 func (s *Smoker) getSmokeProps(origin mgl32.Vec3, color mgl32.Vec3) glhf.ParticleProperties {
     return glhf.ParticleProperties{
         Origin:               origin,
@@ -59,7 +82,7 @@ func (s *Smoker) getSmokeProps(origin mgl32.Vec3, color mgl32.Vec3) glhf.Particl
         SizeBegin:            0.2,
         SizeVariation:        0.1,
         SizeEnd:              0.1,
-        Lifetime:             -1, // infinite
+        Lifetime: -101, // infinite
         ColorBegin: color,
         ColorVariation:       0.1,
         ColorEnd:             mgl32.Vec3{0.2, 0.2, 0.2},
@@ -102,7 +125,7 @@ func (s *Smoker) ClearSmokeAt(location voxel.Int3) {
         return
     }
     delete(s.locationInfo, location)
-    s.particles.Clear(info.BufferOffset, s.particlesPerBlock)
+    s.particles.Clear(info.BufferOffset, info.ParticleCount)
     if _, running := s.runningAnimations[info.Origin]; running {
         delete(s.runningAnimations, info.Origin)
     }
@@ -131,8 +154,22 @@ func (s *Smoker) addSmokeAt(spawnPos voxel.Int3, info SmokeEffectInfo) {
     if _, exists := s.locationInfo[spawnPos]; exists {
         return
     }
+    if info.ParticleCount == 0 {
+        info = info.WithParticleCount(s.particlesPerBlock)
+    }
     particleProperties := s.getSmokeProps(spawnPos.ToBlockCenterVec3D(), info.Color)
-    bufferVertexOffset := s.particles.Emit(particleProperties, s.particlesPerBlock)
+    bufferVertexOffset := s.particles.Emit(particleProperties, info.ParticleCount)
+    s.locationInfo[spawnPos] = info.WithBufferOffset(bufferVertexOffset)
+}
+func (s *Smoker) addFireAt(spawnPos voxel.Int3, info SmokeEffectInfo) {
+    if _, exists := s.locationInfo[spawnPos]; exists {
+        return
+    }
+    if info.ParticleCount == 0 {
+        info = info.WithParticleCount(s.particlesPerBlock)
+    }
+    particleProperties := s.getFireProps(spawnPos.ToBlockCenterVec3().Add(mgl32.Vec3{0.1, 0.4, 0.1}), info.Color)
+    bufferVertexOffset := s.particles.Emit(particleProperties, info.ParticleCount)
     s.locationInfo[spawnPos] = info.WithBufferOffset(bufferVertexOffset)
 }
 func (s *Smoker) AddSmokeCloud(location voxel.Int3, radius float64, turns int) {
@@ -147,6 +184,15 @@ func (s *Smoker) AddPoisonCloud(location voxel.Int3, radius float64, turns int) 
         Effect:    SmokeEffectDamage,
         TurnsLeft: turns,
         Color:     mgl32.Vec3{0.1, 0.5, 0.1},
+    })
+}
+
+func (s *Smoker) AddFire(location voxel.Int3, turns int) {
+    s.addFireAt(location, SmokeEffectInfo{
+        Effect:        SmokeEffectDamage,
+        TurnsLeft:     turns,
+        Color:         mgl32.Vec3{0.5, 0.1, 0.1},
+        ParticleCount: 10,
     })
 }
 func (s *Smoker) addAnimatedSmokeEffect(location voxel.Int3, radius float64, effect SmokeEffectInfo) {

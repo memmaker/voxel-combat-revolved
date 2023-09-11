@@ -33,8 +33,12 @@ void main() {
     }
 
     float newLifetimeLeft = max(lifetimeLeft - deltaTime, 0.0);
-    if (lifetime < 0.0) { // no reduction for infinite lifetime particles
+
+    if (lifetime < -100.0) { // no reduction for infinite lifetime particles
         newLifetimeLeft = lifetimeLeft;
+    } else if (lifetime < 0.0 && newLifetimeLeft <= 0) { // loop
+        newLifetimeLeft = lifetime * -1.0;
+        newPos = origin;
     }
 
     vs_out.position = newPos;
