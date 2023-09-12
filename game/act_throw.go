@@ -4,18 +4,18 @@ import (
 	"github.com/memmaker/battleground/engine/voxel"
 )
 
-type ActionSnapShot struct {
+type ActionThrow struct {
 	engine *GameInstance
 	unit   *UnitInstance
 	valid  map[voxel.Int3]bool
 }
 
-func (a *ActionSnapShot) IsTurnEnding() bool {
+func (a *ActionThrow) IsTurnEnding() bool {
 	return true
 }
 
-func NewActionShot(engine *GameInstance, unit *UnitInstance) *ActionSnapShot {
-	a := &ActionSnapShot{
+func NewActionThrow(engine *GameInstance, unit *UnitInstance) *ActionThrow {
+	a := &ActionThrow{
 		engine: engine,
 		unit:   unit,
 		valid:  make(map[voxel.Int3]bool),
@@ -24,17 +24,16 @@ func NewActionShot(engine *GameInstance, unit *UnitInstance) *ActionSnapShot {
 	return a
 }
 
-
-func (a *ActionSnapShot) IsValidTarget(target voxel.Int3) bool {
+func (a *ActionThrow) IsValidTarget(target voxel.Int3) bool {
 	value, exists := a.valid[target]
 	return exists && value
 }
 
-func (a *ActionSnapShot) GetName() string {
-	return "Shot"
+func (a *ActionThrow) GetName() string {
+	return "Throw"
 }
 
-func (a *ActionSnapShot) GetValidTargets() []voxel.Int3 {
+func (a *ActionThrow) GetValidTargets() []voxel.Int3 {
 	result := make([]voxel.Int3, 0, len(a.valid))
 	for pos := range a.valid {
 		result = append(result, pos)
@@ -42,7 +41,7 @@ func (a *ActionSnapShot) GetValidTargets() []voxel.Int3 {
 	return result
 }
 
-func (a *ActionSnapShot) updateValidTargets() {
+func (a *ActionThrow) updateValidTargets() {
 	for _, otherUnit := range a.engine.GetVisibleEnemyUnits(a.unit.UnitID()) {
 		a.valid[otherUnit.GetBlockPosition()] = true
 	}
