@@ -143,12 +143,18 @@ type LineDrawer struct {
     shader   *glhf.Shader
     lines    []*Line
     isHidden bool
+    color    mgl32.Vec4
 }
 
 func NewLineDrawer(shader *glhf.Shader) *LineDrawer {
     return &LineDrawer{
         shader: shader,
+        color: ColorTechTeal,
     }
+}
+
+func (l *LineDrawer) SetColor(color mgl32.Vec4) {
+    l.color = color
 }
 func (l *LineDrawer) AddSimpleLine(start, end mgl32.Vec3) {
     l.lines = append(l.lines, &Line{
@@ -234,6 +240,10 @@ func (l *LineDrawer) Clear() {
 
 func (l *LineDrawer) Hide() {
     l.isHidden = true
+}
+
+func (l *LineDrawer) GetColor() mgl32.Vec4 {
+    return l.color
 }
 
 func NewOutlinedCube(min voxel.Int3, max voxel.Int3) []Line {

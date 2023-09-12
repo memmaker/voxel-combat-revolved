@@ -24,6 +24,7 @@ func NewActionShot(engine *GameInstance, unit *UnitInstance) *ActionSnapShot {
 	return a
 }
 
+
 func (a *ActionSnapShot) IsValidTarget(target voxel.Int3) bool {
 	value, exists := a.valid[target]
 	return exists && value

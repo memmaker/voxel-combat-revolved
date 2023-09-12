@@ -430,7 +430,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
     if a.lines != nil && !a.currentlyMovingUnits {
         gl.Disable(gl.CULL_FACE)
-        a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
+        a.defaultShader.SetUniformAttr(ShaderDrawColor, a.lines.GetColor())
         a.defaultShader.SetUniformAttr(ShaderModelMatrix, mgl32.Ident4())
         a.defaultShader.SetUniformAttr(ShaderViewport, mgl32.Vec2{float32(a.WindowWidth), float32(a.WindowHeight)})
         a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawLine)

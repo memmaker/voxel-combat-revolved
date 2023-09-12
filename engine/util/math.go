@@ -204,3 +204,34 @@ func EaseSlowEnd(x float64) float64 {
 		return 1.0 - (1.0 / (5.0*((2.0*x)+0.8) + 1.0))
 	}
 }
+
+/* trajectory
+𝑦=(tan𝜃0)𝑥−[𝑔2(𝑣0cos𝜃0)2]𝑥2.
+*/
+
+func TrajectoryXY(time float64, angle float64, velocity float64, gravity float64) (float64, float64) {
+	x := velocity * math.Cos(angle) * time
+	y := (velocity * math.Sin(angle) * time) - (0.5 * gravity * math.Pow(time, 2))
+	return x, y
+}
+
+func Range(angle float64, velocity float64, gravity float64) float64 {
+	return math.Abs((math.Pow(velocity, 2) * math.Sin(2*angle)) / gravity)
+}
+
+func TimeOfFlight(xPosition float64, angle float64, velocity float64) float64 {
+	return xPosition / (velocity * math.Cos(angle))
+}
+func Height(angle float64, velocity float64, gravity float64) float64 {
+	return (math.Pow(velocity, 2) * math.Pow(math.Sin(angle), 2)) / (2 * gravity)
+}
+
+func AngleOfLaunch(targetPos mgl32.Vec2, velocity float64, gravity float64) float64 {
+	vSquared := math.Pow(velocity, 2)
+	vFour := math.Pow(velocity, 4)
+	xSquared := math.Pow(float64(targetPos.X()), 2)
+	gx := gravity * float64(targetPos.X())
+	gxSquared := gravity * xSquared
+	quotient := vSquared + math.Sqrt(vFour-(gravity*(gxSquared+(2*float64(targetPos.Y())*vSquared))))
+	return math.Atan(quotient / gx)
+}
