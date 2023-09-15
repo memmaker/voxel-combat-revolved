@@ -63,13 +63,21 @@ func (a *Assets) LoadMesh(name string) *util.CompoundMesh {
     return util.LoadGLTFWithTextures(filePath)
 }
 
+func (a *Assets) LoadAnimatedMeshWithTextures(name string, animationMap map[string]string) *util.CompoundMesh {
+    filePath := a.getModelFile(name)
+    return util.LoadGLTFWithAnimationAndTextures(filePath, animationMap)
+}
+func (a *Assets) LoadMeshWithAnimationMap(name string, animationMap map[string]string) *util.CompoundMesh {
+    filePath := a.getModelFile(name)
+    return util.LoadGLTF(filePath, animationMap, nil)
+}
 func (a *Assets) LoadMeshWithoutTextures(name string) *util.CompoundMesh {
     filePath := a.getModelFile(name)
-    return util.LoadGLTF(filePath, nil)
+    return util.LoadGLTF(filePath, nil, nil)
 }
 func (a *Assets) LoadMeshWithColor(name string, forcedColor mgl32.Vec3) *util.CompoundMesh {
     filePath := a.getModelFile(name)
-    return util.LoadGLTF(filePath, &forcedColor)
+    return util.LoadGLTF(filePath, nil, &forcedColor)
 }
 
 func (a *Assets) getModelFile(name string) string {

@@ -14,6 +14,13 @@ import (
 
 )
 
+type Flyer interface {
+    Update(delta float64)
+    IsDead() bool
+    GetBlockPosition() voxel.Int3
+    Draw()
+}
+
 type BattleClient struct {
     *util.GlApplication
     *game.GameClient[*Unit]
@@ -29,7 +36,7 @@ type BattleClient struct {
     textLabel                  *util.BitmapFontMesh
     bigLabel                   *util.BitmapFontMesh
     lastHitInfo                *game.RayCastHit
-    projectiles                []*Projectile
+    flyingObjects              []Flyer
     debugObjects               []PositionDrawable
     isoCamera                  *util.ISOCamera
     fpsCamera                  *util.FPSCamera
@@ -267,7 +274,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 
 func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
     // load model
-    model := a.GetAssets().LoadMesh(currentUnit.Definition.ModelFile)
+    model := a.GetAssets().LoadAnimatedMeshWithTextures(currentUnit.Definition.ModelFile, currentUnit.Definition.AnimationMap)
     // upload vertex data to GPU
     model.UploadVertexData(a.defaultShader)
     // select weapon model by hiding the others
@@ -286,7 +293,15 @@ func (a *BattleClient) SpawnProjectile(pos, velocity, destination mgl32.Vec3, on
     projectile := NewProjectile(a.defaultShader, a.bulletModel, pos, velocity)
     projectile.SetDestination(destination)
     projectile.SetOnArrival(onArrival)
-    a.projectiles = append(a.projectiles, projectile)
+    a.flyingObjects = append(a.flyingObjects, projectile)
+    //println(fmt.Sprintf("\n>> Projectile spawned at %v with destination %v", pos, destination))
+    return projectile
+}
+
+func (a *BattleClient) SpawnThrownObject(path []mgl32.Vec3, onArrival func()) *Throwable {
+    projectile := NewThrowable(a.defaultShader, a.bulletModel, path)
+    projectile.SetOnArrival(onArrival)
+    a.flyingObjects = append(a.flyingObjects, projectile)
     //println(fmt.Sprintf("\n>> Projectile spawned at %v with destination %v", pos, destination))
     return projectile
 }
@@ -350,14 +365,14 @@ func (a *BattleClient) Update(elapsed float64) {
 }
 
 func (a *BattleClient) updateProjectiles(elapsed float64) {
-    for i := len(a.projectiles) - 1; i >= 0; i-- {
-        projectile := a.projectiles[i]
+    for i := len(a.flyingObjects) - 1; i >= 0; i-- {
+        projectile := a.flyingObjects[i]
         projectile.Update(elapsed)
         blockPos := projectile.GetBlockPosition()
         a.smoker.ClearSmokeAt(blockPos) // TODO: not hacky solution
 
         if projectile.IsDead() {
-            a.projectiles = append(a.projectiles[:i], a.projectiles[i+1:]...)
+            a.flyingObjects = append(a.flyingObjects[:i], a.flyingObjects[i+1:]...)
         }
     }
 }
@@ -460,8 +475,8 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 }
 
 func (a *BattleClient) drawProjectiles() {
-    for i := len(a.projectiles) - 1; i >= 0; i-- {
-        projectile := a.projectiles[i]
+    for i := len(a.flyingObjects) - 1; i >= 0; i-- {
+        projectile := a.flyingObjects[i]
         projectile.Draw()
     }
 }
@@ -622,6 +637,7 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 }
 
 func (a *BattleClient) SwitchToGroundSelector() {
+    a.groundSelector.Show()
     a.selector = a.groundSelector
     a.isBlockSelection = false
 }
@@ -810,7 +826,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
         }
     }
     attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
-    activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit && a.settings.EnableBulletCam //only for single projectiles and own units
+    activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit && a.settings.EnableBulletCam //only for single flyingObjects and own units
 
     projectileArrivalCounter := 0
     for index, p := range msg.Projectiles {
