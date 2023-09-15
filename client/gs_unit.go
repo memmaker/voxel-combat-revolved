@@ -79,6 +79,9 @@ func (g *GameStateUnit) nextUnit() {
 }
 
 func (g *GameStateUnit) Init(wasPopped bool) {
+	g.engine.SwitchToIsoCamera()
+	g.engine.SwitchToGroundSelector()
+
 	if !wasPopped {
 		if g.engine.selectedUnit.CanMove() {
 			g.moveAction = game.NewActionMove(g.engine.GetVoxelMap(), g.engine.selectedUnit.UnitInstance)
@@ -89,12 +92,10 @@ func (g *GameStateUnit) Init(wasPopped bool) {
 		} else {
 			g.engine.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		}
-
 		//println(fmt.Sprintf("[GameStateUnit] Entered for %s", g.selectedUnit.GetName()))
-		footPos := util.ToGrid(g.engine.selectedUnit.GetPosition())
-		g.engine.SwitchToIsoCamera()
 
 		if !g.noCameraMovement {
+			footPos := util.ToGrid(g.engine.selectedUnit.GetPosition())
 			startCam := g.engine.isoCamera.GetTransform()
 			g.engine.isoCamera.SetLookTarget(footPos.Add(mgl32.Vec3{0.5, 0, 0.5}))
 			endCam := g.engine.isoCamera

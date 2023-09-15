@@ -8,17 +8,6 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-func abs(x float32) float32 {
-	return float32(math.Abs(float64(x)))
-}
-
-func Round(x float32) float32 {
-	return float32(math.Round(float64(x)))
-}
-
-func Floor(x float32) float32 {
-	return float32(math.Floor(float64(x)))
-}
 func Sin(x float32) float32 {
 	return float32(math.Sin(float64(x)))
 }
@@ -29,20 +18,6 @@ func Cos(x float32) float32 {
 
 func ToRadian(angle float32) float32 {
 	return mgl32.DegToRad(angle)
-}
-
-func max(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func Min(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func Mix(a, b, factor float32) float32 {
@@ -60,16 +35,6 @@ func Clamp(value, min, max float64) float64 {
 	return math.Min(math.Max(value, min), max)
 }
 
-func IntMax3(i int, i2 int, i3 int) int {
-	max := i
-	if i2 > max {
-		max = i2
-	}
-	if i3 > max {
-		max = i3
-	}
-	return max
-}
 func ToGrid(position mgl32.Vec3) mgl32.Vec3 {
 	return mgl32.Vec3{float32(math.Floor(float64(position.X()))), float32(math.Floor(float64(position.Y()))), float32(math.Floor(float64(position.Z())))}
 }
@@ -205,9 +170,16 @@ func EaseSlowEnd(x float64) float64 {
 	}
 }
 
-/* trajectory
-𝑦=(tan𝜃0)𝑥−[𝑔2(𝑣0cos𝜃0)2]𝑥2.
-*/
+func SmallestAngleBetween(vecOne, vecTwo mgl32.Vec3) float64 {
+	dot := vecOne.Dot(vecTwo)
+	cross := vecOne.Cross(vecTwo)
+	det := cross.Len()
+	return math.Atan2(float64(det), float64(dot))
+}
+
+func AngleBetween(vecOne, vecTwo mgl32.Vec2) float32 {
+	return float32(math.Atan2(float64(vecOne.X()*vecTwo.Y()-vecOne.Y()*vecTwo.X()), float64(vecOne.X()*vecTwo.X()+vecOne.Y()*vecTwo.Y())))
+}
 
 func TrajectoryXY(time float64, angle float64, velocity float64, gravity float64) (float64, float64) {
 	x := velocity * math.Cos(angle) * time
@@ -215,23 +187,47 @@ func TrajectoryXY(time float64, angle float64, velocity float64, gravity float64
 	return x, y
 }
 
-func Range(angle float64, velocity float64, gravity float64) float64 {
-	return math.Abs((math.Pow(velocity, 2) * math.Sin(2*angle)) / gravity)
-}
-
 func TimeOfFlight(xPosition float64, angle float64, velocity float64) float64 {
 	return xPosition / (velocity * math.Cos(angle))
 }
-func Height(angle float64, velocity float64, gravity float64) float64 {
-	return (math.Pow(velocity, 2) * math.Pow(math.Sin(angle), 2)) / (2 * gravity)
+func MinLaunchVelocity(targetPos mgl32.Vec2, gravity float64) float64 {
+	return math.Sqrt((float64(targetPos.Y()) + math.Sqrt(math.Pow(float64(targetPos.Y()), 2)+math.Pow(float64(targetPos.X()), 2))) * gravity)
 }
+func MinLaunchAngle(targetPos mgl32.Vec2) float64 {
+	return math.Atan((float64(targetPos.Y()) / float64(targetPos.X())) + math.Sqrt((math.Pow(float64(targetPos.Y()), 2)/math.Pow(float64(targetPos.X()), 2))+1))
+}
+func CalculateTrajectory(sourcePos, dest mgl32.Vec3, maxVelocity, gravity float64) []mgl32.Vec3 {
+	destRelatedToOrigin := dest.Sub(sourcePos) // translate by sourcePos
 
-func AngleOfLaunch(targetPos mgl32.Vec2, velocity float64, gravity float64) float64 {
-	vSquared := math.Pow(velocity, 2)
-	vFour := math.Pow(velocity, 4)
-	xSquared := math.Pow(float64(targetPos.X()), 2)
-	gx := gravity * float64(targetPos.X())
-	gxSquared := gravity * xSquared
-	quotient := vSquared + math.Sqrt(vFour-(gravity*(gxSquared+(2*float64(targetPos.Y())*vSquared))))
-	return math.Atan(quotient / gx)
+	dest2D := mgl32.Vec2{destRelatedToOrigin.X(), destRelatedToOrigin.Z()}
+	xAxis := mgl32.Vec2{1.0, 0.0}
+	angle := AngleBetween(xAxis, dest2D)
+
+	rotationForAxisAlign := mgl32.QuatRotate(angle, mgl32.Vec3{0, 1, 0}).Mat4()
+	rotatedDest := rotationForAxisAlign.Mul4x1(destRelatedToOrigin.Vec4(1)).Vec3()
+
+	// reduced to 2d problem by rotating around y axis to align with x axis
+	// source is now the origin
+	twoDeeX := rotatedDest.X()
+	twoDeeY := rotatedDest.Y()
+
+	velocity := MinLaunchVelocity(mgl32.Vec2{twoDeeX, twoDeeY}, gravity)
+	aimAngle := MinLaunchAngle(mgl32.Vec2{twoDeeX, twoDeeY})
+
+	if math.IsNaN(aimAngle) || velocity > maxVelocity {
+		return []mgl32.Vec3{}
+	}
+
+	timeToTarget := TimeOfFlight(float64(twoDeeX), aimAngle, velocity)
+	inverseRotation := rotationForAxisAlign.Inv()
+	var trajectory3D []mgl32.Vec3
+	for i := 0; i <= 10; i++ {
+		percent := float64(i) / 10.0
+		time := percent * timeToTarget
+		currentX, currentY := TrajectoryXY(time, aimAngle, velocity, gravity)
+		rotatedPoint := inverseRotation.Mul4x1(mgl32.Vec4{float32(currentX), float32(currentY), 0.0, 1.0}).Vec3()
+		translatedPoint := rotatedPoint.Add(sourcePos)
+		trajectory3D = append(trajectory3D, translatedPoint)
+	}
+	return trajectory3D
 }

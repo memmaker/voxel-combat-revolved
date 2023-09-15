@@ -52,7 +52,6 @@ func (g *GroundSelector) SetSize(scaleFactor float64) {
 func (g *GroundSelector) SetBlockPosition(pos voxel.Int3) {
 	offset := mgl32.Vec3{0.5, 0.025, 0.5}
 	g.Transform.SetPosition(pos.ToVec3().Add(offset))
-	g.hide = false
 }
 
 func (g *GroundSelector) Hide() {
@@ -64,6 +63,10 @@ func (g *GroundSelector) Draw() {
 		return
 	}
 	g.mesh.Draw(g.shader, ShaderModelMatrix)
+}
+
+func (g *GroundSelector) Show() {
+	g.hide = false
 }
 
 func NewGroundSelector(mesh *util.CompoundMesh, shader *glhf.Shader) *GroundSelector {

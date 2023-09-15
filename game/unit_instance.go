@@ -17,6 +17,7 @@ type UnitCoreStats struct {
     Accuracy        float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
     MovementPerAP   float64 // MovementPerAP Movement per action point
     MaxActionPoints float64 // MaxActionPoints Maximum action points
+    ThrowVelocity float64   // ThrowVelocity Velocity of thrown objects
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
@@ -27,7 +28,8 @@ type UnitDefinition struct {
     ClientRepresentation UnitClientDefinition
     CoreStats            UnitCoreStats
 
-    ModelFile string
+    ModelFile    string
+    AnimationMap map[string]string
 }
 
 // IDEA: we want a stance system, where the unit can be in different stances. A stance defines which blocks are occupied.
@@ -158,7 +160,7 @@ func (u *UnitInstance) GetOccupiedBlockOffsets(atPos voxel.Int3) []voxel.Int3 {
 }
 
 func NewUnitInstance(loader *Assets, name string, unitDef *UnitDefinition) *UnitInstance {
-    compoundMesh := loader.LoadMeshWithoutTextures(unitDef.ModelFile)
+    compoundMesh := loader.LoadMeshWithAnimationMap(unitDef.ModelFile, unitDef.AnimationMap)
     compoundMesh.RootNode.CreateColliders()
     u := &UnitInstance{
         Transform:     util.NewScaledTransform(name, 1.0),

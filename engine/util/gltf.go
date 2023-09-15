@@ -16,7 +16,18 @@ import (
 )
 
 func LoadGLTFWithTextures(filename string) *CompoundMesh {
-    result := LoadGLTF(filename, nil)
+    result := LoadGLTF(filename, nil, nil)
+    doc, err := gltf.Open(filename)
+    if err != nil {
+        println(err.Error())
+        return nil
+    }
+    result.textures = tryLoadTextures(doc)
+    return result
+}
+
+func LoadGLTFWithAnimationAndTextures(filename string, animationMap map[string]string) *CompoundMesh {
+    result := LoadGLTF(filename, animationMap, nil)
     doc, err := gltf.Open(filename)
     if err != nil {
         println(err.Error())
@@ -27,7 +38,7 @@ func LoadGLTFWithTextures(filename string) *CompoundMesh {
 }
 
 func LoadGLTFWithTexturesAndExtrusion(filename string) *CompoundMesh {
-    result := LoadGLTF(filename, nil)
+    result := LoadGLTF(filename, nil, nil)
     doc, err := gltf.Open(filename)
     if err != nil {
         println(err.Error())
@@ -37,7 +48,7 @@ func LoadGLTFWithTexturesAndExtrusion(filename string) *CompoundMesh {
     return result
 }
 
-func LoadGLTF(filename string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
+func LoadGLTF(filename string, animationMap map[string]string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
     doc, err := gltf.Open(filename)
     if err != nil {
         println(err.Error())
@@ -79,7 +90,14 @@ func LoadGLTF(filename string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
         for samplerIndex, sampler := range anim.Samplers {
             samplerFrames[samplerIndex] = inputKeyframesFromSampler(doc, sampler)
         }
-        result.SamplerFrames[anim.Name] = samplerFrames
+
+        animationName := anim.Name
+        if animationMap != nil && len(animationMap) > 0 {
+            if newName, exists := animationMap[animationName]; exists {
+                animationName = newName
+            }
+        }
+        result.SamplerFrames[animationName] = samplerFrames
         for _, channel := range anim.Channels {
             var translationFrames [][3]float32
             var rotationFrames [][4]float32
@@ -91,26 +109,26 @@ func LoadGLTF(filename string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
             samplerIndex := *channel.Sampler
             sampler := anim.Samplers[samplerIndex]
             outputValues := outputKeyframesFromSampler(doc, sampler)
-            if _, exists := node.animations[anim.Name]; !exists {
-                node.animations[anim.Name] = &SimpleAnimationData{}
+            if _, exists := node.animations[animationName]; !exists {
+                node.animations[animationName] = &SimpleAnimationData{}
             }
 
             switch channel.Target.Path { // THIS IS NEEDED FOR ANIMATION
             case gltf.TRSTranslation:
                 translationFrames, _ = outputValues.([][3]float32)
                 //println(fmt.Sprintf("Found # of Translation Keyframes: %d", len(translationFrames)))
-                node.animations[anim.Name].TranslationFrames = translationFrames
-                node.animations[anim.Name].TranslationSamplerIndex = samplerIndex
+                node.animations[animationName].TranslationFrames = translationFrames
+                node.animations[animationName].TranslationSamplerIndex = samplerIndex
             case gltf.TRSRotation:
                 rotationFrames, _ = outputValues.([][4]float32)
                 //println(fmt.Sprintf("Found # of Rotation Keyframes: %d", len(rotationFrames)))
-                node.animations[anim.Name].RotationFrames = rotationFrames
-                node.animations[anim.Name].RotationSamplerIndex = samplerIndex
+                node.animations[animationName].RotationFrames = rotationFrames
+                node.animations[animationName].RotationSamplerIndex = samplerIndex
             case gltf.TRSScale:
                 scaleFrames, _ = outputValues.([][3]float32)
                 //println(fmt.Sprintf("Found # of Scale Keyframes: %d", len(scaleFrames)))
-                node.animations[anim.Name].ScaleFrames = scaleFrames
-                node.animations[anim.Name].ScaleSamplerIndex = samplerIndex
+                node.animations[animationName].ScaleFrames = scaleFrames
+                node.animations[animationName].ScaleSamplerIndex = samplerIndex
             }
         }
     }

@@ -12,6 +12,7 @@ func NewBattleServer() *server.BattleServer {
 		MovementPerAP:   3,
 		Accuracy:        0.9,
 		MaxActionPoints: 4,
+		ThrowVelocity: 12,
 	}
 
 	battleServer := server.NewBattleServer()
@@ -67,7 +68,17 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        0,
 				CoreStats: defaultCoreStats,
-				ModelFile: "human",
+				ModelFile: "soldier",
+				AnimationMap: map[string]string{
+					"idle":      game.AnimationIdle.Str(),
+					"idle2":     game.AnimationWeaponIdle.Str(),
+					"hit":       game.AnimationHit.Str(),
+					"run":       game.AnimationWeaponWalk.Str(),
+					"death":     game.AnimationDeath.Str(),
+					"climb":     game.AnimationClimb.Str(),
+					"drop":      game.AnimationDrop.Str(),
+					"wall_idle": game.AnimationWallIdle.Str(),
+				},
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "steve",
 				},
@@ -90,7 +101,17 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        2,
 				CoreStats: defaultCoreStats,
-				ModelFile: "human",
+				ModelFile: "soldier",
+				AnimationMap: map[string]string{
+					"idle":      game.AnimationIdle.Str(),
+					"idle2":     game.AnimationWeaponIdle.Str(),
+					"hit":       game.AnimationHit.Str(),
+					"run":       game.AnimationWeaponWalk.Str(),
+					"death":     game.AnimationDeath.Str(),
+					"climb":     game.AnimationClimb.Str(),
+					"drop":      game.AnimationDrop.Str(),
+					"wall_idle": game.AnimationWallIdle.Str(),
+				},
 				ClientRepresentation: game.UnitClientDefinition{
 					//TextureFile: "deep_monster2",
 				},
