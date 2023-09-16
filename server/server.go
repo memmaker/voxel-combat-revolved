@@ -17,6 +17,7 @@ type BattleServer struct {
 	availableFactions map[string]*game.Faction
 	availableUnits    []*game.UnitDefinition
 	availableWeapons  map[string]*game.WeaponDefinition
+	availableItems    map[string]*game.ItemDefinition
 
 	connectedClients map[uint64]*UserConnection
 
@@ -381,17 +382,33 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		}
 	}
 	assetLoader := gameInstance.GetAssets()
-	// we are now adding the units to game world
+	// ** We are now adding the units to game world **
 	for _, unitRequest := range msg.Units {
 		unitChoice := unitRequest
+		// get unit definition
 		spawnedUnitDef := b.availableUnits[unitChoice.UnitTypeID]
+
+		// create unit
 		unit := game.NewUnitInstance(assetLoader, unitChoice.Name, spawnedUnitDef)
+
+		// assign weapon
 		chosenWeapon, weaponIsOK := b.availableWeapons[unitChoice.Weapon]
 		if weaponIsOK {
 			unit.SetWeapon(game.NewWeapon(chosenWeapon))
 		} else {
 			util.LogGameError(fmt.Sprintf("[BattleServer] %d tried to select weapon '%s', but it does not exist", userID, unitChoice.Weapon))
 		}
+
+		// assign items
+		for _, itemName := range unitChoice.Items {
+			chosenItem, itemIsOK := b.availableItems[itemName]
+			if itemIsOK {
+				unit.AddItem(game.NewItem(chosenItem))
+			} else {
+				util.LogGameError(fmt.Sprintf("[BattleServer] %d tried to select item '%s', but it does not exist", userID, itemName))
+			}
+		}
+
 		unit.SetControlledBy(userID)
 		unit.SetVoxelMap(gameInstance.GetVoxelMap())
 		//unit.SetForward(voxel.Int3{Z: 1})
@@ -511,7 +528,7 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	//gameInstance.GetVoxelMap().PrintArea2D(16, 16)
 	/*
 	for _, unit := range gameInstance.GetAllUnits() {
-		println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
+			println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
 	}
 
 	*/
@@ -582,6 +599,10 @@ func (b *BattleServer) AddWeapon(weaponDefinition game.WeaponDefinition) {
 	b.availableWeapons[weaponDefinition.UniqueName] = &weaponDefinition
 }
 
+func (b *BattleServer) AddItem(itemDefinition game.ItemDefinition) {
+	b.availableItems[itemDefinition.UniqueName] = &itemDefinition
+}
+
 func (b *BattleServer) Reload(userID uint64, unitID uint64) {
 	user, gameInstance, exists := b.getUserAndGame(userID)
 	if !exists {
@@ -649,5 +670,6 @@ func NewBattleServer() *BattleServer {
 		connectedClients:  make(map[uint64]*UserConnection),    // client id -> client
 		runningGames:      make(map[string]*game.GameInstance), // game id -> game
 		availableWeapons:  make(map[string]*game.WeaponDefinition),
+		availableItems: make(map[string]*game.ItemDefinition),
 	}
 }

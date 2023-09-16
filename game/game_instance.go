@@ -110,9 +110,9 @@ type GameInstance struct {
 	// mechanics
 	overwatch            map[voxel.Int3][]*UnitInstance
 	pressureMatrix       map[uint64]map[uint64]float64
-	waitForDeployment bool
+	waitForDeployment    bool
 	onTargetedEffect     func(voxel.Int3, TargetedEffect, float64, int)
-	onNotification    func(string)
+	onNotification       func(string)
 	onBlockEffectAdded   func(voxel.Int3, BlockEffect)
 	onBlockEffectRemoved func(voxel.Int3, BlockEffect)
 

@@ -21,7 +21,7 @@ func (s CompleteUnitState) ToString() string {
     stateString := "\n"
     stateString += fmt.Sprintf("ID: %v\n", s.ID)
     stateString += fmt.Sprintf("Name: %v\n", s.Name)
-    stateString += fmt.Sprintf("Forward: %v\n", s.Forward)
+    stateString += fmt.Sprintf("AimDirection: %v\n", s.Forward)
     stateString += fmt.Sprintf("Origin: %v\n", s.Position)
     stateString += fmt.Sprintf("Stance: %v\n", s.Stance)
     stateString += fmt.Sprintf("AP: %v\n", s.AP)
@@ -44,9 +44,9 @@ func (s CompleteUnitState) Diff(other CompleteUnitState) string {
     }
 
     if s.Forward.ApproxEqualThreshold(other.Forward, PositionalTolerance) == false {
-        stateString += fmt.Sprintf("Forward: %v != %v\n", s.Forward, other.Forward)
+        stateString += fmt.Sprintf("AimDirection: %v != %v\n", s.Forward, other.Forward)
     } else {
-        stateString += fmt.Sprintf("Forward: %v\n", s.Forward)
+        stateString += fmt.Sprintf("AimDirection: %v\n", s.Forward)
     }
 
     if s.Position.ApproxEqualThreshold(other.Position, PositionalTolerance) == false {
@@ -100,7 +100,7 @@ func (s CompleteUnitState) Equals(other CompleteUnitState) (bool, string) {
         return false, fmt.Sprintf("Name: %v != %v", s.Name, other.Name)
     }
     if s.Forward.ApproxEqualThreshold(other.Forward, PositionalTolerance) == false {
-        return false, fmt.Sprintf("Forward: %v != %v", s.Forward, other.Forward)
+        return false, fmt.Sprintf("AimDirection: %v != %v", s.Forward, other.Forward)
     }
     if s.Position.ApproxEqualThreshold(other.Position, PositionalTolerance) == false {
         return false, fmt.Sprintf("Origin: %v != %v", s.Position, other.Position)

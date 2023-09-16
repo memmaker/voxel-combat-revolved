@@ -182,7 +182,7 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 		println(fmt.Sprintf("[%s] Unknown unit %d", a.environment, msg.UnitID))
 		return
 	}
-	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
+	//println(fmt.Sprintf("[BattleClient] Moving %s(%d): %v -> %v", unit.GetName(), unit.Attacker(), unit.GetBlockPosition(), msg.Path[len(msg.Path)-1]))
 
 	destination := msg.Path[len(msg.Path)-1]
 
@@ -226,7 +226,7 @@ func (a *GameClient[U]) OnNextPlayer(msg NextPlayerMessage) {
 	//a.GetVoxelMap().PrintArea2D(16, 16)
 	/*
 	for _, unit := range a.GetAllUnits() {
-		println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
+			println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
 	}
 
 	*/
@@ -299,14 +299,13 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	}
 }
 func (a *GameClient[U]) OnThrow(msg VisualThrow) {
-	attacker, knownAttacker := a.GetUnit(msg.UnitID)
+	attacker, knownAttacker := a.GetUnit(msg.Attacker)
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
-		attackerUnit.SetForward(msg.Forward)
-		//attackerUnit.ConsumeGrenade().ConsumeAmmo(msg.AmmoCost)
-		// TODO: add ammo and ap cost
-		//attackerUnit.ConsumeAP(msg.APCostForAttacker)
+		attackerUnit.SetForward(msg.AimDirection)
+		attackerUnit.RemoveItem(msg.ItemUsed)
+		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		if msg.IsTurnEnding {
 			attackerUnit.EndTurn()
 		}
@@ -314,6 +313,7 @@ func (a *GameClient[U]) OnThrow(msg VisualThrow) {
 
 	for _, flyer := range msg.Flyers {
 		a.GameInstance.ClearSmokeMulti(flyer.VisitedBlocks)
+		a.GameInstance.CreateTargetedEffectFromMessage(flyer.Consequence)
 	}
 }
 func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
@@ -321,7 +321,7 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	var attackerUnit *UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker
-		attackerUnit.SetForward(voxel.DirectionToGridInt3(msg.AimDirection))
+		attackerUnit.SetForward(msg.AimDirection)
 		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
 		if msg.IsTurnEnding {

@@ -448,7 +448,7 @@ func (m *Map) SetUnitWithOffsets(unit MapObject, blockPos Int3, offsets []Int3) 
 	ok, reason := m.IsUnitPlaceable(unit, blockPos)
 	if ok {
 		occupiedBlocks := make([]Int3, len(offsets))
-		//println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.UnitID(), blockPos.ToString(), len(offsets)))
+        //println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.Attacker(), blockPos.ToString(), len(offsets)))
 		for index, offset := range offsets {
 			occupiedBlockPos := blockPos.Add(offset)
 			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)

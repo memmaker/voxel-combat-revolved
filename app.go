@@ -139,16 +139,19 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 				UnitTypeID: 0,
 				Name:       "Jimmy",
 				Weapon:     "Mossberg 500",
+				Items: []string{"Smoke Grenade"},
 			},
 			{
 				UnitTypeID: 0,
 				Name:       "Bimmy",
 				Weapon:     "Steyr SSG 69",
+				Items: []string{"Smoke Grenade"},
 			},
 			{
 				UnitTypeID: 0,
 				Name:       "Timmy",
 				Weapon:     "M16 Rifle",
+				Items: []string{"Smoke Grenade"},
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)
@@ -165,17 +168,20 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 				UnitTypeID: 2,
 				Name:       "Gnarg",
 				Weapon:     "M16 Rifle",
+				Items: []string{"Smoke Grenade"},
 			},
 
 			{
 				UnitTypeID: 2,
 				Name:       "Gorn",
 				Weapon:     "Steyr SSG 69",
+				Items: []string{"Smoke Grenade"},
 			},
 			{
 				UnitTypeID: 2,
 				Name:       "Grimbel",
 				Weapon:     "Mossberg 500",
+				Items: []string{"Smoke Grenade"},
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)

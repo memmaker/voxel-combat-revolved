@@ -17,6 +17,7 @@ type UnitChoice struct {
 	UnitTypeID uint64
 	Name       string
 	Weapon     string
+    Items      []string
 }
 
 type SelectUnitsMessage struct {
@@ -45,8 +46,9 @@ type TargetedUnitActionMessage struct {
 
 type ThrownUnitActionMessage struct {
     UnitMessage
-    Action  string
-    Targets []mgl32.Vec3
+    Action   string
+    Targets  []mgl32.Vec3
+    ItemName string
 }
 
 type FreeAimActionMessage struct {

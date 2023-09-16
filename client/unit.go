@@ -175,7 +175,7 @@ func (p *Unit) shouldContinue(deltaTime float64) bool {
 func (p *Unit) TurnTowardsWaypoint() {
 	d := p.GetWaypoint().Sub(p.GetBlockPosition())
 	direction := voxel.Int3{X: d.X, Y: 0, Z: d.Z}
-	//println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.UnitID(), direction))
+	//println(fmt.Sprintf("[Unit] %s(%d) TurnTowardsWaypoint %v", p.GetName(), p.Attacker(), direction))
 	p.turnToDiagonalDirectionForAnimation(direction)
 }
 func (p *Unit) turnToDirectionForAnimation(direction mgl32.Vec3) {
@@ -220,7 +220,7 @@ func (p *Unit) IsCurrentWaypointADrop() bool {
 
 func (p *Unit) NextWaypoint() {
 	p.currentWaypoint++
-	//println(fmt.Sprintf("[Unit] %s(%d) NextWaypoint, now: %s", p.GetName(), p.UnitID(), p.GetWaypoint().ToString()))
+	//println(fmt.Sprintf("[Unit] %s(%d) NextWaypoint, now: %s", p.GetName(), p.Attacker(), p.GetWaypoint().ToString()))
 }
 func (p *Unit) IsUserControlled() bool {
 	return p.controlledByUser

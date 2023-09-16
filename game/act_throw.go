@@ -10,16 +10,18 @@ type ActionThrow struct {
 	engine *GameInstance
 	unit   *UnitInstance
 	valid  map[voxel.Int3]bool
+	item   *Item
 }
 
 func (a *ActionThrow) IsTurnEnding() bool {
 	return true
 }
 
-func NewActionThrow(engine *GameInstance, unit *UnitInstance) *ActionThrow {
+func NewActionThrow(engine *GameInstance, unit *UnitInstance, item *Item) *ActionThrow {
 	a := &ActionThrow{
 		engine: engine,
 		unit:   unit,
+		item: item,
 		valid:  make(map[voxel.Int3]bool),
 	}
 	a.updateValidTargets()
@@ -54,5 +56,9 @@ func (a *ActionThrow) GetTrajectory(target mgl32.Vec3) []mgl32.Vec3 {
     maxVelocity := a.unit.Definition.CoreStats.ThrowVelocity
     gravity := 9.8
     return util.CalculateTrajectory(sourcePos, target, maxVelocity, gravity)
+}
+
+func (a *ActionThrow) GetItemName() string {
+	return a.item.Definition.UniqueName
 }
 
