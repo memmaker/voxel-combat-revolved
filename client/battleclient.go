@@ -190,7 +190,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
     }
     myApp.GameClient = game.NewGameClient[*Unit](initInfos, myApp.CreateClientUnit)
     myApp.GameClient.SetEnvironment("GL-Client")
-    myApp.GameClient.SetOnExplode(myApp.OnExplode)
+    myApp.GameClient.SetOnTargetedEffect(myApp.OnTargetedEffect)
     myApp.GameClient.SetOnNotification(myApp.Print)
     myApp.chunkShader = myApp.loadChunkShader()
     myApp.lineShader = myApp.loadLineShader()
@@ -537,10 +537,18 @@ func (a *BattleClient) SwitchToUnitNoCameraMovement(unit *Unit) {
     a.state().Init(false)
 }
 
-func (a *BattleClient) SwitchToAction(unit *Unit, action game.TargetAction) {
+func (a *BattleClient) SwitchToBlockTarget(unit *Unit, action game.TargetAction) {
     a.stateStack = []GameState{
         NewGameStateUnit(a, unit),
-        &GameStateAction{IsoMovementState: IsoMovementState{engine: a}, selectedUnit: unit, selectedAction: action},
+        &GameStateBlockTarget{IsoMovementState: IsoMovementState{engine: a}, selectedAction: action},
+    }
+    a.state().Init(false)
+}
+
+func (a *BattleClient) SwitchToThrowTarget(unit *Unit, action *game.ActionThrow) {
+    a.stateStack = []GameState{
+        NewGameStateUnit(a, unit),
+        &GameStateThrowTarget{IsoMovementState: IsoMovementState{engine: a}, throwAction: action},
     }
     a.state().Init(false)
 }
@@ -758,6 +766,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
         var msg game.VisualRangedAttack
         if util.FromJson(messageAsJson, &msg) {
             a.OnRangedAttack(msg)
+        }
+    case "Throw":
+        var msg game.VisualThrow
+        if util.FromJson(messageAsJson, &msg) {
+            a.OnThrow(msg)
         }
     case "ActionResponse":
         var msg game.ActionResponse
@@ -1244,8 +1257,23 @@ func (a *BattleClient) FlashText(text string, delayInSeconds float64) {
     })
 }
 
-func (a *BattleClient) OnExplode(origin voxel.Int3, radius float64) {
-    properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3())
+func (a *BattleClient) OnTargetedEffect(origin voxel.Int3, effect game.TargetedEffect, radius float64, turnsToLive int) {
+    switch effect {
+    case game.TargetedEffectSmokeCloud:
+        a.smoker.AddSmokeCloud(origin, radius, turnsToLive)
+    case game.TargetedEffectPoisonCloud:
+        a.smoker.AddPoisonCloud(origin, radius, turnsToLive)
+    case game.TargetedEffectFire:
+        a.smoker.AddFire(origin, turnsToLive)
+    case game.TargetedEffectExplosion:
+        a.createExplosion(origin, radius)
+    }
+}
+
+func (a *BattleClient) createExplosion(origin voxel.Int3, radius float64) {
+    // velocity is hardcoded to 20..
+    lifeTime := float32(radius / 20.0)
+    properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3()).WithLifeTime(lifeTime)
     a.oneShotParticles.Emit(properties, 100)
 }
 
@@ -1253,4 +1281,11 @@ func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {
     a.selectedBlocks = selection
 }
 
+func (a *BattleClient) OnThrow(msg game.VisualThrow) {
+    for _, flyer := range msg.Flyers {
+        a.SpawnThrownObject(flyer.Trajectory, func() {
+            a.CreateTargetedEffectFromMessage(flyer.Consequence)
+        })
+    }
+}
 

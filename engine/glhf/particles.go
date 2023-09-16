@@ -25,6 +25,11 @@ func (p ParticleProperties) WithOrigin(newPos mgl32.Vec3) ParticleProperties {
     return p
 }
 
+func (p ParticleProperties) WithLifeTime(lifetime float32) ParticleProperties {
+    p.Lifetime = lifetime
+    return p
+}
+
 type Particle struct {
     id                     uint64
     Position, Velocity     mgl32.Vec3

@@ -17,7 +17,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 				println("[GameStateUnit] Unit cannot snapshot anymore.")
 				return
 			}
-			a.SwitchToAction(unit, game.NewActionShot(a.GameInstance, unit.UnitInstance))
+			a.SwitchToBlockTarget(unit, game.NewActionShot(a.GameInstance, unit.UnitInstance))
 		},
 		Hotkey: glfw.KeyR,
 	}
@@ -25,7 +25,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 		Name:         "Throw",
 		TextureIndex: a.guiIcons["grenade"],
 		Execute: func() {
-			a.SwitchToAction(unit, game.NewActionThrow(a.GameInstance, unit.UnitInstance))
+			a.SwitchToThrowTarget(unit, game.NewActionThrow(a.GameInstance, unit.UnitInstance))
 		},
 		Hotkey: glfw.KeyT,
 	}
@@ -61,7 +61,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 				println("[GameStateUnit] Unit cannot act anymore.")
 				return
 			}
-			a.SwitchToAction(unit, game.NewActionOverwatch(a.GameInstance, unit.UnitInstance))
+			a.SwitchToBlockTarget(unit, game.NewActionOverwatch(a.GameInstance, unit.UnitInstance))
 		},
 	}
 	if unit.CanReload() {

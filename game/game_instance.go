@@ -29,7 +29,7 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetai
 		mapMeta:  &mapMetadata,
 		overwatch:      make(map[voxel.Int3][]*UnitInstance),
 		missionDetails: details,
-		smokeLocations: make(map[voxel.Int3]int),
+		activeBlockEffects: make(map[voxel.Int3]BlockStatusEffectInstance),
 	}
 	g.rules = NewDefaultRuleset(g)
 	return g
@@ -43,6 +43,7 @@ type Ruleset struct {
 	OverwatchDamageModifier   float64
 	IsRangedAttackTurnEnding  bool
 	IsGroundLayerDestructible bool
+	IsThrowTurnEnding         bool
 }
 
 func NewDefaultRuleset(engine *GameInstance) *Ruleset {
@@ -107,24 +108,32 @@ type GameInstance struct {
 	environment string
 
 	// mechanics
-	overwatch         map[voxel.Int3][]*UnitInstance
-	pressureMatrix    map[uint64]map[uint64]float64
+	overwatch            map[voxel.Int3][]*UnitInstance
+	pressureMatrix       map[uint64]map[uint64]float64
 	waitForDeployment bool
-	onExplode         func(voxel.Int3, float64)
+	onTargetedEffect     func(voxel.Int3, TargetedEffect, float64, int)
 	onNotification    func(string)
-	turnCounter       int
+	onBlockEffectAdded   func(voxel.Int3, BlockEffect)
+	onBlockEffectRemoved func(voxel.Int3, BlockEffect)
 
-	smokeLocations map[voxel.Int3]int
-
+	turnCounter        int
+	activeBlockEffects map[voxel.Int3]BlockStatusEffectInstance
 }
+
 func (g *GameInstance) SetEnvironment(environment string) {
 	g.environment = environment
 }
-func (g *GameInstance) SetOnExplode(onExplode func(voxel.Int3, float64)) {
-	g.onExplode = onExplode
+func (g *GameInstance) SetOnTargetedEffect(onTargetedEffect func(voxel.Int3, TargetedEffect, float64, int)) {
+	g.onTargetedEffect = onTargetedEffect
 }
 func (g *GameInstance) SetOnNotification(onNotification func(string)) {
 	g.onNotification = onNotification
+}
+func (g *GameInstance) SetOnBlockEffectAdded(onBlockEffectAdded func(voxel.Int3, BlockEffect)) {
+	g.onBlockEffectAdded = onBlockEffectAdded
+}
+func (g *GameInstance) SetOnBlockEffectRemoved(onBlockEffectRemoved func(voxel.Int3, BlockEffect)) {
+	g.onBlockEffectRemoved = onBlockEffectRemoved
 }
 func (g *GameInstance) GetPlayerFactions() map[uint64]string {
 	result := make(map[uint64]string)
@@ -384,21 +393,34 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 	return false
 }
 
-func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
-	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %0.2f", g.environment, position.ToString(), radius))
-	g.voxelMap.ForBlockInSphere(position, radius, g.ApplyExplosionToSingleBlock)
-	if g.onExplode != nil {
-		g.onExplode(position, radius)
+func (g *GameInstance) CreateTargetedEffectFromMessage(msg MessageTargetedEffect) {
+	switch msg.Effect {
+	case TargetedEffectSmokeCloud:
+		g.CreateSmokeCloudEffect(msg.Position, msg.Radius, msg.TurnsToLive)
+	case TargetedEffectPoisonCloud:
+		//g.CreatePoisonCloudEffect(msg.Position, msg.Radius) TODO
+	case TargetedEffectFire:
+		//g.Crea
+	case TargetedEffectExplosion:
+		g.CreateExplodeEffect(msg.Position, msg.Radius)
+	}
+	if g.onTargetedEffect != nil {
+		g.onTargetedEffect(msg.Position, msg.Effect, msg.Radius, msg.TurnsToLive)
 	}
 }
+func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
+	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %0.2f", g.environment, position.ToString(), radius))
+	g.voxelMap.ForBlockInSphere(position, radius, g.applyExplosionToSingleBlock)
 
-func (g *GameInstance) CreateSmokeEffect(position voxel.Int3, radius float64) {
-	g.logGameInfo(fmt.Sprintf("[%s] Smoke at %s with radius %d", g.environment, position.ToString(), radius))
+}
+
+func (g *GameInstance) CreateSmokeCloudEffect(position voxel.Int3, radius float64, turns int) {
+	g.logGameInfo(fmt.Sprintf("[%s] Smoke at %s with radius %0.2f", g.environment, position.ToString(), radius))
 	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius float64, x int32, y int32, z int32) {
-		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z})
+		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z}, turns)
 	})
 }
-func (g *GameInstance) AddSmokeAt(location voxel.Int3) {
+func (g *GameInstance) AddSmokeAt(location voxel.Int3, turns int) {
 	if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
 		return
 	}
@@ -406,17 +428,13 @@ func (g *GameInstance) AddSmokeAt(location voxel.Int3) {
 		return
 	}
 	println(fmt.Sprintf("[GameInstance] Adding smoke at %s", location.ToString()))
-	g.smokeLocations[location] = 3
+	g.addBlockStatusEffect(location, BlockEffectSmoke, turns)
 }
-func (g *GameInstance) GetSmokeLocations() map[voxel.Int3]int {
-	return g.smokeLocations
-}
-
-func (g *GameInstance) ApplyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
+func (g *GameInstance) applyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
 	explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
 	if explodingBlock.IsOccupied() {
 		affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
-		g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone?
+		g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone? and value..
 	}
 	g.DestroyBlock(voxel.Int3{X: x, Y: y, Z: z})
 }
@@ -586,3 +604,48 @@ func (g *GameInstance) logGameError(text string) {
 	}
 }
 
+func (g *GameInstance) ClearSmokeMulti(blocks []voxel.Int3) {
+	for _, block := range blocks {
+		g.removeBlockStatusEffect(block, BlockEffectSmoke|BlockEffectPoison)
+	}
+}
+
+func (g *GameInstance) addBlockStatusEffect(location voxel.Int3, effect BlockEffect, turnsToLive int) {
+	currentEffect, exists := g.activeBlockEffects[location]
+	if exists {
+		if currentEffect.Effect == effect {
+			// extend lifetime
+			currentEffect.Turns = turnsToLive
+			g.activeBlockEffects[location] = currentEffect
+		} else {
+			g.removeBlockStatusEffect(location, currentEffect.Effect)
+		}
+	}
+	g.activeBlockEffects[location] = BlockStatusEffectInstance{Effect: effect, Turns: turnsToLive}
+	g.blockEffectAdded(location, effect)
+}
+
+func (g *GameInstance) blockEffectAdded(location voxel.Int3, effect BlockEffect) {
+	if g.onBlockEffectAdded != nil {
+		g.onBlockEffectAdded(location, effect)
+	}
+}
+
+func (g *GameInstance) blockEffectRemoved(location voxel.Int3, effect BlockEffect) {
+	if g.onBlockEffectRemoved != nil {
+		g.onBlockEffectRemoved(location, effect)
+	}
+}
+
+func (g *GameInstance) removeBlockStatusEffect(location voxel.Int3, effect BlockEffect) {
+	currentEffect, exists := g.activeBlockEffects[location]
+	if !exists {
+		return
+	}
+	// bitflag
+	if currentEffect.Effect&effect == 0 {
+		return
+	}
+	delete(g.activeBlockEffects, location)
+	g.blockEffectRemoved(location, effect)
+}

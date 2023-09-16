@@ -194,14 +194,15 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	}
 
 	projectile := game.VisualProjectile{
-		Origin:      origin,
-		Velocity:    direction.Mul(2),
-		Destination: projectileDestination,
-		UnitHit:     unitHitID,
-		BodyPart:    rayHitInfo.BodyPart,
-		Damage:      projectileBaseDamage,
-		IsLethal:    lethal,
-		BlocksHit:   hitBlocks,
+		Origin:        origin,
+		Velocity:      direction.Mul(2),
+		Destination:   projectileDestination,
+		UnitHit:       unitHitID,
+		BodyPart:      rayHitInfo.BodyPart,
+		Damage:        projectileBaseDamage,
+		IsLethal:      lethal,
+		BlocksHit:     hitBlocks,
+		VisitedBlocks: rayHitInfo.VisitedBlocks,
 	}
 	return projectile
 }
