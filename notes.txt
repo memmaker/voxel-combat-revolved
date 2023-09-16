@@ -20,6 +20,7 @@
 # Next Steps
  - Mission Objectives
  - Melee
+ - Health Bars
  - Line Drawing (Paths & Line Of Sight)
  - Make shots look good
  - Grenades: Arc drawing (Grenade throwing)

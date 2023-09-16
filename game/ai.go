@@ -108,6 +108,16 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 				c.makeMove()
 			}
 		}
+	case "Throw":
+		var msg VisualThrow
+		if util.FromJson(messageAsJson, &msg) {
+			c.OnThrow(msg)
+			if c.IsMyUnit(msg.UnitID) {
+				println(fmt.Sprintf("[DummyClient] Unit %d threw", msg.UnitID))
+				c.movedUnits[msg.UnitID] = true
+				c.makeMove()
+			}
+		}
 	case "ActionResponse":
 		var msg ActionResponse
 		if util.FromJson(messageAsJson, &msg) {

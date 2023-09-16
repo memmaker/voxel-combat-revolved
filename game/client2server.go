@@ -43,6 +43,12 @@ type TargetedUnitActionMessage struct {
 	Targets []voxel.Int3
 }
 
+type ThrownUnitActionMessage struct {
+    UnitMessage
+    Action  string
+    Targets []mgl32.Vec3
+}
+
 type FreeAimActionMessage struct {
 	UnitMessage
 	Action       string

@@ -110,7 +110,7 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 		//a.player.SetHeight(1.9 * 0.5)
 		a.smoker.AddPoisonCloud(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 5, 1)
 		//a.smoker.AddFire(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 5)
-		//a.CreateSmokeEffect()
+		//a.CreateSmokeCloudEffect()
 	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		//a.player.SetHeight(1.9 * 0.5)

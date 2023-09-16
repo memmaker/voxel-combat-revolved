@@ -298,7 +298,24 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 		changeLOS()
 	}
 }
+func (a *GameClient[U]) OnThrow(msg VisualThrow) {
+	attacker, knownAttacker := a.GetUnit(msg.UnitID)
+	var attackerUnit *UnitInstance
+	if knownAttacker {
+		attackerUnit = attacker
+		attackerUnit.SetForward(msg.Forward)
+		//attackerUnit.ConsumeGrenade().ConsumeAmmo(msg.AmmoCost)
+		// TODO: add ammo and ap cost
+		//attackerUnit.ConsumeAP(msg.APCostForAttacker)
+		if msg.IsTurnEnding {
+			attackerUnit.EndTurn()
+		}
+	}
 
+	for _, flyer := range msg.Flyers {
+		a.GameInstance.ClearSmokeMulti(flyer.VisitedBlocks)
+	}
+}
 func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 	attacker, knownAttacker := a.GetUnit(msg.Attacker)
 	var attackerUnit *UnitInstance
@@ -327,5 +344,6 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 			blockDef := a.GetBlockDefAt(damagedBlock)
 			blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
 		}
+		a.GameInstance.ClearSmokeMulti(projectile.VisitedBlocks)
 	}
 }

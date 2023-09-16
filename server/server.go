@@ -63,6 +63,11 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		if FromJson(message, &targetedUnitActionMsg) {
 			b.UnitAction(id, targetedUnitActionMsg)
 		}
+	case "ThrownUnitAction":
+		var thrownUnitAction game.ThrownUnitActionMessage
+		if FromJson(message, &thrownUnitAction) {
+			b.UnitAction(id, thrownUnitAction)
+		}
 	case "FreeAimAction":
 		var freeAimActionMsg game.FreeAimActionMessage
 		if FromJson(message, &freeAimActionMsg) {
@@ -405,47 +410,21 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		b.startGame(gameInstance)
 	}
 }
-
 func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
-	user := b.connectedClients[userID]
-	gameID := user.activeGame
-
-	if gameID == "" {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You are not in a game"})
+	user, gameInstance, isValid := b.getUserAndGame(userID)
+	if !isValid {
 		return
 	}
 
-	gameInstance, exists := b.runningGames[gameID]
-	if !exists {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Game does not exist"})
-		return
-	}
-
-	if msg.UnitID() >= uint64(len(gameInstance.GetAllUnits())) {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
-		return
-	}
-	unit, unitExists := gameInstance.GetUnit(msg.UnitID())
-
-	if !unitExists {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
-		return
-	}
-
-	if unit.ControlledBy() != userID {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
-		return
-	}
-
-	if !unit.CanAct() {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
+	unit, isValidUnit := b.getUnit(gameInstance, user, msg.UnitID())
+	if !isValidUnit {
 		return
 	}
 
 	action := GetServerActionForUnit(gameInstance, msg, unit)
 
 	// get action for this unit, check if the targets is valid
-	if isValid, reason := action.IsValid(); !isValid {
+	if isValidAction, reason := action.IsValid(); !isValidAction {
 		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Action is not valid: " + reason})
 		return
 	}
@@ -458,6 +437,29 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	}
 
 	mb.SendAll()
+}
+
+func (b *BattleServer) getUnit(gameInstance *game.GameInstance, user *UserConnection, unitID uint64) (*game.UnitInstance, bool) {
+	if unitID >= uint64(len(gameInstance.GetAllUnits())) {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return nil, false
+	}
+	unit, unitExists := gameInstance.GetUnit(unitID)
+	if !unitExists {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit does not exist"})
+		return nil, false
+	}
+
+	if unit.ControlledBy() != user.id {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "You do not control this unit"})
+		return nil, false
+	}
+
+	if !unit.CanAct() {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		return nil, false
+	}
+	return unit, true
 }
 func (b *BattleServer) EndTurn(userID uint64) {
 	user := b.connectedClients[userID]

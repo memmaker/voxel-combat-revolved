@@ -44,6 +44,8 @@ func GetServerActionForUnit(g *game.GameInstance, actionMessage game.UnitActionM
 		return GetTargetedAction(g, typedMsg, unit)
 	case game.FreeAimActionMessage:
 		return GetFreeAimAction(g, typedMsg, unit)
+    case game.ThrownUnitActionMessage:
+        return NewServerActionThrow(g, unit, typedMsg.Targets)
 	}
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action type %T", actionMessage))
 }

@@ -17,7 +17,8 @@ type UnitCoreStats struct {
     Accuracy        float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
     MovementPerAP   float64 // MovementPerAP Movement per action point
     MaxActionPoints float64 // MaxActionPoints Maximum action points
-    ThrowVelocity float64   // ThrowVelocity Velocity of thrown objects
+    ThrowVelocity  float64  // ThrowVelocity Velocity of thrown objects
+    BaseAPForThrow int
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
