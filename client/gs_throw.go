@@ -49,7 +49,8 @@ func (g *GameStateThrowTarget) Init(bool) {
 func (g *GameStateThrowTarget) OnMouseClicked(x float64, y float64) {
     if len(g.trajectoryPositions) > 0 && g.engine.selectedUnit.CanAct() {
         g.engine.lines.Clear()
-        util.MustSend(g.engine.server.ThrownUnitAction(g.engine.selectedUnit.UnitID(), g.throwAction.GetName(), []mgl32.Vec3{g.targetPos}))
+        // must send item
+        util.MustSend(g.engine.server.ThrownUnitAction(g.engine.selectedUnit.UnitID(), g.throwAction.GetName(), g.throwAction.GetItemName(), []mgl32.Vec3{g.targetPos}))
         g.engine.PopState()
     }
 }

@@ -21,14 +21,6 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 		},
 		Hotkey: glfw.KeyR,
 	}
-	throwGrenade := gui.ActionItem{
-		Name:         "Throw",
-		TextureIndex: a.guiIcons["grenade"],
-		Execute: func() {
-			a.SwitchToThrowTarget(unit, game.NewActionThrow(a.GameInstance, unit.UnitInstance))
-		},
-		Hotkey: glfw.KeyT,
-	}
 	freeAim := gui.ActionItem{
 		Name:         "Free Aim",
 		TextureIndex: a.guiIcons["reticule"],
@@ -67,9 +59,19 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 	if unit.CanReload() {
 		actions = append(actions, reloadAction)
 	}
+	for _, item := range unit.GetItems() {
+		itemAction := gui.ActionItem{
+			Name:         item.Definition.UniqueName,
+			TextureIndex: a.guiIcons[string(item.Definition.ItemType)], // hardcoded for now
+			Execute: func() {
+				a.StartItemAction(unit, item)
+			},
+			Hotkey: glfw.KeyT, // TODO: change this to the actual hotkey
+		}
+		actions = append(actions, itemAction)
+	}
 	if unit.CanSnapshot() {
 		actions = append(actions, snapshot)
-		actions = append(actions, throwGrenade) // TODO: sort this shit out
 	}
 	if unit.CanFreeAim() {
 		actions = append(actions, freeAim)

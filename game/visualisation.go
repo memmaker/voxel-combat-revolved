@@ -35,35 +35,6 @@ func (v VisualEnemyUnitMoved) MessageType() string {
 	return "EnemyUnitMoved"
 }
 
-type TargetedEffect string
-
-const (
-	TargetedEffectSmokeCloud  TargetedEffect = "SmokeCloud"
-	TargetedEffectPoisonCloud TargetedEffect = "PoisonCloud"
-	TargetedEffectFire        TargetedEffect = "Fire"
-	TargetedEffectExplosion   TargetedEffect = "Explosion"
-)
-
-type BlockStatusEffectInstance struct {
-	Effect BlockEffect
-	Turns  int
-}
-type BlockStatusEffect int
-
-const (
-	BlockStatusEffectBlocksLOS BlockStatusEffect = 1 << iota
-	BlockStatusEffectBlocksMovement
-	BlockStatusEffectDamagesOnTouch
-)
-
-type BlockEffect int
-
-const (
-	BlockEffectSmoke BlockEffect = 1 << iota
-	BlockEffectPoison
-	BlockEffectFire
-)
-
 type MessageTargetedEffect struct {
 	Position    voxel.Int3
 	Effect      TargetedEffect
@@ -79,12 +50,13 @@ type VisualFlightWithImpact struct {
 }
 
 type VisualThrow struct {
-	UnitID            uint64
-	Forward           voxel.Int3
+	Attacker          uint64
+	AimDirection      voxel.Int3
 	Flyers            []VisualFlightWithImpact
 	IsTurnEnding      bool
 	APCostForAttacker int
 	AmmoCost          uint
+	ItemUsed          string
 }
 
 func (v VisualThrow) MessageType() string {
@@ -95,7 +67,7 @@ type VisualRangedAttack struct {
 	WeaponType        WeaponType
 	AmmoCost          uint
 	Attacker          uint64
-	AimDirection      mgl32.Vec3
+	AimDirection      voxel.Int3
 	APCostForAttacker int
 	IsTurnEnding      bool
 }

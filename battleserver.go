@@ -171,5 +171,13 @@ func NewBattleServer() *server.BattleServer {
 		BaseAPForShot:       3,
 		BaseAPForReload:     3,
 	})
+
+	battleServer.AddItem(game.ItemDefinition{
+		UniqueName:  "Smoke Grenade",
+		Model:       "SmokeGrenade",
+		ItemType:    game.ItemTypeGrenade,
+		Radius:      5.0,
+		TurnsToLive: 3,
+	})
 	return battleServer
 }

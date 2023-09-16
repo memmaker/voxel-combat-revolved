@@ -820,6 +820,31 @@ func (a *BattleClient) OnReload(msg game.UnitMessage) {
     a.Print(fmt.Sprintf("%s reloaded the %s.", unit.GetName(), unit.GetWeapon().Definition.UniqueName))
     a.UpdateActionbarFor(unit)
 }
+func (a *BattleClient) OnThrow(msg game.VisualThrow) {
+    attacker, knownAttacker := a.GetClientUnit(msg.Attacker)
+    var attackerUnit *game.UnitInstance
+    if knownAttacker {
+        attackerUnit = attacker.UnitInstance
+        attackerUnit.SetForward(msg.AimDirection)
+        attackerUnit.UpdateMapPosition()
+
+        attackerUnit.ConsumeAP(msg.APCostForAttacker)
+        attackerUnit.RemoveItem(msg.ItemUsed)
+
+        attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
+        if msg.IsTurnEnding {
+            attackerUnit.EndTurn()
+        }
+        if a.selectedUnit == attacker {
+            a.UpdateActionbarFor(attacker)
+        }
+    }
+    for _, flyer := range msg.Flyers {
+        a.SpawnThrownObject(flyer.Trajectory, func() {
+            a.CreateTargetedEffectFromMessage(flyer.Consequence)
+        })
+    }
+}
 
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
     // TODO: animate unit firing
@@ -829,13 +854,18 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
     var attackerUnit *game.UnitInstance
     if knownAttacker {
         attackerUnit = attacker.UnitInstance
-        attackerUnit.SetForward(voxel.DirectionToGridInt3(msg.AimDirection))
+        attackerUnit.SetForward(msg.AimDirection)
         attackerUnit.UpdateMapPosition()
-        attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
+
         attackerUnit.ConsumeAP(msg.APCostForAttacker)
+        attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
+
         attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
         if msg.IsTurnEnding {
             attackerUnit.EndTurn()
+        }
+        if a.selectedUnit == attacker {
+            a.UpdateActionbarFor(attacker)
         }
     }
     attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
@@ -929,9 +959,9 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
     if msg.UpdatedUnit != nil { // we lost LOS, so no update is sent
         a.AddOrUpdateUnit(msg.UpdatedUnit)
         movingUnit, _ = a.GetClientUnit(msg.MovingUnit)
-        //println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.UnitID(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward2DCardinal().ToString()))
+        //println(fmt.Sprintf("[BattleClient] Received LOS update for unit %s(%d) at %s facing %s", movingUnit.GetName(), movingUnit.Attacker(), movingUnit.GetBlockPosition().ToString(), movingUnit.GetForward2DCardinal().ToString()))
     }
-    //println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.UnitID()))
+    //println(fmt.Sprintf("[BattleClient] Enemy unit %s(%d) moving", movingUnit.GetName(), movingUnit.Attacker()))
     /*
     	for i, path := range msg.PathParts {
     		//println(fmt.Sprintf("[BattleClient] Path %d", i))
@@ -1049,7 +1079,7 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
     //a.GetVoxelMap().PrintArea2D(16, 16)
     /*
     for _, unit := range a.GetAllUnits() {
-        println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.UnitID(), unit.GetBlockPosition()))
+                    println(fmt.Sprintf("[BattleClient] > Unit %s(%d): %v", unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
     }
 
     */
@@ -1281,11 +1311,10 @@ func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {
     a.selectedBlocks = selection
 }
 
-func (a *BattleClient) OnThrow(msg game.VisualThrow) {
-    for _, flyer := range msg.Flyers {
-        a.SpawnThrownObject(flyer.Trajectory, func() {
-            a.CreateTargetedEffectFromMessage(flyer.Consequence)
-        })
+func (a *BattleClient) StartItemAction(unit *Unit, item *game.Item) {
+    switch item.Definition.ItemType {
+    case game.ItemTypeGrenade:
+        a.SwitchToThrowTarget(unit, game.NewActionThrow(a.GameInstance, unit.UnitInstance, item))
     }
 }
 

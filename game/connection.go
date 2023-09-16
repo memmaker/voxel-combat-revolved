@@ -122,8 +122,8 @@ func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, 
 	return c.send("UnitAction", message)
 }
 
-func (c *ServerConnection) ThrownUnitAction(gameUnitID uint64, action string, target []mgl32.Vec3) error {
-	message := ThrownUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Targets: target}
+func (c *ServerConnection) ThrownUnitAction(gameUnitID uint64, action string, itemName string, target []mgl32.Vec3) error {
+    message := ThrownUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Targets: target, ItemName: itemName}
 	return c.send("ThrownUnitAction", message)
 }
 

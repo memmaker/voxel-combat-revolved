@@ -156,7 +156,7 @@ func (a *ServerActionShot) Execute(mb *game.MessageBuffer) {
 		AmmoCost:          ammoCost,
 		Attacker:          a.unit.UnitID(),
 		APCostForAttacker: costOfAPForShot,
-		AimDirection:      lastAimDir,
+		AimDirection: voxel.DirectionToGridInt3(lastAimDir),
 		IsTurnEnding:      a.IsTurnEnding(),
 	})
 }

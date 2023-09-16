@@ -54,6 +54,7 @@ type UnitInstance struct {
     MovementPenalty float64
     AimPenalty      float64
     CurrentStance   Stance
+    Inventory       []*Item
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -67,6 +68,11 @@ func (u *UnitInstance) UnitID() uint64 {
 func (u *UnitInstance) GetName() string {
     return u.Name
 }
+
+func (u *UnitInstance) GetItems() []*Item {
+    return u.Inventory
+}
+
 func (u *UnitInstance) GetBlockPosition() voxel.Int3 {
     return u.Transform.GetBlockPosition()
 }
@@ -121,12 +127,12 @@ func (u *UnitInstance) CanFreeAim() bool {
     return u.CanAct() && u.GetWeapon().IsReady() && enoughAP
 }
 func (u *UnitInstance) EndTurn() {
-    //println(fmt.Sprintf("[UnitInstance] %s(%d) ended turn. AP=0.", u.GetName(), u.UnitID()))
+    //println(fmt.Sprintf("[UnitInstance] %s(%d) ended turn. AP=0.", u.GetName(), u.Attacker()))
     u.ActionPoints = 0
 }
 
 func (u *UnitInstance) NextTurn() {
-    //println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.UnitID(), u.Definition.CoreStats.MaxActionPoints))
+    //println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.Attacker(), u.Definition.CoreStats.MaxActionPoints))
     u.ActionPoints = u.Definition.CoreStats.MaxActionPoints
 }
 
@@ -442,6 +448,28 @@ func (u *UnitInstance) AutoSetStanceAndForwardAndUpdateMap() {
 
 func (u *UnitInstance) GetForward() voxel.Int3 {
     return u.Transform.GetForward2DDiagonal()
+}
+
+func (u *UnitInstance) AddItem(item *Item) {
+    u.Inventory = append(u.Inventory, item)
+}
+
+func (u *UnitInstance) HasItem(uniqueName string) bool {
+    for _, item := range u.Inventory {
+        if item.Definition.UniqueName == uniqueName {
+            return true
+        }
+    }
+    return false
+}
+
+func (u *UnitInstance) RemoveItem(uniqueName string) {
+    for i, item := range u.Inventory {
+        if item.Definition.UniqueName == uniqueName {
+            u.Inventory = append(u.Inventory[:i], u.Inventory[i+1:]...)
+            return
+        }
+    }
 }
 
 func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitID uint64, unitPosition, unitForward voxel.Int3) (Stance, voxel.Int3) {

@@ -89,7 +89,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		var msg VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnOwnUnitMoved(msg)
-			//println(fmt.Sprintf("[DummyClient] Unit %d moved to %s", msg.UnitID, msg.EndPosition.ToString()))
+			//println(fmt.Sprintf("[DummyClient] Unit %d moved to %s", msg.Attacker, msg.EndPosition.ToString()))
 			c.movedUnits[msg.UnitID] = true
 			c.makeMove()
 		}
@@ -112,9 +112,9 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		var msg VisualThrow
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnThrow(msg)
-			if c.IsMyUnit(msg.UnitID) {
-				println(fmt.Sprintf("[DummyClient] Unit %d threw", msg.UnitID))
-				c.movedUnits[msg.UnitID] = true
+			if c.IsMyUnit(msg.Attacker) {
+				println(fmt.Sprintf("[DummyClient] Unit %d threw", msg.Attacker))
+				c.movedUnits[msg.Attacker] = true
 				c.makeMove()
 			}
 		}
@@ -257,12 +257,14 @@ func (c *DummyClient) CreateGameSequence() {
 			UnitTypeID: 0,
 			Name:       "Jimmy",
 			Weapon:     "Mossberg 500",
+			Items: []string{"Smoke Grenade"},
 		},
 
 		{
 			UnitTypeID: 0,
 			Name:       "Bimmy",
 			Weapon:     "Steyr SSG 69",
+			Items: []string{"Smoke Grenade"},
 		},
 		/*
 			{
