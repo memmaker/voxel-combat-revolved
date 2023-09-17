@@ -152,7 +152,7 @@ var BehaviorTable = map[AnimationStateName]func() AnimationState{
 	ActorStateIdle:    func() AnimationState { return &ActorIdleBehavior{} },
 	UnitGotoWaypoint:  func() AnimationState { return &UnitGotoWaypointBehavior{} },
 	ActorStateWaiting: func() AnimationState { return &ActorWaitingBehavior{} },
-	ActorStateHit: func() AnimationState { return &ActorHitBehavior{} },
+	ActorStateHit:     func() AnimationState { return &ActorHitBehavior{} },
 	ActorStateDying:   func() AnimationState { return &ActorDyingBehavior{} },
 	ActorStateDead:    func() AnimationState { return &ActorDeadBehavior{} },
 }

@@ -1,8 +1,8 @@
 package game
 
 import (
-    "github.com/go-gl/mathgl/mgl32"
-    "github.com/memmaker/battleground/engine/util"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 )
 
@@ -21,7 +21,7 @@ func NewActionThrow(engine *GameInstance, unit *UnitInstance, item *Item) *Actio
 	a := &ActionThrow{
 		engine: engine,
 		unit:   unit,
-		item: item,
+		item:   item,
 		valid:  make(map[voxel.Int3]bool),
 	}
 	a.updateValidTargets()
@@ -52,13 +52,12 @@ func (a *ActionThrow) updateValidTargets() {
 }
 
 func (a *ActionThrow) GetTrajectory(target mgl32.Vec3) []mgl32.Vec3 {
-    sourcePos := a.unit.GetEyePosition()
-    maxVelocity := a.unit.Definition.CoreStats.ThrowVelocity
-    gravity := 9.8
-    return util.CalculateTrajectory(sourcePos, target, maxVelocity, gravity)
+	sourcePos := a.unit.GetEyePosition()
+	maxVelocity := a.unit.Definition.CoreStats.ThrowVelocity
+	gravity := 9.8
+	return util.CalculateTrajectory(sourcePos, target, maxVelocity, gravity)
 }
 
 func (a *ActionThrow) GetItemName() string {
 	return a.item.Definition.UniqueName
 }
-

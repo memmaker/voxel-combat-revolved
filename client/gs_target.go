@@ -24,8 +24,8 @@ func (g *GameStateBlockTarget) OnServerMessage(msgType string, json string) {
 	case "RangedAttack":
 		var msg game.VisualRangedAttack
 		if util.FromJson(json, &msg) {
-            if msg.Attacker == g.engine.selectedUnit.UnitID() && !g.engine.cameraIsFirstPerson {
-                g.engine.SwitchToUnitNoCameraMovement(g.engine.selectedUnit)
+			if msg.Attacker == g.engine.selectedUnit.UnitID() && !g.engine.cameraIsFirstPerson {
+				g.engine.SwitchToUnitNoCameraMovement(g.engine.selectedUnit)
 			}
 		}
 	}
@@ -37,7 +37,7 @@ func (g *GameStateBlockTarget) OnKeyPressed(key glfw.Key) {
 	}
 
 	if key == glfw.KeyTab {
-        g.engine.SwitchToNextUnit(g.engine.selectedUnit)
+		g.engine.SwitchToNextUnit(g.engine.selectedUnit)
 	} else {
 		g.IsoMovementState.OnKeyPressed(key)
 	}
@@ -54,12 +54,12 @@ func (g *GameStateBlockTarget) Init(bool) {
 }
 
 func (g *GameStateBlockTarget) OnMouseClicked(x float64, y float64) {
-    println(fmt.Sprintf("[GameStateBlockTarget] Clicked at %0.2f, %0.2f", x, y))
-    groundBlock := g.engine.groundSelector.GetBlockPosition()
-    println(fmt.Sprintf("[GameStateBlockTarget] Block %s", groundBlock.ToString()))
+	println(fmt.Sprintf("[GameStateBlockTarget] Clicked at %0.2f, %0.2f", x, y))
+	groundBlock := g.engine.groundSelector.GetBlockPosition()
+	println(fmt.Sprintf("[GameStateBlockTarget] Block %s", groundBlock.ToString()))
 
-    if g.engine.selectedUnit.CanAct() && g.selectedAction.IsValidTarget(groundBlock) {
-        println(fmt.Sprintf("[GameStateBlockTarget] Target %s is VALID, sending to server.", groundBlock.ToString()))
-        util.MustSend(g.engine.server.TargetedUnitAction(g.engine.selectedUnit.UnitID(), g.selectedAction.GetName(), []voxel.Int3{groundBlock}))
+	if g.engine.selectedUnit.CanAct() && g.selectedAction.IsValidTarget(groundBlock) {
+		println(fmt.Sprintf("[GameStateBlockTarget] Target %s is VALID, sending to server.", groundBlock.ToString()))
+		util.MustSend(g.engine.server.TargetedUnitAction(g.engine.selectedUnit.UnitID(), g.selectedAction.GetName(), []voxel.Int3{groundBlock}))
 	}
 }

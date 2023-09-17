@@ -4,7 +4,7 @@ import (
 	"runtime"
 
 	"github.com/faiface/mainthread"
-    "github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
 // Frame is a fixed resolution texture that you can draw on.

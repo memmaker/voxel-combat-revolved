@@ -43,7 +43,7 @@ type MessageTargetedEffect struct {
 }
 
 type VisualFlightWithImpact struct {
-	Trajectory    []mgl32.Vec3
+	Trajectory []mgl32.Vec3
 	FinalWorldPos mgl32.Vec3
 	Consequence   MessageTargetedEffect
 	VisitedBlocks []voxel.Int3
@@ -62,6 +62,7 @@ type VisualThrow struct {
 func (v VisualThrow) MessageType() string {
 	return "Throw"
 }
+
 type VisualRangedAttack struct {
 	Projectiles       []VisualProjectile
 	WeaponType        WeaponType
@@ -72,15 +73,16 @@ type VisualRangedAttack struct {
 	IsTurnEnding      bool
 }
 type VisualProjectile struct {
-	Origin        mgl32.Vec3
-	Destination   mgl32.Vec3
-	Velocity      mgl32.Vec3
-	UnitHit       int64
-	BodyPart      util.DamageZone
-	Damage        int
-	IsLethal      bool
-	BlocksHit     []voxel.Int3 // BlocksHit will only contain blocks that have an OnDamageReceived effect
-	VisitedBlocks []voxel.Int3 // VisitedBlocks will contain all blocks that the projectile passed through
+	Origin          mgl32.Vec3
+	Destination     mgl32.Vec3
+	Velocity        mgl32.Vec3
+	UnitHit         int64
+	BodyPart        util.DamageZone
+	Damage          int
+	IsLethal        bool
+	BlocksHit       []voxel.Int3 // BlocksHit will only contain blocks that have an OnDamageReceived effect
+	VisitedBlocks   []voxel.Int3 // VisitedBlocks will contain all blocks that the projectile passed through
+	InsteadOfDamage MessageTargetedEffect
 }
 
 func (v VisualRangedAttack) MessageType() string {

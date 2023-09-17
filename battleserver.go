@@ -12,55 +12,13 @@ func NewBattleServer() *server.BattleServer {
 		MovementPerAP:   3,
 		Accuracy:        0.9,
 		MaxActionPoints: 4,
-		ThrowVelocity: 12,
+		ThrowVelocity:  12,
+		BaseAPForThrow: 2,
 	}
 
 	battleServer := server.NewBattleServer()
 
 	battleServer.AddMap("Dev Map", "map")
-	/*
-		humanoid := []voxel.Int3{
-			{0, 0, 0},
-			{0, 1, 0},
-		}
-		threeByThree := []voxel.Int3{
-			{0, 0, 0},
-			{0, 1, 0},
-			{0, 2, 0},
-
-			{1, 0, 0},
-			{1, 1, 0},
-			{1, 2, 0},
-
-			{-1, 0, 0},
-			{-1, 1, 0},
-			{-1, 2, 0},
-
-			{0, 0, 1},
-			{0, 1, 1},
-			{0, 2, 1},
-
-			{1, 0, 1},
-			{1, 1, 1},
-			{1, 2, 1},
-
-			{-1, 0, 1},
-			{-1, 1, 1},
-			{-1, 2, 1},
-
-			{0, 0, -1},
-			{0, 1, -1},
-			{0, 2, -1},
-
-			{1, 0, -1},
-			{1, 1, -1},
-			{1, 2, -1},
-
-			{-1, 0, -1},
-			{-1, 1, -1},
-			{-1, 2, -1},
-		}
-	*/
 	battleServer.AddFaction(game.FactionDefinition{
 		Name:  "X-Com",
 		Color: mgl32.Vec3{0, 0, 1},
@@ -68,17 +26,19 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        0,
 				CoreStats: defaultCoreStats,
-				ModelFile: "soldier",
-				AnimationMap: map[string]string{
-					"idle":      game.AnimationIdle.Str(),
-					"idle2":     game.AnimationWeaponIdle.Str(),
-					"hit":       game.AnimationHit.Str(),
-					"run":       game.AnimationWeaponWalk.Str(),
-					"death":     game.AnimationDeath.Str(),
-					"climb":     game.AnimationClimb.Str(),
-					"drop":      game.AnimationDrop.Str(),
-					"wall_idle": game.AnimationWallIdle.Str(),
-				},
+				ModelFile: "human",
+				/*
+					AnimationMap: map[string]string{
+						"idle":      game.AnimationIdle.Str(),
+						"idle2":     game.AnimationWeaponIdle.Str(),
+						"hit":       game.AnimationHit.Str(),
+						"run":       game.AnimationWeaponWalk.Str(),
+						"death":     game.AnimationDeath.Str(),
+						"climb":     game.AnimationClimb.Str(),
+						"drop":      game.AnimationDrop.Str(),
+						"wall_idle": game.AnimationWallIdle.Str(),
+					},
+				*/
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "steve",
 				},
@@ -101,17 +61,19 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        2,
 				CoreStats: defaultCoreStats,
-				ModelFile: "soldier",
-				AnimationMap: map[string]string{
-					"idle":      game.AnimationIdle.Str(),
-					"idle2":     game.AnimationWeaponIdle.Str(),
-					"hit":       game.AnimationHit.Str(),
-					"run":       game.AnimationWeaponWalk.Str(),
-					"death":     game.AnimationDeath.Str(),
-					"climb":     game.AnimationClimb.Str(),
-					"drop":      game.AnimationDrop.Str(),
-					"wall_idle": game.AnimationWallIdle.Str(),
-				},
+				ModelFile: "human",
+				/*
+					AnimationMap: map[string]string{
+						"idle":      game.AnimationIdle.Str(),
+						"idle2":     game.AnimationWeaponIdle.Str(),
+						"hit":       game.AnimationHit.Str(),
+						"run":       game.AnimationWeaponWalk.Str(),
+						"death":     game.AnimationDeath.Str(),
+						"climb":     game.AnimationClimb.Str(),
+						"drop":      game.AnimationDrop.Str(),
+						"wall_idle": game.AnimationWallIdle.Str(),
+					},
+				*/
 				ClientRepresentation: game.UnitClientDefinition{
 					//TextureFile: "deep_monster2",
 				},
@@ -126,6 +88,20 @@ func NewBattleServer() *server.BattleServer {
 				},
 			},
 		},
+	})
+	battleServer.AddWeapon(game.WeaponDefinition{
+		UniqueName:          "M1911 Pistol",
+		Model:               "Rifle",
+		WeaponType:          game.WeaponPistol,
+		AccuracyModifier:    0.95,
+		BulletsPerShot:      2,
+		EffectiveRange:      12,
+		MaxRange:            30,
+		MagazineSize:        4,
+		BaseDamagePerBullet: 2,
+		MinFOVForZoom:       45,
+		BaseAPForShot:       2,
+		BaseAPForReload:     2,
 	})
 	battleServer.AddWeapon(game.WeaponDefinition{
 		UniqueName:          "M16 Rifle",
@@ -172,12 +148,48 @@ func NewBattleServer() *server.BattleServer {
 		BaseAPForReload:     3,
 	})
 
+	battleServer.AddWeapon(game.WeaponDefinition{
+		UniqueName:          "LAW Rocket",
+		Model:               "Sniper",
+		WeaponType:          game.WeaponRocketLauncher,
+		AccuracyModifier:    0.9,
+		BulletsPerShot:      1,
+		EffectiveRange:      20,
+		MaxRange:            60,
+		MagazineSize:        1,
+		BaseDamagePerBullet: 0,
+		MinFOVForZoom:       40,
+		BaseAPForShot:       3,
+		BaseAPForReload:     3,
+		InsteadOfDamage:     game.TargetedEffectExplosion,
+		Radius:              3,
+	})
+
 	battleServer.AddItem(game.ItemDefinition{
 		UniqueName:  "Smoke Grenade",
 		Model:       "SmokeGrenade",
 		ItemType:    game.ItemTypeGrenade,
 		Radius:      5.0,
 		TurnsToLive: 3,
+		Effect: game.TargetedEffectSmokeCloud,
+	})
+
+	battleServer.AddItem(game.ItemDefinition{
+		UniqueName:  "Poison Grenade",
+		Model:       "PoisonGrenade",
+		ItemType:    game.ItemTypeGrenade,
+		Radius:      5.0,
+		TurnsToLive: 3,
+		Effect:      game.TargetedEffectPoisonCloud,
+	})
+
+	battleServer.AddItem(game.ItemDefinition{
+		UniqueName:  "Frag Grenade",
+		Model:       "FragGrenade",
+		ItemType:    game.ItemTypeGrenade,
+		Radius:      3.0,
+		TurnsToLive: 1,
+		Effect:      game.TargetedEffectExplosion,
 	})
 	return battleServer
 }

@@ -11,6 +11,7 @@ const (
 	WeaponShotgun   WeaponType = "Shotgun"
 	WeaponSniper    WeaponType = "Sniper"
 	WeaponPistol    WeaponType = "Pistol"
+	WeaponRocketLauncher WeaponType = "Rocket Launcher"
 )
 
 type WeaponDefinition struct {
@@ -26,6 +27,9 @@ type WeaponDefinition struct {
 	MinFOVForZoom       uint
 	BaseAPForShot       uint
 	BaseAPForReload     uint
+	InsteadOfDamage     TargetedEffect
+	TurnsToLive         int
+	Radius              float64
 }
 type Weapon struct {
 	Definition      *WeaponDefinition

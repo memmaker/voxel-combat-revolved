@@ -130,9 +130,9 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 			if msg.YourTurn {
 				util.MustSend(c.connection.EndTurn())
 				/*
-				c.resetTurn()
-				c.makeMove()
-				c.turnCounter++
+					c.resetTurn()
+					c.makeMove()
+					c.turnCounter++
 
 				*/
 			}
@@ -257,14 +257,14 @@ func (c *DummyClient) CreateGameSequence() {
 			UnitTypeID: 0,
 			Name:       "Jimmy",
 			Weapon:     "Mossberg 500",
-			Items: []string{"Smoke Grenade"},
+			Items:      []string{"Smoke Grenade"},
 		},
 
 		{
 			UnitTypeID: 0,
 			Name:       "Bimmy",
 			Weapon:     "Steyr SSG 69",
-			Items: []string{"Smoke Grenade"},
+			Items:      []string{"Smoke Grenade"},
 		},
 		/*
 			{

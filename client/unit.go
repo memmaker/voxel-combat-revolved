@@ -85,7 +85,6 @@ func (p *Unit) Update(deltaTime float64) {
 	}
 }
 
-
 func (p *Unit) applyVelocity(deltaTime float64) {
 	gravity := mgl32.Vec3{0, -9.8, 0}
 	previousPos := p.GetPosition()
@@ -247,7 +246,7 @@ func (p *Unit) GetLastDirection() voxel.Int3 {
 	if len(p.currentPath) > 1 {
 		prev = p.currentPath[len(p.currentPath)-2]
 	}
-	
+
 	return voxel.Int3{X: last.X - prev.X, Y: last.Y - prev.Y, Z: last.Z - prev.Z}
 }
 
@@ -258,7 +257,6 @@ func (p *Unit) IsIdle() bool {
 func (p *Unit) FreezeStanceAnimation() {
 	p.UnitInstance.GetModel().SetAnimationPose(p.GetStance().GetAnimation().Str())
 }
-
 
 func (p *Unit) IsInTheAir() bool {
 	posBelow := p.GetPosition().Sub(mgl32.Vec3{0, 1, 0})
@@ -318,3 +316,4 @@ func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
 	p.AutoSetStanceAndForwardAndUpdateMap()
 	p.StartStanceAnimation()
 }
+

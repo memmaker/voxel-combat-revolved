@@ -72,10 +72,16 @@ func (a *ServerActionThrow) Execute(mb *game.MessageBuffer) {
 		}
 		validTrajectories = append(validTrajectories, trajectory)
 	}
+
+	item := a.unit.GetItem(a.itemName)
+
 	var flyers []game.VisualFlightWithImpact
 	for _, trajectory := range validTrajectories {
 
 		visitedBlocks, finalWorldPos := a.simulateTrajectory(trajectory)
+
+		a.engine.ClearSmokeMulti(visitedBlocks)
+
 		finalBlockPos := voxel.PositionToGridInt3(finalWorldPos)
 		a.lastAimDirection = finalWorldPos.Sub(a.unit.GetPosition()).Normalize()
 		flyers = append(flyers, game.VisualFlightWithImpact{
@@ -84,18 +90,18 @@ func (a *ServerActionThrow) Execute(mb *game.MessageBuffer) {
 			FinalWorldPos: finalWorldPos,
 			Consequence: game.MessageTargetedEffect{
 				Position:    finalBlockPos,
-				TurnsToLive: 3, // TODO: effect is hardcoded for now
-				Radius:      5,
-				Effect:      game.TargetedEffectSmokeCloud,
+				TurnsToLive: item.Definition.TurnsToLive,
+				Radius:      item.Definition.Radius,
+				Effect:      item.Definition.Effect,
 			},
 		})
 	}
 
 	ammoCost := uint(len(validTrajectories))
 	costOfAPForShot := a.totalAPCost
+
 	a.unit.ConsumeAP(costOfAPForShot)
 	a.unit.RemoveItem(a.itemName)
-	//a.unit.ConsumeGrenade(ammoCost) // TODO: implement grenade ammo
 
 	lastAimDir := mgl32.Vec3{a.lastAimDirection.X(), 0, a.lastAimDirection.Z()}
 	newForward := voxel.DirectionToGridInt3(lastAimDir)

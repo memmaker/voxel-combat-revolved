@@ -225,9 +225,9 @@ func (a *GameClient[U]) OnNextPlayer(msg NextPlayerMessage) {
 	//println(fmt.Sprintf("[%s] VoxelMap:", a.environment))
 	//a.GetVoxelMap().PrintArea2D(16, 16)
 	/*
-	for _, unit := range a.GetAllUnits() {
-			println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
-	}
+		for _, unit := range a.GetAllUnits() {
+				println(fmt.Sprintf("[%s] > Unit %s(%d): %v", a.environment, unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
+		}
 
 	*/
 	if msg.YourTurn {
@@ -313,7 +313,7 @@ func (a *GameClient[U]) OnThrow(msg VisualThrow) {
 
 	for _, flyer := range msg.Flyers {
 		a.GameInstance.ClearSmokeMulti(flyer.VisitedBlocks)
-		a.GameInstance.CreateTargetedEffectFromMessage(flyer.Consequence)
+		a.GameInstance.ApplyTargetedEffectFromMessage(flyer.Consequence)
 	}
 }
 func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
@@ -344,6 +344,11 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 			blockDef := a.GetBlockDefAt(damagedBlock)
 			blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
 		}
+
+		if projectile.InsteadOfDamage.Effect != TargetedEffectNone {
+			a.GameInstance.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage)
+		}
+
 		a.GameInstance.ClearSmokeMulti(projectile.VisitedBlocks)
 	}
 }

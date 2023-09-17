@@ -21,6 +21,23 @@ type Projectile struct {
 	model     *util.CompoundMesh
 }
 
+func (p *Projectile) GetParticleProps() glhf.ParticleProperties {
+	return glhf.ParticleProperties{
+		Origin:               p.GetPosition().Add(p.GetForward().Normalize().Mul(-0.1)),
+		PositionVariation:    mgl32.Vec3{0.04, 0.04, 0.04},
+		VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{} },
+		ColorBegin:           mgl32.Vec3{0.9, 0.9, 0.9},
+		ColorEnd:             mgl32.Vec3{0.8, 0.8, 0.8},
+		ColorVariation:       0,
+		SizeBegin:            0.03,
+		SizeEnd:              0.01,
+		SizeVariation:        0,
+		Lifetime:             2,
+		MaxDistance:          0,
+		SpreadLifetime:       0,
+	}
+}
+
 func (p *Projectile) GetName() string {
 	return "Projectile"
 }

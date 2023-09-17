@@ -3,7 +3,8 @@ package glhf
 // AttrFormat defines names and types of OpenGL attributes (vertex format, uniform format, etc.).
 //
 // Example:
-//   AttrFormat{{"position", Vec2}, {"color", Vec4}, {"texCoord": Vec2}}
+//
+//	AttrFormat{{"position", Vec2}, {"color", Vec4}, {"texCoord": Vec2}}
 type AttrFormat []Attr
 
 // Size returns the total size of all attributes of the AttrFormat.

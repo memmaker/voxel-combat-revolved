@@ -8,12 +8,12 @@ import (
 )
 
 type MeshCollider struct {
-	VertexData       []glhf.GlFloat // vertex data format: posX, posY, posZ, normalX, normalY, normalZ, texU, texV
-	TransformFunc    func() mgl32.Mat4
-	name             string
-	velocity         mgl32.Vec3
-	VertexCount      int
-	VertexIndices    []uint32
+	VertexData             []glhf.GlFloat // vertex data format: posX, posY, posZ, normalX, normalY, normalZ, texU, texV
+	TransformFunc          func() mgl32.Mat4
+	name                   string
+	velocity               mgl32.Vec3
+	VertexCount            int
+	VertexIndices          []uint32
 	VertexFormatComponents uint32
 }
 

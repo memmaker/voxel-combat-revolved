@@ -15,14 +15,14 @@ type GlApplication struct {
 	TerminateFunc      func()
 	UpdateFunc         func(elapsed float64)
 	DrawFunc           func(elapsed float64)
-    ResizeHandler      func(width int, height int)
+	ResizeHandler      func(width int, height int)
 	KeyHandler         func(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey)
 	MousePosHandler    func(xpos float64, ypos float64)
 	MouseButtonHandler func(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey)
 	ScrollHandler      func(xoff float64, yoff float64)
 	WindowWidth        int
 	WindowHeight       int
-	ticks              uint64
+	Ticks              uint64
 	FramesPerSecond    float64
 	FPSRunningAvg      float64
 	FPSMin             float64
@@ -51,19 +51,19 @@ func (a *GlApplication) ScrollCallback(w *glfw.Window, xoff float64, yoff float6
 	}
 }
 func (a *GlApplication) ToggleFullscren() {
-    var newWidth, newHeight int
-    if a.Window.GetMonitor() == nil {
-        monitor := glfw.GetPrimaryMonitor()
-        vidMode := monitor.GetVideoMode()
-        a.Window.SetMonitor(monitor, 0, 0, vidMode.Width, vidMode.Height, vidMode.RefreshRate)
-        newWidth = vidMode.Width
-        newHeight = vidMode.Height
-    } else {
-        a.Window.SetMonitor(nil, 0, 0, a.WindowWidth, a.WindowHeight, 0)
-        newWidth = a.WindowWidth
-        newHeight = a.WindowHeight
-    }
-    a.OnResize(newWidth, newHeight)
+	var newWidth, newHeight int
+	if a.Window.GetMonitor() == nil {
+		monitor := glfw.GetPrimaryMonitor()
+		vidMode := monitor.GetVideoMode()
+		a.Window.SetMonitor(monitor, 0, 0, vidMode.Width, vidMode.Height, vidMode.RefreshRate)
+		newWidth = vidMode.Width
+		newHeight = vidMode.Height
+	} else {
+		a.Window.SetMonitor(nil, 0, 0, a.WindowWidth, a.WindowHeight, 0)
+		newWidth = a.WindowWidth
+		newHeight = a.WindowHeight
+	}
+	a.OnResize(newWidth, newHeight)
 }
 func (a *GlApplication) MouseButtonCallback(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if a.MouseButtonHandler != nil {
@@ -85,7 +85,7 @@ func (a *GlApplication) Run() {
 		gl.ClearColor(0, 0, 0, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        // Update
+		// Update
 		time = glfw.GetTime()
 		elapsed := time - previousTime
 		previousTime = time
@@ -94,7 +94,7 @@ func (a *GlApplication) Run() {
 		a.DrawFunc(elapsed)
 
 		a.FramesPerSecond = 1.0 / elapsed
-		if a.ticks%60 == 0 {
+		if a.Ticks%60 == 0 {
 			sixtyTicksAverage := a.FPSRunningAvg
 			a.Window.SetTitle(fmt.Sprintf("FPS: %.0f (Avg: %.0f, Min: %.0f, Max: %.0f) / Elapsed: %.3f", a.FramesPerSecond, sixtyTicksAverage, a.FPSMin, a.FPSMax, elapsed*1000))
 			a.FPSRunningAvg = 0 + a.FramesPerSecond*(1.0/60.0)
@@ -112,14 +112,14 @@ func (a *GlApplication) Run() {
 
 		a.Window.SwapBuffers()
 		glfw.PollEvents()
-		a.ticks++
+		a.Ticks++
 	}
 }
 
 func (a *GlApplication) OnResize(width int, height int) {
-    if a.ResizeHandler != nil {
-        a.ResizeHandler(width, height)
-    }
+	if a.ResizeHandler != nil {
+		a.ResizeHandler(width, height)
+	}
 }
 
 func InitOpenGLWindow(title string, width, height int, fullScreen bool) (*glfw.Window, func()) {
@@ -138,13 +138,13 @@ func InitOpenGLWindow(title string, width, height int, fullScreen bool) (*glfw.W
 	glfw.WindowHint(glfw.OpenGLDebugContext, glfw.True)
 
 	var err error
-    var monitor *glfw.Monitor
-    if fullScreen {
-        monitor = glfw.GetPrimaryMonitor()
-        width, height = monitor.GetVideoMode().Width, monitor.GetVideoMode().Height
-    }
+	var monitor *glfw.Monitor
+	if fullScreen {
+		monitor = glfw.GetPrimaryMonitor()
+		width, height = monitor.GetVideoMode().Width, monitor.GetVideoMode().Height
+	}
 
-    win, err = glfw.CreateWindow(width, height, title, monitor, nil)
+	win, err = glfw.CreateWindow(width, height, title, monitor, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -163,13 +163,13 @@ func InitOpenGLWindow(title string, width, height int, fullScreen bool) (*glfw.W
 	gl.CullFace(gl.BACK)
 
 	/*
-	if runtime.GOOS != "darwin" {
-		gl.Enable(gl.DEBUG_OUTPUT)
-		gl.DebugMessageCallback(gl.DebugProc(glErrorHandler), gl.Ptr(nil))
-	}
+		if runtime.GOOS != "darwin" {
+			gl.Enable(gl.DEBUG_OUTPUT)
+			gl.DebugMessageCallback(gl.DebugProc(glErrorHandler), gl.Ptr(nil))
+		}
 	*/
 
-    return win, func() {
+	return win, func() {
 		glfw.Terminate()
 	}
 }
@@ -178,7 +178,6 @@ func glErrorHandler(source uint32, gltype uint32, id uint32, severity uint32, le
 	errorMessage := fmt.Sprintf("source: %d, type: %d, id: %d, severity: %d, length: %d, param: %d, message:\n%s", source, gltype, id, severity, length, param, message)
 	println(errorMessage)
 }
-
 
 func Get2DPixelCoordOrthographicProjectionMatrix(width, height int) mgl32.Mat4 {
 	// we want 0,0 to be at the top left

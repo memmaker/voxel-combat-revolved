@@ -94,13 +94,13 @@ func (a *BattleClient) handleScrollEvents(xoff float64, yoff float64) {
 }
 func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	/*
-	if key == glfw.KeyE && action == glfw.Press {
-			a.state().OnUpperRightAction(0)
-	}
+		if key == glfw.KeyE && action == glfw.Press {
+				a.state().OnUpperRightAction(0)
+		}
 
-	if key == glfw.KeyQ && action == glfw.Press {
-			a.state().OnUpperLeftAction(0)
-	}
+		if key == glfw.KeyQ && action == glfw.Press {
+				a.state().OnUpperLeftAction(0)
+		}
 
 	*/
 	if key == glfw.KeyF6 && action == glfw.Press {

@@ -19,6 +19,23 @@ type Throwable struct {
 	lerper    *util.WaypointLerper
 }
 
+func (t *Throwable) GetParticleProps() glhf.ParticleProperties {
+	return glhf.ParticleProperties{
+		Origin:               t.GetPosition(),
+		PositionVariation:    mgl32.Vec3{0.2, 0.2, 0.2},
+		VelocityFromPosition: func(origin, pos mgl32.Vec3) mgl32.Vec3 { return mgl32.Vec3{} },
+		ColorBegin:           mgl32.Vec3{0.9, 0.9, 0.9},
+		ColorEnd:             mgl32.Vec3{0.8, 0.8, 0.8},
+		ColorVariation:       0,
+		SizeBegin:            0.04,
+		SizeEnd:              0.01,
+		SizeVariation:        0,
+		Lifetime:             0.5,
+		MaxDistance:          0,
+		SpreadLifetime:       0,
+	}
+}
+
 func (t *Throwable) GetName() string {
 	return "Throwable"
 }

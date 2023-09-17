@@ -52,8 +52,8 @@ func NewActionBar(shader *glhf.Shader, textureAtlas *glhf.Texture, screenWidth, 
 	return &ActionBar{shader: shader, texture: textureAtlas, itemSizeX: atlasItemSizeX, itemSizeY: atlasItemSizeY, screenWidth: screenWidth, screenHeight: screenHeight}
 }
 func (a *ActionBar) SetScreenSize(width, height int) {
-    a.screenWidth = width
-    a.screenHeight = height
+	a.screenWidth = width
+	a.screenHeight = height
 }
 func (a *ActionBar) SetActions(actions []ActionItem) {
 	a.isHidden = false

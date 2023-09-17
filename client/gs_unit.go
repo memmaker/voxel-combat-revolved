@@ -81,6 +81,7 @@ func (g *GameStateUnit) nextUnit() {
 func (g *GameStateUnit) Init(wasPopped bool) {
 	g.engine.SwitchToIsoCamera()
 	g.engine.SwitchToGroundSelector()
+	g.engine.unitSelector.Show()
 
 	if !wasPopped {
 		if g.engine.selectedUnit.CanMove() {

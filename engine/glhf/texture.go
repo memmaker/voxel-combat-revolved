@@ -17,12 +17,12 @@ type Texture struct {
 	tex           binder
 	width, height int
 	smooth        bool
-    itemSizeX     int
-    itemSizeY     int
-    itemPaddingX  int
-    itemPaddingY  int
-    itemMarginX   int
-    itemMarginY   int
+	itemSizeX     int
+	itemSizeY     int
+	itemPaddingX  int
+	itemPaddingY  int
+	itemMarginX   int
+	itemMarginY   int
 }
 
 func NewSolidColorTexture(color [3]uint8) *Texture {
@@ -181,40 +181,40 @@ func (t *Texture) End() {
 }
 
 func (t *Texture) GetUV(index uint16) (GlFloat, GlFloat, GlFloat, GlFloat) {
-    width := t.itemSizeX
-    height := t.itemSizeY
+	width := t.itemSizeX
+	height := t.itemSizeY
 
 	xCount := int(t.width / width)
 
-    leftBorder := t.itemMarginX + ((int(index) % xCount) * (width + t.itemPaddingX))
-    topBorder := t.itemMarginY + ((int(index) / xCount) * (height + t.itemPaddingY))
+	leftBorder := t.itemMarginX + ((int(index) % xCount) * (width + t.itemPaddingX))
+	topBorder := t.itemMarginY + ((int(index) / xCount) * (height + t.itemPaddingY))
 
-    topLeftU := GlFloat(leftBorder) / GlFloat(t.width)
-    topLeftV := GlFloat(topBorder) / GlFloat(t.height)
+	topLeftU := GlFloat(leftBorder) / GlFloat(t.width)
+	topLeftV := GlFloat(topBorder) / GlFloat(t.height)
 
-    bottomRightU := GlFloat(leftBorder+width) / GlFloat(t.width)
-    bottomRightV := GlFloat(topBorder+height) / GlFloat(t.height)
+	bottomRightU := GlFloat(leftBorder+width) / GlFloat(t.width)
+	bottomRightV := GlFloat(topBorder+height) / GlFloat(t.height)
 
 	return topLeftU, topLeftV, bottomRightU, bottomRightV
 }
 
 func (t *Texture) SetAtlasItemSize(width int, height int) {
-    t.itemSizeX = width
-    t.itemSizeY = height
+	t.itemSizeX = width
+	t.itemSizeY = height
 }
 
 func (t *Texture) SetPaddingBetweenItems(x, y int) {
-    t.itemPaddingX = x
-    t.itemPaddingY = y
+	t.itemPaddingX = x
+	t.itemPaddingY = y
 }
 
 func (t *Texture) GetAtlasItemSize() (int, int) {
-    return t.itemSizeX, t.itemSizeY
+	return t.itemSizeX, t.itemSizeY
 }
 
 func (t *Texture) SetAtlasMargin(x int, y int) {
-    t.itemMarginX = x
-    t.itemMarginY = y
+	t.itemMarginX = x
+	t.itemMarginY = y
 }
 
 func (t *Texture) SaveAsPNG(filename string) {

@@ -52,7 +52,6 @@ func (a *BattleClient) RayCastGround(rayStart, rayEnd mgl32.Vec3) *game.RayCastH
 	return a.lastHitInfo
 }
 
-
 func (a *BattleClient) PlaceBlock(pos voxel.Int3, block *voxel.Block) bool {
 	voxelMap := a.GetVoxelMap()
 	if voxelMap.Contains(int32(pos.X), int32(pos.Y), int32(pos.Z)) {
@@ -118,7 +117,7 @@ func (a *BattleClient) LoadMap(filename string) {
 	listOfBlocks := game.GetDebugBlockNames()
 	var loadedMap *voxel.Map
 
-    terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
+	terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
 	// Create atlas and index from directory
 	//	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("./assets/textures/blocks/star_odyssey", listOfBlocks)
 	//	terrainTexture.SaveAsPNG("./assets/textures/blocks/star_odyssey_01.png")

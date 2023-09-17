@@ -17,6 +17,8 @@ type GameStateFreeAim struct {
 	selectedAction game.TargetAction
 	lockedTarget   int
 	visibleEnemies []*game.UnitInstance
+
+	targetAngles [][2]float32
 }
 
 func (g *GameStateFreeAim) GetUnit() *game.UnitInstance {
@@ -137,11 +139,26 @@ func (g *GameStateFreeAim) OnUpperLeftAction(float64) {
 }
 
 func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
-	if g.engine.selectedUnit.CanAct() {
+	unit := g.engine.selectedUnit
+	if unit.CanAct() {
 		camPos := g.engine.fpsCamera.GetPosition()
 		camRotX, camRotY := g.engine.fpsCamera.GetRotation()
 		println(fmt.Sprintf("[GameStateFreeAim] Client Aim was %s: (%0.2f, %0.2f, %0.2f) (%0.2f, %0.2f)", g.selectedAction.GetName(), camPos.X(), camPos.Y(), camPos.Z(), camRotX, camRotY))
-		util.MustSend(g.engine.server.FreeAimAction(g.engine.selectedUnit.UnitID(), g.selectedAction.GetName(), camPos, camRotX, camRotY))
+
+		g.targetAngles = append(g.targetAngles, [2]float32{camRotX, camRotY})
+
+		anglesMatchBulletCount := len(g.targetAngles) == int(unit.GetWeapon().Definition.BulletsPerShot)
+		if !unit.HasWeaponOfType(game.WeaponPistol) || anglesMatchBulletCount {
+			util.MustSend(g.engine.server.FreeAimAction(unit.UnitID(), g.selectedAction.GetName(), camPos, g.targetAngles))
+			if g.engine.settings.AutoSwitchToIsoCameraAfterFiring {
+				g.engine.SwitchToIsoCamera()
+				g.engine.PopState()
+				//g.engine.SwitchToUnitNoCameraMovement(g.engine.selectedUnit)
+			}
+		} else {
+			// allow multiple targets
+			g.engine.FlashText("LOCKED", 1)
+		}
 	} else {
 		println("[GameStateFreeAim] Unit cannot act")
 		g.engine.Print("Unit cannot act")

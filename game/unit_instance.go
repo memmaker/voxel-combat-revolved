@@ -17,8 +17,8 @@ type UnitCoreStats struct {
     Accuracy        float64 // Accuracy (0.0 - 1.0) will impact the aiming of the unit. At 1.0 there is no deviation from the target.
     MovementPerAP   float64 // MovementPerAP Movement per action point
     MaxActionPoints float64 // MaxActionPoints Maximum action points
-    ThrowVelocity  float64  // ThrowVelocity Velocity of thrown objects
-    BaseAPForThrow int
+    ThrowVelocity   float64 // ThrowVelocity Velocity of thrown objects
+    BaseAPForThrow  int
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
@@ -470,6 +470,18 @@ func (u *UnitInstance) RemoveItem(uniqueName string) {
             return
         }
     }
+}
+
+func (u *UnitInstance) GetItem(uniqueName string) *Item {
+    for _, item := range u.Inventory {
+        if item.Definition.UniqueName == uniqueName {
+            return item
+        }
+    }
+    return nil
+}
+func (u *UnitInstance) HasWeaponOfType(wType WeaponType) bool {
+    return u.GetWeapon().Definition.WeaponType == wType
 }
 
 func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitID uint64, unitPosition, unitForward voxel.Int3) (Stance, voxel.Int3) {
