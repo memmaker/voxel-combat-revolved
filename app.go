@@ -130,7 +130,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 	createGameSequence := func() {
 		util.MustSend(con.Login("creator"))
 		util.WaitForTrue(&loginSuccess)
-        util.MustSend(con.CreateGame("map", "fx's test game", game.NewRandomDeathmatch(), true))
+		util.MustSend(con.CreateGame("map", "fx's test game", game.NewRandomDeathmatch(), true))
 		util.WaitForTrue(&createSuccess)
 		util.MustSend(con.SelectFaction("X-Com"))
 		util.WaitForTrue(&factionSuccess)
@@ -145,13 +145,13 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 				UnitTypeID: 0,
 				Name:       "Bimmy",
 				Weapon:     "Steyr SSG 69",
-				Items: []string{"Smoke Grenade"},
+				Items: []string{"Frag Grenade"},
 			},
 			{
 				UnitTypeID: 0,
 				Name:       "Timmy",
 				Weapon:     "M16 Rifle",
-				Items: []string{"Smoke Grenade"},
+				Items: []string{"Poison Grenade"},
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)
@@ -167,15 +167,15 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 			{
 				UnitTypeID: 2,
 				Name:       "Gnarg",
-				Weapon:     "M16 Rifle",
-				Items: []string{"Smoke Grenade"},
+				Weapon: "M1911 Pistol",
+				Items:  []string{"Frag Grenade"},
 			},
 
 			{
 				UnitTypeID: 2,
 				Name:       "Gorn",
-				Weapon:     "Steyr SSG 69",
-				Items: []string{"Smoke Grenade"},
+				Weapon: "LAW Rocket",
+				Items:  []string{"Poison Grenade"},
 			},
 			{
 				UnitTypeID: 2,

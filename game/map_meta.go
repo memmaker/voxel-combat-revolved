@@ -8,9 +8,9 @@ import (
 )
 
 type MapMetadata struct {
-	Name                string
-	SpawnPositions      [][]voxel.Int3
-	PoIPlacements       []voxel.Int3
+	Name           string
+	SpawnPositions [][]voxel.Int3
+	PoIPlacements  []voxel.Int3
 }
 
 func (m *MapMetadata) SaveToDisk(mapfilename string) error {
@@ -37,7 +37,7 @@ func NewMapMetadataFromFile(filename string) MapMetadata {
 		}
 	}
 	return MapMetadata{
-		Name:                "Unnamed Map",
-		SpawnPositions:      [][]voxel.Int3{{}},
+		Name:           "Unnamed Map",
+		SpawnPositions: [][]voxel.Int3{{}},
 	}
 }

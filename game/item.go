@@ -1,25 +1,26 @@
 package game
 
 type ItemDefinition struct {
-    UniqueName  string
-    Model       string
-    ItemType    ItemType
-    Radius      float64
-    TurnsToLive int
+	UniqueName  string
+	Model       string
+	ItemType    ItemType
+	Radius      float64
+	TurnsToLive int
+	Effect      TargetedEffect
 }
 
 type ItemType string
 
 const (
-    ItemTypeGrenade ItemType = "grenade" // direct reference for the gui icons asset names (TextureIndex: a.guiIcons[string(item.Definition.ItemType)])
+	ItemTypeGrenade ItemType = "grenade" // direct reference for the gui icons asset names (TextureIndex: a.guiIcons[string(item.Definition.ItemType)])
 )
 
 type Item struct {
-    Definition *ItemDefinition
+	Definition *ItemDefinition
 }
 
 func NewItem(definition *ItemDefinition) *Item {
-    return &Item{
-        Definition: definition,
-    }
+	return &Item{
+		Definition: definition,
+	}
 }

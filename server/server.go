@@ -125,9 +125,9 @@ func (b *BattleServer) ListenTCP(endpoint string) {
 		util.LogSystemInfo(fmt.Sprintf("[GetSystemNativeEndianess] %s", endianess.ToString()))
 	}
 	for {
-        con, listenError := listener.Accept()
-        if listenError != nil {
-            log.Println(listenError)
+		con, listenError := listener.Accept()
+		if listenError != nil {
+			log.Println(listenError)
 			continue
 		}
 		// If you want, you can increment a counter here and inject to handleClientRequest below as client identifier
@@ -148,7 +148,7 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 	for {
 		messageType, err := clientReader.ReadString('\n')
 		if err != nil {
-            util.LogNetworkError(fmt.Sprintf(err.Error()))
+			util.LogNetworkError(fmt.Sprintf(err.Error()))
 			return
 		}
 		message, err := clientReader.ReadString('\n')
@@ -159,12 +159,11 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 		message = strings.TrimSpace(message)
 		messageType = strings.TrimSpace(messageType)
 		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
-        util.LogNetworkDebug(fmt.Sprintf("\n[Server] FROM Client(%d) msg(%s):\n%s\n", id, messageType, message))
+		util.LogNetworkDebug(fmt.Sprintf("\n[Server] FROM Client(%d) msg(%s):\n%s\n", id, messageType, message))
 
 		b.GenerateResponse(con, id, messageType, message)
 	}
 }
-
 
 func FromJson(message string, msg interface{}) bool {
 	err := json.Unmarshal([]byte(message), &msg)
@@ -199,7 +198,7 @@ func (b *BattleServer) writeFromBuffer(userID uint64, msgType, msg []byte) {
 	b.writeToClient(connection, msgType, msg)
 }
 func (b *BattleServer) writeToClient(connection *UserConnection, messageType, response []byte) {
-    util.LogNetworkDebug(fmt.Sprintf("\n[Server] TO Client(%d) msg(%s):\n%v\n", connection.id, string(messageType), string(response)))
+	util.LogNetworkDebug(fmt.Sprintf("\n[Server] TO Client(%d) msg(%s):\n%v\n", connection.id, string(messageType), string(response)))
 	_, err := connection.raw.Write(append(messageType, '\n'))
 	if err != nil {
 		util.LogNetworkError(fmt.Sprintf(err.Error()))
@@ -322,13 +321,13 @@ func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 			PlayerNameMap:    playerNames,
 			PlayerFactionMap: playerFactions,
 			OwnID:            playerID,
-			SpawnIndex:     uint64(spawnIndex),
+			SpawnIndex:       uint64(spawnIndex),
 			OwnUnits:         units,
 			MapFile:          battleGame.GetMapFile(),
 			LOSMatrix:        whoCanSeeWho,
 			PressureMatrix:   pressure,
 			VisibleUnits:     visibleUnits,
-			MissionDetails: battleGame.GetMissionDetails(),
+			MissionDetails:   battleGame.GetMissionDetails(),
 		})
 	}
 }
@@ -417,7 +416,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		unit.AutoSetStanceAndForwardAndUpdateMap()
 		unit.StartStanceAnimation()
 
-        util.LogGlobalUnitDebug(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
+		util.LogGlobalUnitDebug(unit.DebugString("ServerSpawnUnit(+UpdateAnim)"))
 		util.LogGameInfo(fmt.Sprintf("[BattleServer] User %d selected unit of type %d: %s(%d)", userID, spawnedUnitDef.ID, unitChoice.Name, unitID))
 	}
 
@@ -527,9 +526,9 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	//println("[BattleServer] Ending turn. New map state:")
 	//gameInstance.GetVoxelMap().PrintArea2D(16, 16)
 	/*
-	for _, unit := range gameInstance.GetAllUnits() {
-			println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
-	}
+		for _, unit := range gameInstance.GetAllUnits() {
+				println(fmt.Sprintf("[BattleServer] > Unit %s(%d): %v", unit.GetName(), unit.Attacker(), unit.GetBlockPosition()))
+		}
 
 	*/
 	util.LogNetworkInfo(fmt.Sprintf("[BattleServer] New turn for game %s", gameInstance.GetID()))
@@ -550,7 +549,6 @@ func (b *BattleServer) SendStartDeployment(gameInstance *game.GameInstance) {
 		b.respondWithMessage(connectedUser, game.StartDeploymentMessage{})
 	}
 }
-
 
 func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 	// get the player and mark him as ready
@@ -670,6 +668,6 @@ func NewBattleServer() *BattleServer {
 		connectedClients:  make(map[uint64]*UserConnection),    // client id -> client
 		runningGames:      make(map[string]*game.GameInstance), // game id -> game
 		availableWeapons:  make(map[string]*game.WeaponDefinition),
-		availableItems: make(map[string]*game.ItemDefinition),
+		availableItems:    make(map[string]*game.ItemDefinition),
 	}
 }

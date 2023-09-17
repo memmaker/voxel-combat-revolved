@@ -17,7 +17,7 @@ type UnitChoice struct {
 	UnitTypeID uint64
 	Name       string
 	Weapon     string
-    Items      []string
+	Items      []string
 }
 
 type SelectUnitsMessage struct {
@@ -45,10 +45,10 @@ type TargetedUnitActionMessage struct {
 }
 
 type ThrownUnitActionMessage struct {
-    UnitMessage
-    Action   string
-    Targets  []mgl32.Vec3
-    ItemName string
+	UnitMessage
+	Action   string
+	Targets  []mgl32.Vec3
+	ItemName string
 }
 
 type FreeAimActionMessage struct {
@@ -58,7 +58,7 @@ type FreeAimActionMessage struct {
 	CamPos       mgl32.Vec3
 }
 type DebugRequest struct {
-    Command string
+	Command string
 }
 type MapLoadedMessage struct {
 }

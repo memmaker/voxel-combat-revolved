@@ -6,6 +6,7 @@ type Block struct {
 }
 
 const EMPTYBLOCK = 0
+
 func (b *Block) IsAir() bool {
 	return b.ID == EMPTYBLOCK
 }

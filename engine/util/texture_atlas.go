@@ -19,34 +19,34 @@ import (
 type NameIndex map[string]byte
 
 func (i NameIndex) WriteAtlasIndex(filename string) {
-    file, err := os.Create(filename)
-    if err != nil {
+	file, err := os.Create(filename)
+	if err != nil {
 		LogTextureError("could not create atlas")
-    }
-    for name, index := range i {
-        file.WriteString(fmt.Sprintf("%s %d\n", name, index))
-    }
-    file.Close()
+	}
+	for name, index := range i {
+		file.WriteString(fmt.Sprintf("%s %d\n", name, index))
+	}
+	file.Close()
 }
 
 func NewBlockIndexFromFile(filename string) NameIndex {
-    file, err := os.Open(filename)
-    if err != nil {
+	file, err := os.Open(filename)
+	if err != nil {
 		LogTextureError("could not open index file")
-        return nil
-    }
-    defer file.Close()
-    indices := map[string]byte{}
-    var index byte
-    var name string
-    for {
-        _, scanErr := fmt.Fscanf(file, "%s %d\n", &name, &index)
-        if scanErr != nil {
-            break
-        }
-        indices[name] = index
-    }
-    return indices
+		return nil
+	}
+	defer file.Close()
+	indices := map[string]byte{}
+	var index byte
+	var name string
+	for {
+		_, scanErr := fmt.Fscanf(file, "%s %d\n", &name, &index)
+		if scanErr != nil {
+			break
+		}
+		indices[name] = index
+	}
+	return indices
 }
 func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, NameIndex) {
 	indices := map[string]byte{}
@@ -86,15 +86,15 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 	}
 	// debug write the atlas to a file
 	/*
-	file, err := os.Create(path.Join(directory, "debug_atlas.png"))
-	if err != nil {
-		LogTextureError("could not create debug_atlas.png")
-	}
-	err = png.Encode(file, pixels)
-	if err != nil {
-		LogTextureError("could not encode debug_atlas.png")
-	}
-	file.Close()
+		file, err := os.Create(path.Join(directory, "debug_atlas.png"))
+		if err != nil {
+			LogTextureError("could not create debug_atlas.png")
+		}
+		err = png.Encode(file, pixels)
+		if err != nil {
+			LogTextureError("could not encode debug_atlas.png")
+		}
+		file.Close()
 	*/
 	texture := glhf.NewTexture(256, 256, false, pixels.Pix)
 	texture.SetAtlasItemSize(itemSizeX, itemSizeY)
@@ -125,7 +125,7 @@ func CreateBlockAtlasFromDirectory(directory string, blocksNeeded []string) (*gl
 		allFaceTextureNames = append(allFaceTextureNames, tryMCStyleFaceNames(directory, blocksNeeded[i])...)
 	}
 
-    return CreateFixed256PxAtlasFromDirectory(directory, allFaceTextureNames)
+	return CreateFixed256PxAtlasFromDirectory(directory, allFaceTextureNames)
 }
 
 func CreateIndexMapFromDirectory(directory string, blocksNeeded []string) NameIndex {

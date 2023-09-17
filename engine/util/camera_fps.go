@@ -45,7 +45,6 @@ func (c *FPSCamera) GetPickingRayFromScreenPosition(x float64, y float64) (mgl32
 	return GetRayFromCameraPlane(c, normalizedX, normalizedY)
 }
 
-
 func (c *FPSCamera) GetProjectionViewMatrix() mgl32.Mat4 {
 	return c.GetProjectionMatrix().Mul4(c.GetViewMatrix())
 }

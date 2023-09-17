@@ -183,9 +183,9 @@ func NewCameraLookAnimation(start Transform, end Camera, duration float64, width
 	c := &CameraAnimation{
 		PerspectiveTransform: NewDefaultPerspectiveTransform("Camera Animation", width, height),
 		start:                start,
-		end:           end.GetTransform(),
-		endCamera:     end,
-		endLookTarget: end.GetLookTarget(),
+		end:                  end.GetTransform(),
+		endCamera:            end,
+		endLookTarget:        end.GetLookTarget(),
 		duration:             duration,
 	}
 	c.init()

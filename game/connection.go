@@ -123,12 +123,12 @@ func (c *ServerConnection) TargetedUnitAction(gameUnitID uint64, action string, 
 }
 
 func (c *ServerConnection) ThrownUnitAction(gameUnitID uint64, action string, itemName string, target []mgl32.Vec3) error {
-    message := ThrownUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Targets: target, ItemName: itemName}
+	message := ThrownUnitActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, Targets: target, ItemName: itemName}
 	return c.send("ThrownUnitAction", message)
 }
 
-func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, camRotX, camRotY float32) error {
-	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, TargetAngles: [][2]float32{{camRotX, camRotY}}}
+func (c *ServerConnection) FreeAimAction(gameUnitID uint64, action string, camPos mgl32.Vec3, targetAngles [][2]float32) error {
+	message := FreeAimActionMessage{UnitMessage: UnitMessage{GameUnitID: gameUnitID}, Action: action, CamPos: camPos, TargetAngles: targetAngles}
 	return c.send("FreeAimAction", message)
 }
 
@@ -153,6 +153,6 @@ func (c *ServerConnection) SelectDeployment(deployment map[uint64]voxel.Int3) er
 	})
 }
 func (c *ServerConnection) DebugRequest(command string) error {
-    message := DebugRequest{Command: command}
-    return c.send("DebugRequest", message)
+	message := DebugRequest{Command: command}
+	return c.send("DebugRequest", message)
 }

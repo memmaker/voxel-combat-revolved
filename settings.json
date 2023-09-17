@@ -1,11 +1,12 @@
 {
-  "Width": 800,
+  "Title":  "Block Tactics",
+  "Width":  800,
   "Height": 600,
-  "ISOCameraScrollZoomSpeed": 4,
-  "FPSCameraInvertedMouse": true,
-  "FPSCameraMouseSensitivity": 0.08,
-  "EnableBulletCam": false,
-  "EnableCameraAnimations": true,
-  "FullScreen": false,
-  "Title":             "Block Tactics"
+  "ISOCameraScrollZoomSpeed":         4,
+  "FPSCameraInvertedMouse":           true,
+  "FPSCameraMouseSensitivity":        0.08,
+  "EnableBulletCam":                  false,
+  "EnableCameraAnimations":           true,
+  "FullScreen":                       false,
+  "AutoSwitchToIsoCameraAfterFiring": true
 }

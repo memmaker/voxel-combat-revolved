@@ -14,21 +14,21 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetai
 	details.SyncFromMap(mapMetadata)
 
 	g := &GameInstance{
-		id:             gameID,
-		mapFile:        mapFile,
+        id:             gameID,
+        mapFile:        mapFile,
 		assets:            assetLoader,
-		players:        make([]uint64, 0),
-		playerFactions: make(map[uint64]*Faction),
-		losMatrix:      make(map[uint64]map[uint64]bool),
-		pressureMatrix: make(map[uint64]map[uint64]float64),
-		playerUnits:    make(map[uint64][]uint64),
-		units:          make(map[uint64]*UnitInstance),
-		playersNeeded:  2,
+        players:        make([]uint64, 0),
+        playerFactions: make(map[uint64]*Faction),
+        losMatrix:      make(map[uint64]map[uint64]bool),
+        pressureMatrix: make(map[uint64]map[uint64]float64),
+        playerUnits:    make(map[uint64][]uint64),
+        units:          make(map[uint64]*UnitInstance),
+        playersNeeded:  2,
 		waitForDeployment: details.Placement == PlacementModeManual,
-		voxelMap: voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
-		mapMeta:  &mapMetadata,
-		overwatch:      make(map[voxel.Int3][]*UnitInstance),
-		missionDetails: details,
+        voxelMap:       voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
+        mapMeta:        &mapMetadata,
+        overwatch:      make(map[voxel.Int3][]*UnitInstance),
+        missionDetails: details,
 		activeBlockEffects: make(map[voxel.Int3]BlockStatusEffectInstance),
 	}
 	g.rules = NewDefaultRuleset(g)
@@ -70,7 +70,7 @@ func (r *Ruleset) GetShotAccuracy(action ShotAction) float64 {
 
 	// pressure rule for the sniper rifle
 	pressureModifier := 1.0
-	if unit.GetWeapon().Definition.WeaponType == WeaponSniper {
+    if unit.HasWeaponOfType(WeaponSniper) {
 		// add penalty for sniper shots under pressure
 		pressureOnUnit := r.engine.GetTotalPressure(unit.UnitID())
 		pressureOnUnit = util.Clamp(pressureOnUnit, 0.0, 1.0)
@@ -236,7 +236,6 @@ func (g *GameInstance) ClientAddUnit(userID uint64, unit *UnitInstance) uint64 {
 
 	unit.SetVoxelMap(g.voxelMap)
 
-
 	return unitInstanceID
 }
 
@@ -286,7 +285,6 @@ func (g *GameInstance) IsGameOver() (bool, uint64) {
 			return true, g.players[0]
         }
     }
-
 
 	return false, 0
 }
@@ -393,14 +391,14 @@ func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, 
 	return false
 }
 
-func (g *GameInstance) CreateTargetedEffectFromMessage(msg MessageTargetedEffect) {
+func (g *GameInstance) ApplyTargetedEffectFromMessage(msg MessageTargetedEffect) {
 	switch msg.Effect {
 	case TargetedEffectSmokeCloud:
 		g.CreateSmokeCloudEffect(msg.Position, msg.Radius, msg.TurnsToLive)
 	case TargetedEffectPoisonCloud:
-		//g.CreatePoisonCloudEffect(msg.Position, msg.Radius) TODO
+        g.CreatePoisonCloudEffect(msg.Position, msg.Radius, msg.TurnsToLive)
 	case TargetedEffectFire:
-		//g.Crea
+        g.AddFireAt(msg.Position, msg.TurnsToLive)
 	case TargetedEffectExplosion:
 		g.CreateExplodeEffect(msg.Position, msg.Radius)
 	}
@@ -411,7 +409,6 @@ func (g *GameInstance) CreateTargetedEffectFromMessage(msg MessageTargetedEffect
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
 	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %0.2f", g.environment, position.ToString(), radius))
 	g.voxelMap.ForBlockInSphere(position, radius, g.applyExplosionToSingleBlock)
-
 }
 
 func (g *GameInstance) CreateSmokeCloudEffect(position voxel.Int3, radius float64, turns int) {
@@ -419,6 +416,13 @@ func (g *GameInstance) CreateSmokeCloudEffect(position voxel.Int3, radius float6
 	g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius float64, x int32, y int32, z int32) {
 		g.AddSmokeAt(voxel.Int3{X: x, Y: y, Z: z}, turns)
 	})
+}
+
+func (g *GameInstance) CreatePoisonCloudEffect(position voxel.Int3, radius float64, turns int) {
+    g.logGameInfo(fmt.Sprintf("[%s] Poison at %s with radius %0.2f", g.environment, position.ToString(), radius))
+    g.voxelMap.ForBlockInHalfSphere(position, radius, func(origin voxel.Int3, radius float64, x int32, y int32, z int32) {
+        g.AddPoisonAt(voxel.Int3{X: x, Y: y, Z: z}, turns)
+    })
 }
 func (g *GameInstance) AddSmokeAt(location voxel.Int3, turns int) {
 	if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
@@ -429,6 +433,28 @@ func (g *GameInstance) AddSmokeAt(location voxel.Int3, turns int) {
 	}
 	println(fmt.Sprintf("[GameInstance] Adding smoke at %s", location.ToString()))
 	g.addBlockStatusEffect(location, BlockEffectSmoke, turns)
+}
+
+func (g *GameInstance) AddFireAt(location voxel.Int3, turns int) {
+    if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
+        return
+    }
+    if g.voxelMap.IsSolidBlockAt(location.X, location.Y, location.Z) {
+        return
+    }
+    println(fmt.Sprintf("[GameInstance] Adding smoke at %s", location.ToString()))
+    g.addBlockStatusEffect(location, BlockEffectFire, turns)
+}
+
+func (g *GameInstance) AddPoisonAt(location voxel.Int3, turns int) {
+    if !g.voxelMap.Contains(location.X, location.Y, location.Z) {
+        return
+    }
+    if g.voxelMap.IsSolidBlockAt(location.X, location.Y, location.Z) {
+        return
+    }
+    println(fmt.Sprintf("[GameInstance] Adding poison at %s", location.ToString()))
+    g.addBlockStatusEffect(location, BlockEffectPoison, turns)
 }
 func (g *GameInstance) applyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
 	explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)

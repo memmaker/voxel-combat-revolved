@@ -53,10 +53,10 @@ func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *M
 
 func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
 	m := &Map{
-		chunks:              make([]*Chunk, 0),
-		knownUnitPositions:  make(map[uint64][]Int3),
-		chunkShader:         shader,
-		terrainTexture:      texture,
+		chunks:             make([]*Chunk, 0),
+		knownUnitPositions: make(map[uint64][]Int3),
+		chunkShader:        shader,
+		terrainTexture:     texture,
 	}
 	m.LoadFromSource(source)
 	return m
@@ -161,8 +161,8 @@ func (m *Map) SaveToDisk(filename string) error {
 }
 
 func (m *Map) LoadFromSource(source []byte) {
-    reader := bytes.NewReader(source)
-    gzipReader, err := gzip.NewReader(reader)
+	reader := bytes.NewReader(source)
+	gzipReader, err := gzip.NewReader(reader)
 	if err != nil {
 		panic(err)
 	}
@@ -303,7 +303,6 @@ func (m *Map) SetBlock(x int32, y int32, z int32, block *Block) {
 func (m *Map) SetAir(blockPos Int3) {
 	m.SetBlock(blockPos.X, blockPos.Y, blockPos.Z, NewAirBlock())
 }
-
 
 func (m *Map) ContainsVec(pos mgl32.Vec3) bool {
 	x, y, z := pos.X(), pos.Y(), pos.Z()
@@ -448,7 +447,7 @@ func (m *Map) SetUnitWithOffsets(unit MapObject, blockPos Int3, offsets []Int3) 
 	ok, reason := m.IsUnitPlaceable(unit, blockPos)
 	if ok {
 		occupiedBlocks := make([]Int3, len(offsets))
-        //println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.Attacker(), blockPos.ToString(), len(offsets)))
+		//println(fmt.Sprintf("[Map] Placed %s(%d) at %s occupying %d blocks:", unit.GetName(), unit.Attacker(), blockPos.ToString(), len(offsets)))
 		for index, offset := range offsets {
 			occupiedBlockPos := blockPos.Add(offset)
 			block := m.GetGlobalBlock(occupiedBlockPos.X, occupiedBlockPos.Y, occupiedBlockPos.Z)
@@ -795,4 +794,3 @@ func (m *Map) ForBlockInSphericFloodFill(origin Int3, radius float64, applyToBlo
 		}
 	}
 }
-

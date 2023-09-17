@@ -18,16 +18,22 @@
  - Data driven
 
 # Next Steps
- - Mission Objectives
- - Melee
  - Health Bars
- - Line Drawing (Paths & Line Of Sight)
+ - Ceiling removal & Units visible through walls
+ - Melee
+ - Weapons, Items & Armors
+ - Skills
+
+# Polish
+ - Mission Objectives & Modes
  - Make shots look good
- - Grenades: Arc drawing (Grenade throwing)
- - Explosions & Blood: Particle effects (Explosions & blood)
+ - Polygonal Explosions?
  - Lighting (Shadows?)
  - Emissive Materials (Glow / Bloom Effects)
  - Outlines for Bodyparts & Units (Targeting)
+ - Action Camera Angles
+ - Animations
+
 
 # Known low priority issues
  - Diagonal Movement is choppily animated during climbs and drops
@@ -46,6 +52,19 @@
    -> Efficient UI/UX
    -> Small maps and small teams
  - Too complex or not complex enough, too many or not enough options
+   -> Deliberately limit options to meaningful ones
+ - Players are reactive instead of active
+ - Playing slow is rewarded
+
+i think the most important thing in a combat system is to let players make active play instead of being solely reactive
+the reason that XCOM blows is that the best way to play is to go as slow as humanly possible 90% of the time
+
+sure, the player drives the pace of the level between encounters, but once the encounter starts, the player mostly waits for the enemy to die to their superior stats. Pushing into the enemy is punished by proccing new pods and getting your units killed.
+
+in general if players are waiting for the enemy to make their lives easy as the optimal strategy something has gone wrong
+
+eh xcom is a tough nut to crack designwise
+honestly i think it would work best if there was just no permadeath
 
 # Where Phoenix Point failed
  - Difficulty curve / Balance

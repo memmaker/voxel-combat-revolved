@@ -191,10 +191,10 @@ func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
 func (g *GameStateEditMap) ClearMap() {
 	g.engine.LoadEmptyWorld(voxel.Int3{X: 2, Y: 4, Z: 2}, 32, 4)
 	/*
-	loadedMap := g.engine.GetVoxelMap()
-	loadedMap.ClearAllChunks()
-	loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
-	loadedMap.GenerateAllMeshes()
+		loadedMap := g.engine.GetVoxelMap()
+		loadedMap.ClearAllChunks()
+		loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
+		loadedMap.GenerateAllMeshes()
 	*/
 }
 
