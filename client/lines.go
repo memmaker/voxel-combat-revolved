@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/voxel"
+	"github.com/memmaker/battleground/game"
 )
 
 // pivot here?
@@ -149,7 +150,7 @@ type LineDrawer struct {
 func NewLineDrawer(shader *glhf.Shader) *LineDrawer {
 	return &LineDrawer{
 		shader: shader,
-		color:  ColorTechTeal,
+		color: game.ColorTechTeal,
 	}
 }
 

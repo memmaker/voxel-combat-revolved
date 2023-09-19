@@ -27,6 +27,7 @@ type GlApplication struct {
 	FPSRunningAvg      float64
 	FPSMin             float64
 	FPSMax             float64
+	TimeFactor         float64
 }
 
 func (a *GlApplication) KeyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -89,9 +90,9 @@ func (a *GlApplication) Run() {
 		time = glfw.GetTime()
 		elapsed := time - previousTime
 		previousTime = time
-		a.UpdateFunc(elapsed)
 
-		a.DrawFunc(elapsed)
+		a.UpdateFunc(elapsed * a.TimeFactor)
+		a.DrawFunc(elapsed * a.TimeFactor)
 
 		a.FramesPerSecond = 1.0 / elapsed
 		if a.Ticks%60 == 0 {

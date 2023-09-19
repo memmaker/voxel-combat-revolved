@@ -9,8 +9,11 @@ import (
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
+	"github.com/solarlune/gocoro"
+	"math"
 	"os"
 	"strings"
+	"time"
 )
 
 type Flyer interface {
@@ -61,15 +64,19 @@ type BattleClient struct {
 	grenadeModel               *util.CompoundMesh
 	settings                   ClientSettings
 	guiIcons                   map[string]byte
-	cameraAnimation            *util.CameraAnimation
+	camTransition              *util.CameraAnimation
 	overwatchPositionsThisTurn []voxel.Int3
 	selectedUnit               *Unit
 	aspectRatio                float32
 	debugPositions             []voxel.Int3
-	oneShotParticles           *glhf.ParticleSystem
+	explosionParticles         *glhf.ParticleSystem
+	bloodParticles             *glhf.ParticleSystem
+	trailParticles             *glhf.ParticleSystem
+	impactParticles            *glhf.ParticleSystem
 	smoker                     *Smoker
 	particleProps              map[ParticleName]glhf.ParticleProperties
 	selectedBlocks             []voxel.Int3
+	scriptedAnimation          gocoro.Coroutine
 	currentlyMovingUnits       bool
 }
 
@@ -92,15 +99,16 @@ func (a *BattleClient) IsOccludingBlock(x, y, z int) bool {
 }
 
 type ClientSettings struct {
+	Title                            string
 	Width                            int
 	Height                           int
+	FullScreen                       bool
+	FPSCameraMouseSensitivity        float32
 	ISOCameraScrollZoomSpeed         float32
 	FPSCameraInvertedMouse           bool
-	EnableBulletCam                  bool
-	FPSCameraMouseSensitivity        float32
 	EnableCameraAnimations           bool
-	FullScreen                       bool
-	Title                            string
+	EnableBulletCam                  bool
+	EnableActionCam                  bool
 	AutoSwitchToIsoCameraAfterFiring bool
 }
 
@@ -136,6 +144,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 		WindowHeight:  usedHeight,
 		Window:        window,
 		TerminateFunc: terminateFunc,
+		TimeFactor: 1.0,
 	}
 	window.SetKeyCallback(glApp.KeyCallback)
 	window.SetCursorPosCallback(glApp.MousePosCallback)
@@ -151,6 +160,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 		fpsCamera:     fpsCamera,
 		timer:         util.NewTimer(),
 		settings:      settings,
+		scriptedAnimation: gocoro.NewCoroutine(),
 		particleProps: map[ParticleName]glhf.ParticleProperties{
 			ParticlesBlood: {
 				PositionVariation:    mgl32.Vec3{0.5, 0.5, 0.5},
@@ -194,6 +204,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 	myApp.GameClient.SetEnvironment("GL-Client")
 	myApp.GameClient.SetOnTargetedEffect(myApp.OnTargetedEffect)
 	myApp.GameClient.SetOnNotification(myApp.Print)
+	myApp.GameClient.SetDebugPosListener(myApp.DebugPosHandler)
 	myApp.chunkShader = myApp.loadChunkShader()
 	myApp.lineShader = myApp.loadLineShader()
 	myApp.guiShader = myApp.loadGuiShader()
@@ -240,7 +251,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 	fontTextureAtlas, atlasIndex := assetLoader.LoadBitmapFont("quadratica", 8, 14)
 	myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
 	myApp.textLabel.SetScale(1)
-	myApp.textLabel.SetTintColor(ColorTechTeal.Vec3())
+	myApp.textLabel.SetTintColor(game.ColorTechTeal.Vec3())
 
 	myApp.unitSelector = NewGroundSelector(assetLoader.LoadMesh("flatselector"), myApp.defaultShader)
 
@@ -266,7 +277,11 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 
 	getViewFunc := func() mgl32.Mat4 { return myApp.camera().GetViewMatrix() }
 	getProjectionFunc := func() mgl32.Mat4 { return myApp.camera().GetProjectionMatrix() }
-	myApp.oneShotParticles = glhf.NewParticleSystem(5000, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+	myApp.explosionParticles = glhf.NewParticleSystem(5000, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+	myApp.impactParticles = glhf.NewParticleSystem(100, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+	myApp.bloodParticles = glhf.NewParticleSystem(100, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+	myApp.trailParticles = glhf.NewParticleSystem(200, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc)
+
 	myApp.smoker = NewSmoker(myApp.GetVoxelMap, glhf.NewParticleSystem(20000, loadTransformFeedbackShader(getParticleVertexFormat()), loadParticleShader(getParticleVertexFormat()), getViewFunc, getProjectionFunc))
 	myApp.SwitchToBlockSelector()
 
@@ -323,28 +338,26 @@ func (a *BattleClient) Print(text string) {
 	a.textLabel.SetMultilineText(lines)
 }
 
+func (a *BattleClient) RunScript(script func(exe *gocoro.Execution)) error {
+	return a.scriptedAnimation.Run(script)
+}
 
 func (a *BattleClient) Update(elapsed float64) {
 	stopUpdateTimer := a.timer.Start("> Update()")
 
-	/*
-	   if a.coroutine.Running() {
-	       // While the coroutine runs, we call Coroutine.Update(). This allows
-	       // the coroutine to execute, but also gives control back to the main
-	       // thread when it's yielding so we can do other stuff, like take input
-	       // or update a game's screen.
-	       a.coroutine.Update()
-	   }
-
-	*/
 	//properties := a.particleProps[ParticlesBlood].WithOrigin(a.groundSelector.GetPosition())
-	//a.oneShotParticles.Emit(properties, 1)
+	//a.explosionParticles.Emit(properties, 1)
 	a.GetVoxelMap().Update(elapsed)
 
-	waitForCameraAnimation := a.handleCameraAnimation(elapsed)
+	waitForCameraTransition := a.handleCameraTransition(elapsed)
 	a.currentlyMovingUnits = a.isBusyMovingUnits()
 
-	if !a.currentlyMovingUnits && !waitForCameraAnimation { // PROBLEM: isBusy can hang. So isn't reset every time we expect it to..
+	waitForScriptedAnimation := a.scriptedAnimation.Running()
+	if waitForScriptedAnimation {
+		a.scriptedAnimation.Update()
+	}
+
+	if !a.currentlyMovingUnits && !waitForCameraTransition && !waitForScriptedAnimation {
 		a.pollNetwork()
 	}
 
@@ -379,7 +392,7 @@ func (a *BattleClient) updateProjectiles(elapsed float64) {
 		a.smoker.ClearSmokeAt(blockPos)
 
 		if a.Ticks%6 == 0 {
-			a.oneShotParticles.Emit(projectile.GetParticleProps(), 1)
+			a.trailParticles.Emit(projectile.GetParticleProps(), 1)
 		}
 
 		if projectile.IsDead() {
@@ -399,8 +412,8 @@ func (a *BattleClient) camera() util.Camera {
 	if a.cameraIsFirstPerson {
 		camera = a.fpsCamera
 	}
-	if a.cameraAnimation != nil {
-		camera = a.cameraAnimation
+	if a.camTransition != nil {
+		camera = a.camTransition
 	}
 	return camera
 }
@@ -411,7 +424,13 @@ func (a *BattleClient) Draw(elapsed float64) {
 
 	a.drawLines(a.camera())
 
-	a.oneShotParticles.Draw(elapsed)
+	a.explosionParticles.Draw(elapsed)
+
+	a.bloodParticles.Draw(elapsed)
+
+	a.trailParticles.Draw(elapsed)
+
+	a.impactParticles.Draw(elapsed)
 
 	a.smoker.Draw(elapsed)
 
@@ -450,7 +469,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {
 		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawColoredQuads)
-		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, game.ColorTechTeal)
 		a.selector.Draw()
 	}
 
@@ -467,7 +486,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
 	if a.unitSelector != nil {
 		a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawCircle)
-		a.defaultShader.SetUniformAttr(ShaderDrawColor, ColorTechTeal)
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, game.ColorTechTeal)
 		a.defaultShader.SetUniformAttr(ShaderThickness, float32(0.2))
 		a.unitSelector.Draw()
 	}
@@ -647,10 +666,10 @@ func (a *BattleClient) UpdateMousePicking(newX, newY float64) {
 		pressureString = fmt.Sprintf("\nPressure: %0.2f", pressure)
 	}
 	if unitHit.IsUserControlled() {
-		a.textLabel.SetTintColor(ColorPositiveGreen.Vec3())
+		a.textLabel.SetTintColor(game.ColorPositiveGreen.Vec3())
 		a.Print(unitHit.GetFriendlyDescription() + pressureString)
 	} else {
-		a.textLabel.SetTintColor(ColorNegativeRed.Vec3())
+		a.textLabel.SetTintColor(game.ColorNegativeRed.Vec3())
 		a.Print(unitHit.GetEnemyDescription() + pressureString)
 	}
 }
@@ -859,8 +878,6 @@ func (a *BattleClient) OnThrow(msg game.VisualThrow) {
 
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	// TODO: animate unit firing
-	damageReport := ""
-
 	attacker, knownAttacker := a.GetClientUnit(msg.Attacker)
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
@@ -881,53 +898,41 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	}
 	attackerIsOwnUnit := knownAttacker && a.IsMyUnit(attacker.UnitID())
 	activateBulletCam := len(msg.Projectiles) == 1 && attackerIsOwnUnit && a.settings.EnableBulletCam //only for single flyingObjects and own units
+	activateActionCam := a.settings.EnableActionCam && !activateBulletCam                             // don't use action cam when bullet cam is active
 
-	projectileArrivalCounter := 0
-	for index, p := range msg.Projectiles {
+	if activateBulletCam {
+		a.fireProjectiles(msg.Projectiles, func(index int, projectile *Projectile) {
+			a.startBulletCamFor(attacker, projectile)
+		}, func(index int, projectile game.VisualProjectile) {
+			a.handleProjectileArrival(attacker.UnitInstance, projectile)
+		})
+	} else if activateActionCam {
+		a.startActionCamFor(attacker, msg.Projectiles)
+	} else {
+		a.fireProjectiles(msg.Projectiles, nil, func(index int, projectile game.VisualProjectile) {
+			a.handleProjectileArrival(attacker.UnitInstance, projectile)
+		})
+	}
+}
+
+func (a *BattleClient) fireProjectiles(projectiles []game.VisualProjectile, onProjectileLaunch func(index int, projectile *Projectile), onProjectileArrived func(int, game.VisualProjectile)) {
+	damageReport := ""
+	for i, p := range projectiles {
 		projectile := p
-		firedProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
-			// on arrival
-			projectileArrivalCounter++
-			if projectile.UnitHit >= 0 {
-				unit, ok := a.GetClientUnit(uint64(projectile.UnitHit))
-				if !ok {
-					println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
-					return
-				}
-				isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
-				if isLethal {
-					unit.PlayDeathAnimation(projectile.Velocity, projectile.BodyPart)
-				} else {
-					unit.PlayHitAnimation(projectile.Velocity, projectile.BodyPart)
-				}
-
-				a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
-
-				println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
-			} else {
-				a.AddBulletImpact(projectile.Destination, projectile.Velocity)
+		index := i
+		newProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
+			if onProjectileArrived != nil {
+				onProjectileArrived(index, projectile)
 			}
-
-			if projectile.InsteadOfDamage.Effect != game.TargetedEffectNone {
-				a.GameInstance.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage)
-			}
-
-			for _, damagedBlock := range projectile.BlocksHit {
-				blockDef := a.GetBlockDefAt(damagedBlock)
-				blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
-			}
-
-			if projectileArrivalCounter == len(msg.Projectiles) {
+			if i == len(projectiles)-1 {
 				a.Print(damageReport)
-				if activateBulletCam {
-					a.stopBulletCamAndSwitchTo(attacker)
-				}
 			}
 		})
 
-		if activateBulletCam {
-			a.startBulletCamFor(attacker, firedProjectile)
+		if onProjectileLaunch != nil {
+			onProjectileLaunch(index, newProjectile)
 		}
+
 		projectileNumber := index + 1
 		if projectile.UnitHit >= 0 {
 			hitUnit, knownUnit := a.GetClientUnit(uint64(projectile.UnitHit))
@@ -944,6 +949,173 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	}
 }
 
+func (a *BattleClient) handleProjectileArrival(attackerUnit *game.UnitInstance, projectile game.VisualProjectile) {
+	if projectile.UnitHit >= 0 {
+		unit, ok := a.GetClientUnit(uint64(projectile.UnitHit))
+		if !ok {
+			println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
+			return
+		}
+		isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
+		if isLethal {
+			unit.PlayDeathAnimation(projectile.Velocity, projectile.BodyPart)
+		} else {
+			unit.PlayHitAnimation(projectile.Velocity, projectile.BodyPart)
+		}
+
+		a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
+
+		println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
+	} else {
+		a.AddBulletImpact(projectile.Destination, projectile.Velocity)
+	}
+
+	if projectile.InsteadOfDamage.Effect != game.TargetedEffectNone {
+		a.GameInstance.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage)
+	}
+
+	for _, damagedBlock := range projectile.BlocksHit {
+		blockDef := a.GetBlockDefAt(damagedBlock)
+		blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
+	}
+	return
+}
+
+func (a *BattleClient) startActionCamFor(attacker *Unit, projectiles []game.VisualProjectile) {
+	err := a.scriptedAnimation.Run(a.actionCameraScript, attacker, projectiles)
+	if err != nil {
+		println(fmt.Sprintf("[BattleClient] Error starting action cam: %s", err.Error()))
+	}
+}
+func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
+	a.crosshair.SetHidden(true)
+
+	if !a.cameraIsFirstPerson {
+		a.SwitchToFirstPerson()
+	} else {
+		a.onSwitchToISO()
+	}
+	a.onSwitchToIsoCamera = func() {
+		a.fpsCamera.Detach()
+	}
+
+	attacker := exe.Args[0].(*Unit)
+	projectiles := exe.Args[1].([]game.VisualProjectile)
+	cam := a.fpsCamera
+	attackerEye := attacker.GetEyePosition()
+
+	var unitsHit []uint64
+	for _, projectile := range projectiles {
+		if projectile.UnitHit > -1 {
+			unitsHit = append(unitsHit, uint64(projectile.UnitHit))
+		}
+	}
+
+	firstProjectile := projectiles[0]
+	fpOrigin := firstProjectile.Origin
+	fpDirection := firstProjectile.Velocity.Normalize()
+	fpViewPoint := fpOrigin.Add(fpDirection.Mul(5.5))
+	fpViewPoint = mgl32.Vec3{fpViewPoint.X(), attackerEye.Y(), fpViewPoint.Z()}
+
+	//projectileCount := len(projectiles)
+	impactHappened := false
+	// we have these stages..
+
+	// 1. prepare to fire
+
+	// 1.1. move camera to external view point
+	cam.SetPosition(fpViewPoint)
+	cam.SetLookTarget(attackerEye)
+
+	should(exe.YieldTime(time.Millisecond * 150))
+
+	// 1.2. turn to direction
+	attacker.turnToDirectionForAnimation(fpDirection)
+
+	should(exe.YieldTime(time.Millisecond * 150))
+
+	/* DO WE NEED ALL THIS?
+	prepareFireAnimationFinished := false
+	attacker.SetEventListener(func(event TransitionEvent) {
+		if event == EventAnimationFinished {
+			attacker.SetEventListener(nil)
+			prepareFireAnimationFinished = true
+		}
+	})
+	*/
+
+	// slow down time a bit
+
+	a.TimeFactor = 0.75
+
+	// 1.3. play prepare fire animation
+	// This should be enough?
+	attacker.PlayHitAnimation(firstProjectile.Velocity.Mul(-1), firstProjectile.BodyPart) // TODO: replace with prepare fire animation
+
+	// 1.4. wait for prepare fire animation to finish
+	should(exe.YieldFunc(func() bool { return attacker.GetModel().IsHoldingAnimation() }))
+
+	//attacker.turnToDirectionForAnimation(direction)
+	//attacker.PlayPrepareFireAnimation()
+	unitImpact := false
+	impactPos := mgl32.Vec3{}
+	onArrival := func(index int, projectile game.VisualProjectile) {
+		a.handleProjectileArrival(attacker.UnitInstance, projectile)
+		impactHappened = true
+		impactPos = projectile.Destination
+		if projectile.UnitHit > -1 {
+			unitImpact = true
+		}
+	}
+
+	// 2. fire
+	a.fireProjectiles(projectiles, nil, onArrival)
+
+	// wait a bit
+	should(exe.YieldTime(time.Millisecond * 350))
+
+	a.TimeFactor = 1.0
+
+	// 3. switch camera so we can see projectiles fly
+	minX, minY, minZ := float32(math.MaxFloat32), float32(math.MaxFloat32), float32(math.MaxFloat32)
+	maxX, maxY, maxZ := float32(-math.MaxFloat32), float32(-math.MaxFloat32), float32(-math.MaxFloat32)
+	for _, p := range projectiles {
+		minX = min(minX, p.Destination.X())
+		minY = min(minY, p.Destination.Y())
+		minZ = min(minZ, p.Destination.Z())
+
+		maxX = max(maxX, p.Destination.X())
+		maxY = max(maxY, p.Destination.Y())
+		maxZ = max(maxZ, p.Destination.Z())
+	}
+
+	center := mgl32.Vec3{(minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2}
+
+	a.fpsCamera.SetPosition(attacker.GetShoulderCamRightPosition())
+	a.fpsCamera.SetLookTarget(center)
+
+	// 4. impact
+	if len(unitsHit) > 0 {
+		should(exe.YieldFunc(func() bool { return unitImpact }))
+		a.TimeFactor = 0.1
+		toAttacker := attackerEye.Sub(impactPos)
+		dist := min(toAttacker.Len()-1, 4)
+		toAttackerDir := toAttacker.Normalize()
+		camPos := impactPos.Add(toAttackerDir.Mul(dist))
+		a.fpsCamera.SetPosition(camPos)
+		a.fpsCamera.SetLookTarget(impactPos)
+
+		should(exe.YieldTime(time.Millisecond * 800))
+
+	} else {
+		should(exe.YieldFunc(func() bool { return impactHappened }))
+		should(exe.YieldTime(time.Millisecond * 350))
+	}
+	a.TimeFactor = 1.0
+	a.fpsCamera.Detach()
+	a.PopState()
+}
+
 func (a *BattleClient) startBulletCamFor(attacker *Unit, firedProjectile *Projectile) {
 	if !a.cameraIsFirstPerson {
 		a.SwitchToFirstPerson()
@@ -958,7 +1130,7 @@ func (a *BattleClient) startBulletCamFor(attacker *Unit, firedProjectile *Projec
 	a.crosshair.SetHidden(true)
 }
 
-func (a *BattleClient) stopBulletCamAndSwitchTo(unit *Unit) {
+func (a *BattleClient) stopFpsCamAndSwitchTo(unit *Unit) {
 	a.fpsCamera.Detach()
 	a.SwitchToUnit(unit)
 }
@@ -1180,14 +1352,14 @@ func (a *BattleClient) IsUnitOwnedByClient(unitID uint64) bool {
 }
 
 func (a *BattleClient) AddBlood(unitHit *Unit, entryWoundPosition mgl32.Vec3, bulletVelocity mgl32.Vec3, partHit util.DamageZone) {
-	// TODO: UpdateMapPosition blood oneShotParticles
+	// TODO: UpdateMapPosition blood explosionParticles
 	// TODO: AddFlat blood decals on unit skin
 	bloodProps := a.particleProps[ParticlesBlood].WithOrigin(entryWoundPosition)
-	a.oneShotParticles.Emit(bloodProps, 10)
+	a.bloodParticles.Emit(bloodProps, 10)
 }
 func (a *BattleClient) AddBulletImpact(worldPosition mgl32.Vec3, bulletVelocity mgl32.Vec3) {
 	bloodProps := a.particleProps[ParticlesBulletImpact].WithOrigin(worldPosition)
-	a.oneShotParticles.Emit(bloodProps, 10)
+	a.impactParticles.Emit(bloodProps, 10)
 }
 func (a *BattleClient) SetHighlightsForMovement(action *game.ActionMove, unit *Unit, targets []voxel.Int3) {
 	var snapRange []voxel.Int3  // can snap fire from here
@@ -1319,7 +1491,7 @@ func (a *BattleClient) createExplosion(origin voxel.Int3, radius float64) {
 	// velocity is hardcoded to 20..
 	lifeTime := float32(radius / 20.0)
 	properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3()).WithLifeTime(lifeTime)
-	a.oneShotParticles.Emit(properties, 100)
+	a.explosionParticles.Emit(properties, 100)
 }
 
 func (a *BattleClient) SetSelectedBlocks(selection []voxel.Int3) {
@@ -1332,3 +1504,21 @@ func (a *BattleClient) StartItemAction(unit *Unit, item *game.Item) {
 		a.SwitchToThrowTarget(unit, game.NewActionThrow(a.GameInstance, unit.UnitInstance, item))
 	}
 }
+
+func (a *BattleClient) DebugPosHandler(pos, color mgl32.Vec3) {
+	props := glhf.ParticleProperties{
+		Origin:     pos,
+		ColorBegin: color,
+		ColorEnd:   color,
+		SizeBegin:  0.002,
+		SizeEnd:    0.002,
+		Lifetime:   0.15,
+	}
+	if color == game.ColorNegativeRed.Vec3() {
+		a.bloodParticles.Emit(props, 1)
+	} else {
+		a.trailParticles.Emit(props, 1)
+	}
+
+}
+

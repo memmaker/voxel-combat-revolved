@@ -71,7 +71,7 @@ func (g *GameStateFreeAim) aimAtNextTarget() mgl32.Vec3 {
 	g.lockedTarget = (g.lockedTarget + 1) % len(g.visibleEnemies)
 	targetUnit := g.visibleEnemies[g.lockedTarget]
 
-	g.showTargetInfo(targetUnit, util.ZoneNone, "")
+	g.showTargetInfo(targetUnit, util.ZoneNone)
 	return targetUnit.GetEyePosition()
 }
 
@@ -81,18 +81,18 @@ func (g *GameStateFreeAim) updateTargetInfo() {
 
 	rayStart, rayEnd := g.engine.fpsCamera.GetRandomRayInCircleFrustum(1.0)
 	hitInfo := g.engine.RayCastFreeAim(rayStart, rayEnd, g.engine.selectedUnit.UnitInstance)
-	aimString := g.engine.fpsCamera.DebugAim()
+	//aimString := g.engine.fpsCamera.DebugAim()
 	if hitInfo.HitUnit() {
 		hitUnit := hitInfo.UnitHit.(*game.UnitInstance)
 		zone := hitInfo.BodyPart
-		g.showTargetInfo(hitUnit, zone, aimString)
+		g.showTargetInfo(hitUnit, zone)
 	} else {
 		distanceToTarget := hitInfo.CollisionWorldPosition.Sub(rayStart).Len()
-		g.engine.Print(fmt.Sprintf("Distance to target: %0.2f\n%s", distanceToTarget, aimString))
+		g.engine.Print(fmt.Sprintf("Distance to target: %0.2f", distanceToTarget))
 	}
 }
 
-func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone util.DamageZone, aimString string) {
+func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone util.DamageZone) {
 	weaponMaxRange := float32(g.engine.selectedUnit.GetWeapon().Definition.MaxRange)
 	weaponEffectiveRange := float32(g.engine.selectedUnit.GetWeapon().Definition.EffectiveRange)
 	distanceToTarget := g.engine.selectedUnit.GetEyePosition().Sub(targetUnit.GetCenterOfMassPosition()).Len()
@@ -115,7 +115,12 @@ func (g *GameStateFreeAim) showTargetInfo(targetUnit *game.UnitInstance, zone ut
 
 	description += fmt.Sprintf("\nMax Damage: %d > Enemy HP: %d", projectedMaxDamage, bestCaseHealth)
 
-	description += fmt.Sprintf("\n%s", aimString)
+	//shotAction := g.selectedAction.(*game.ActionSnapShot)
+
+	//hitCoverage := g.engine.CalculateBaseHitCoverageFromCamera(g.engine.selectedUnit.UnitInstance, targetUnit, shotAction, g.engine.fpsCamera)
+
+	//description += fmt.Sprintf("\nHit Coverage: %0.2f", hitCoverage)
+
 
 	g.engine.Print(description)
 }
@@ -127,7 +132,6 @@ func (g *GameStateFreeAim) Init(bool) {
 	lookAtPos := g.aimAtNextTarget()
 
 	g.engine.SwitchToUnitFirstPerson(g.engine.selectedUnit, lookAtPos, accuracy)
-
 }
 
 func (g *GameStateFreeAim) OnUpperRightAction(float64) {
@@ -150,7 +154,7 @@ func (g *GameStateFreeAim) OnMouseClicked(x float64, y float64) {
 		anglesMatchBulletCount := len(g.targetAngles) == int(unit.GetWeapon().Definition.BulletsPerShot)
 		if !unit.HasWeaponOfType(game.WeaponPistol) || anglesMatchBulletCount {
 			util.MustSend(g.engine.server.FreeAimAction(unit.UnitID(), g.selectedAction.GetName(), camPos, g.targetAngles))
-			if g.engine.settings.AutoSwitchToIsoCameraAfterFiring {
+			if g.engine.settings.AutoSwitchToIsoCameraAfterFiring && !g.engine.settings.EnableActionCam {
 				g.engine.SwitchToIsoCamera()
 				g.engine.PopState()
 				//g.engine.SwitchToUnitNoCameraMovement(g.engine.selectedUnit)

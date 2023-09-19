@@ -541,6 +541,10 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 			YourTurn:      playerID == nextPlayer,
 		})
 	}
+
+	// the server would now wait for messages from the next player
+	// if it is an AI player, we could generate the moves for it right here instead.
+	// but that would blur the line and we would lose interesting options
 }
 
 func (b *BattleServer) SendStartDeployment(gameInstance *game.GameInstance) {

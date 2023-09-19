@@ -1,4 +1,4 @@
-package client
+package game
 
 import "github.com/go-gl/mathgl/mgl32"
 

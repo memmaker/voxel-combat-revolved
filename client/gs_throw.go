@@ -56,7 +56,7 @@ func (g *GameStateThrowTarget) OnMouseClicked(x float64, y float64) {
 }
 
 func (g *GameStateThrowTarget) updateThrowTrajectory(targetPos mgl32.Vec3) {
-	color := ColorTechTeal
+	color := game.ColorTechTeal
 	path := g.throwAction.GetTrajectory(targetPos)
 
 	g.targetPos = targetPos
