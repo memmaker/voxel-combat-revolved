@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/game"
 )
 
 type Crosshair struct {
@@ -43,7 +44,7 @@ func NewCrosshair(shader *glhf.Shader, cam *util.FPSCamera) *Crosshair {
 		originalScale:     scale,
 		originalThickness: 0.02,
 		currentThickness:  0.02,
-		color:             ColorTechTeal,
+		color: game.ColorTechTeal,
 		size:              1.0,
 	}
 	c.Init(shader)

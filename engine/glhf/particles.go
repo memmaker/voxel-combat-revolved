@@ -30,6 +30,16 @@ func (p ParticleProperties) WithLifeTime(lifetime float32) ParticleProperties {
 	return p
 }
 
+func (p ParticleProperties) WithSizeBegin(size float32) ParticleProperties {
+	p.SizeBegin = size
+	return p
+}
+
+func (p ParticleProperties) WithSizeEnd(size float32) ParticleProperties {
+	p.SizeEnd = size
+	return p
+}
+
 type Particle struct {
 	id                   uint64
 	Position, Velocity   mgl32.Vec3
@@ -235,7 +245,7 @@ func (v *ParticleSystem) Emit(props ParticleProperties, count int) int {
 	var maxComponents int32
 	gl.GetIntegerv(gl.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS, &maxComponents)
 
-	// hmm3: we will overwrite the lifetime of an infite emitter with the lifetime of a finite emitter
+	// hmm3: we will overwrite the properties of existing particles being emitted the moment here..
 	v.particleShader.Begin()
 	v.particleShader.SetUniformAttr(2, props.Lifetime)
 	v.particleShader.SetUniformAttr(3, props.ColorEnd)
@@ -256,7 +266,10 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
 	x := props.Origin.X() + props.PositionVariation.X()*(rand.Float32()-0.5)
 	y := props.Origin.Y() + props.PositionVariation.Y()*(rand.Float32()-0.5)
 	z := props.Origin.Z() + props.PositionVariation.Z()*(rand.Float32()-0.5)
-	velocity := props.VelocityFromPosition(props.Origin, mgl32.Vec3{x, y, z})
+	velocity := mgl32.Vec3{}
+	if props.VelocityFromPosition != nil {
+		velocity = props.VelocityFromPosition(props.Origin, mgl32.Vec3{x, y, z})
+	}
 	velocityX := GlFloat(velocity.X() + props.VelocityVariation.X()*(rand.Float32()-0.5))
 	velocityY := GlFloat(velocity.Y() + props.VelocityVariation.Y()*(rand.Float32()-0.5))
 	velocityZ := GlFloat(velocity.Z() + props.VelocityVariation.Z()*(rand.Float32()-0.5))

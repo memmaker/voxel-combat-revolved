@@ -2,6 +2,8 @@ package game
 
 import (
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/go-gl/mathgl/mgl64"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"math"
@@ -115,9 +117,11 @@ type GameInstance struct {
 	onNotification       func(string)
 	onBlockEffectAdded   func(voxel.Int3, BlockEffect)
 	onBlockEffectRemoved func(voxel.Int3, BlockEffect)
+	onDebugPos           func(pos, color mgl32.Vec3)
 
 	turnCounter        int
 	activeBlockEffects map[voxel.Int3]BlockStatusEffectInstance
+
 }
 
 func (g *GameInstance) SetEnvironment(environment string) {
@@ -674,4 +678,46 @@ func (g *GameInstance) removeBlockStatusEffect(location voxel.Int3, effect Block
 	}
 	delete(g.activeBlockEffects, location)
 	g.blockEffectRemoved(location, effect)
+}
+
+func (g *GameInstance) CalculateBaseHitCoverage(attacker *UnitInstance, target *UnitInstance, action ShotAction) float64 {
+	cam := util.NewFPSCamera(attacker.GetEyePosition(), 100, 100, 0)
+	cam.SetLookTarget(target.GetCenterOfMassPosition())
+	return g.CalculateBaseHitCoverageFromCamera(attacker, target, action, cam)
+}
+
+func (g *GameInstance) CalculateBaseHitCoverageFromCamera(attacker *UnitInstance, target *UnitInstance, action ShotAction, cam *util.FPSCamera) float64 {
+	accuracy := g.rules.GetShotAccuracy(action)
+	gapToPerfection := 1.0 - accuracy
+	hitCounter := 0
+	aspectRatio := cam.GetAspectRatio()
+	pSteps := 20
+	probeCount := 0
+	c := float64(1)
+	for a := 100; a >= 10; a -= pSteps {
+		percentage := float64(a) / 100.0
+		percentageOfGap := gapToPerfection * percentage
+		achievedAccuracy := accuracy + percentageOfGap
+		// 100 -> 1
+		// 10 -> 10
+		rSteps := 360.0 / c
+		for r := float64(0); r < 360; r += rSteps {
+			dirVec := util.AngleToVector(mgl64.DegToRad(r)).Normalize()
+			dirVec = mgl32.Vec2{dirVec.X(), dirVec.Y() * aspectRatio}
+			rayStart, rayEnd := cam.GetRayInCircleFrustum(dirVec, achievedAccuracy)
+			probeCount++
+			if g.RayCastHitUnit(rayStart, rayEnd, attacker, target) {
+				hitCounter++
+				g.onDebugPos(rayStart, ColorPositiveGreen.Vec3())
+			} else {
+				g.onDebugPos(rayStart, ColorNegativeRed.Vec3())
+			}
+		}
+		c = 8
+	}
+	return float64(hitCounter) / float64(probeCount)
+}
+
+func (g *GameInstance) SetDebugPosListener(listener func(pos, col mgl32.Vec3)) {
+	g.onDebugPos = listener
 }

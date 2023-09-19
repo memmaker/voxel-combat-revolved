@@ -2,6 +2,7 @@
  - Cannot look inside buildings with roofs
  - Own unit not visually dying, when hit by enemy units during fps view
  - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
+ - The shared particle emitter is not working correctly
 
 # On Smoke
  - Smoke needs to be managed server side
@@ -42,6 +43,8 @@
 # Flaws of turn-based XCOM style games in general
  - Boring movement when there is no enemy in sight
    -> Start with enemies in sight
+      -> Force both players to position one unit in sight of each other at pre-defined positions
+      -> Most positions in sight of each other, both players take turns positioning their units
    -> Speed up initial movement
  - Nothing to do during the enemy turn
    -> Add activity during enemy turn

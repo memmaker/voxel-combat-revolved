@@ -45,7 +45,7 @@ var (
 	transformFeedbackVertexShaderSource string
 )
 
-// v1 oneShotParticles need for every instance:
+// v1 explosionParticles need for every instance:
 // position, 3 floats
 // lifetimeLeft, 1 float
 // velocity, 3 floats

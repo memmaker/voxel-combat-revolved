@@ -10,6 +10,14 @@ type ActionSnapShot struct {
 	valid  map[voxel.Int3]bool
 }
 
+func (a *ActionSnapShot) GetUnit() *UnitInstance {
+	return a.unit
+}
+
+func (a *ActionSnapShot) GetAccuracyModifier() float64 {
+	return 1.0
+}
+
 func (a *ActionSnapShot) IsTurnEnding() bool {
 	return true
 }

@@ -23,6 +23,11 @@ type Unit struct {
 	currentPath        []voxel.Int3
 	controlledByUser   bool
 	clientOnlyRotation mgl32.Quat
+    eventListener      func(event TransitionEvent)
+}
+
+func (p *Unit) SetEventListener(listener func(event TransitionEvent)) {
+    p.eventListener = listener
 }
 
 func (p *Unit) SetVelocity(newVelocity mgl32.Vec3) {
@@ -46,7 +51,7 @@ func (p *Unit) GetNextEvent(currentState AnimationStateName) TransitionEvent {
 		if !p.transition.Exists(currentState, nextEvent) {
 			// only advance the state machine from the current state, if the transition is defined
 			// otherwise, we just re-emit the event
-			p.eventQueue = append(p.eventQueue, nextEvent)
+            p.EmitEvent(nextEvent)
 			return EventNone
 		}
 		util.LogGreen(fmt.Sprintf("[Unit] %s(%d) Event retrieved from Queue %s", p.GetName(), p.UnitID(), nextEvent.ToString()))
@@ -58,6 +63,9 @@ func (p *Unit) EmitEvent(stateEvent TransitionEvent) {
 	if stateEvent != EventNone {
 		p.eventQueue = append(p.eventQueue, stateEvent)
 	}
+    if p.eventListener != nil {
+        p.eventListener(stateEvent)
+    }
 }
 
 func (p *Unit) Update(deltaTime float64) {
@@ -125,7 +133,7 @@ func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.Damage
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
-	p.eventQueue = append(p.eventQueue, EventLethalHit)
+    p.EmitEvent(EventLethalHit)
 }
 
 func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
@@ -133,7 +141,7 @@ func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZo
 		ForceOfImpact: forceOfImpact,
 		BodyPart:      bodyPart,
 	}
-	p.eventQueue = append(p.eventQueue, EventHit)
+    p.EmitEvent(EventHit)
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
@@ -151,7 +159,7 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
 	p.currentWaypoint = 0
-	p.eventQueue = append(p.eventQueue, EventNewPath)
+    p.EmitEvent(EventNewPath)
 	util.LogGreen(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
 }
 func (p *Unit) GetWaypoint() voxel.Int3 {
@@ -315,5 +323,12 @@ func (p *Unit) SetServerInstance(unit *game.UnitInstance) {
 	p.UnitInstance.Transform.SetParent(p)
 	p.AutoSetStanceAndForwardAndUpdateMap()
 	p.StartStanceAnimation()
+}
+
+func (p *Unit) GetShoulderCamRightPosition() mgl32.Vec3 {
+    forward := p.GetForward()
+    behind := forward.Mul(-1.0).Normalize().Mul(1.8)
+    right := forward.Cross(mgl32.Vec3{0, 1, 0}).Normalize().Mul(0.7)
+    return p.GetBlockPosition().ToBlockCenterVec3().Add(mgl32.Vec3{0.0, 1.65, 0.0}).Add(behind).Add(right)
 }
 

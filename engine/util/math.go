@@ -58,11 +58,56 @@ func LerpQuat(one, two [4]float32, factor float64) [4]float32 {
 	return result
 }
 
+/*
+	float phi = (1 + Mathf.Sqrt(5)) / 2;//golden ratio
+    float angle_stride = 360 * phi;
+    float radius(float k, float n, float b)
+    {
+        return k > n - b ? 1 : Mathf.Sqrt(k - 0.5f) / Mathf.Sqrt(n - (b + 1) / 2);
+    }
+
+    int b = (int)(alpha * Mathf.Sqrt(n));  //# number of boundary points
+
+    List<Vector2>points = new List<Vector2>();
+    for (int k = 0; k < n; k++)
+    {
+        float r = radius(k, n, b);
+        float theta = geodesic ? k * 360 * phi : k * angle_stride;
+        float x = !float.IsNaN(r * Mathf.Cos(theta)) ? r * Mathf.Cos(theta) : 0;
+        float y = !float.IsNaN(r * Mathf.Sin(theta)) ? r * Mathf.Sin(theta) : 0;
+        points.Add(new Vector2(x, y));
+    }
+*/
+func SunflowerSeeds(n int, alpha float64) []mgl32.Vec2 {
+	phi := (1 + math.Sqrt(5)) / 2
+	angleStride := 360 * phi
+	radius := func(k, n, b int) float64 {
+		if k > n-b {
+			return 1
+		}
+		return math.Sqrt(float64(k-1)) / math.Sqrt(float64(n-(b+1)/2))
+	}
+	b := int(alpha * math.Sqrt(float64(n)))
+	points := make([]mgl32.Vec2, 0)
+	for k := 0; k < n; k++ {
+		r := radius(k, n, b)
+		theta := float64(k) * angleStride
+		x := r * math.Cos(theta)
+		y := r * math.Sin(theta)
+		points = append(points, mgl32.Vec2{float32(x), float32(y)})
+	}
+	return points
+}
+
 func LerpQuatMgl(one, two mgl32.Quat, factor float64) mgl32.Quat {
 	dotProduct := float64(one.Dot(two))
 	a := math.Acos(math.Abs(dotProduct))
 	s := dotProduct / math.Abs(dotProduct)
 	return one.Scale(float32(math.Sin(a*(1-factor)) / math.Sin(a))).Add(two.Scale(float32(s * math.Sin(a*factor) / math.Sin(a))))
+}
+
+func AngleToVector(angle float64) mgl32.Vec2 {
+	return mgl32.Vec2{float32(math.Cos(angle)), float32(math.Sin(angle))}
 }
 
 func DirectionToAngle(direction voxel.Int3) float32 {

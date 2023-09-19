@@ -95,29 +95,23 @@ func (c *FPSCamera) SetInvertedY(inverted bool) {
 }
 
 func (c *FPSCamera) GetRandomRayInCircleFrustum(accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
-	accuracy = Clamp(accuracy, 0.0, 1.0)
-	accFactor := 1.0 - accuracy // 0.01..1.0
-
 	randX := rand.Float64()*2.0 - 1.0
 	randY := rand.Float64()*2.0 - 1.0
+	randDir := mgl32.Vec2{float32(randX), float32(randY)}.Normalize()
+	gapToPerfection := 1.0 - accuracy
+	randomPercent := rand.Float64()
+	accuracyAchieved := accuracy + (gapToPerfection * randomPercent)
+	return c.GetRayInCircleFrustum(randDir, accuracyAchieved)
+}
 
-	//println(fmt.Sprintf("randNorm: %0.2f, %0.2f", randX, randY))
-
-	lengthOfVector := math.Sqrt(randX*randX + randY*randY)
-	if lengthOfVector > 1.0 {
-		// normalize
-		randX /= lengthOfVector
-		randY /= lengthOfVector
-	}
-	//println(fmt.Sprintf("circled: %0.2f, %0.2f", randX, randY))
-
-	// in range -1.0..1.0
-	randX *= accFactor
-	randY *= accFactor
-
-	//println(fmt.Sprintf("acc. adjusted: %0.2f, %0.2f", randX, randY))
-
-	return GetRayFromCameraPlane(c, float32(randX), float32(randY))
+// GetRayInCircleFrustum returns a ray from the camera's position to the camera's plane.
+// Expects x and y to be in the range -1..1
+func (c *FPSCamera) GetRayInCircleFrustum(normalizedDir mgl32.Vec2, accuracy float64) (mgl32.Vec3, mgl32.Vec3) {
+	accuracy = Clamp(accuracy, 0.0, 1.0)
+	lengthOfVector := 1.0 - accuracy // 0.01..1.0
+	x := normalizedDir.X() * float32(lengthOfVector)
+	y := normalizedDir.Y() * float32(lengthOfVector)
+	return GetRayFromCameraPlane(c, x, y)
 }
 
 // ChangeAngles changes the camera's angles by dx and dy.

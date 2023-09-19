@@ -227,7 +227,8 @@ func (c *CameraAnimation) Update(delta float64) {
 }
 
 // GetRayFromCameraPlane returns a ray from the camera plane to the far plane.
-// NOTE: LengthInt of ray is hardcoded to 100 units.
+// NOTE: Length of ray is hardcoded to 100 units.
+// Expect normalizedX and normalizedY to be in range -1..1
 func GetRayFromCameraPlane(cam Camera, normalizedX float32, normalizedY float32) (mgl32.Vec3, mgl32.Vec3) {
 	rayLength := float32(100)
 
