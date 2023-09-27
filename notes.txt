@@ -2,7 +2,6 @@
  - Cannot look inside buildings with roofs
  - Own unit not visually dying, when hit by enemy units during fps view
  - Try Using IMgui (https://github.com/AllenDang/giu) for the editor?
- - The shared particle emitter is not working correctly
 
 # On Smoke
  - Smoke needs to be managed server side
@@ -17,11 +16,15 @@
  - Big units
  - Animations
  - Data driven
+ - The optimal way of play must be fun
 
 # Next Steps
  - Health Bars
+ - Interactables: Doors, Chests & Buttons
  - Ceiling removal & Units visible through walls
+ - Deco Items (eg. Plants, Barrels, Crates, etc.)
  - Melee
+ - Light & Shadows https://0fps.net/2018/02/21/voxel-lighting/
  - Weapons, Items & Armors
  - Skills
 
@@ -48,6 +51,7 @@
    -> Speed up initial movement
  - Nothing to do during the enemy turn
    -> Add activity during enemy turn
+   -> Trick taking.. Like a simultanous auction. Every player bids for an effect or its avoidance.
  - Stormtrooper effect: No one hits anything
    -> Increase accuracy, reduce damage dealt (shields, armor)
  - General slowness
@@ -111,6 +115,7 @@ honestly i think it would work best if there was just no permadeath
    -> Shield deployment
    -> Dodge movement
    -> Parry / deflect
+ - Pink Noise
 
 # Core Mechanics
  - Bullets are ray-traced in 3D against environment and models
@@ -120,7 +125,11 @@ honestly i think it would work best if there was just no permadeath
  - Units have action points that can be used to move, attack, etc.
  - Attacking usually ends the turn
 
+
 # On Balance
+ - Always allow players to risk more for a greater reward
+   -> This also enables catch up mechanics
+ - Random Events also enable catch up mechanics
  - Tradeoffs & Power Budgets
  - No First Order Optimal Strategies
  - Counter play (Rock, Paper, Scissors) for everything
@@ -128,9 +137,13 @@ honestly i think it would work best if there was just no permadeath
  - Hands vs. Throws (What you pick before vs. what you use during the fight)
 
 # Random Cool ideas
+ - Vary the draft mechanics: Open, Shared, etc.
+ - Allow for asynchronous multiplayer
+ - Change the mission objectives during a mission: A deathmatch turns into a coop against appearing aliens
  - Bleeding out instead of instant death
  - Bullet Cam for Sniper Shots (Slow Motion?)
  - Asymmetric multiplayer - One player is the attacker, the other the defender
+   -> One vs many
  - Multiple Win & Loose Conditions, different ones for each player
  - Random limitations - eg. No grenades, no overwatch, etc.
  - Loadout Crates in the map to adapt to the situation
@@ -138,9 +151,12 @@ honestly i think it would work best if there was just no permadeath
  - Moving maps - eg. Starship, Train, etc.
  - Create oil, throw cigarette, ignite oil
  - Add a "prod" action
+ - Fail to advance
  - Stances - eg. Crouching, Prone, etc.
    -> Dodging mechanic, choose a dodge stance for a specific AP price (eg. Neo backwards dodge), that will be executed when attacked
  - Shields & Armor
+   -> Localized Shields
+   -> Shield toggle between melee and ranged and grenades/effects/explosions?, skills based around toggling the state
  - Ammo Variants - eg. Armor Piercing, Hollow Point, etc.
  - Scout drones
  - Heroes & Cowards - With instant in-game effects attached to them

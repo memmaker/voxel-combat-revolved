@@ -45,7 +45,7 @@ func runNetworkClient(createOrJoin string, endpoint string) {
 }
 func startGraphicalClient(con *game.ServerConnection, gameInfo game.GameStartedMessage, settings client.ClientSettings) {
 	gameClient := client.NewBattleGame(con, gameInfo, settings)
-	gameClient.LoadMap(gameInfo.MapFile)
+	gameClient.LoadMapBlocks()
 
 	if gameInfo.MissionDetails.Placement == game.PlacementModeManual {
 		for _, unit := range gameInfo.OwnUnits {

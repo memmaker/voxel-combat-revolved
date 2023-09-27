@@ -252,7 +252,8 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 		return
 	}
 
-	battleGame := game.NewGameInstanceWithMap(gameID, msg.Map, msg.MissionDetails)
+	battleGame := game.NewGameInstanceWithDetails(gameID, msg.Map, msg.MissionDetails)
+	//battleGame := game.NewGameInstanceWithBiome(gameID, game.NewBiomeDesert())
 	battleGame.SetEnvironment("Server")
 	battleGame.AddPlayer(userId)
 

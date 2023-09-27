@@ -1,5 +1,6 @@
 {
   "Name": "Unnamed Map",
+  "Blocks": "star_odyssey_01",
   "SpawnPositions": [
     [
       {
@@ -972,5 +973,6 @@
       "Y": 4,
       "Z": 9
     }
-  ]
+  ],
+  "Blocks": "star_odyssey_01"
 }

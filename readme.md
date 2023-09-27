@@ -58,3 +58,11 @@ pressure on them, making it harder to concentrate, thus reducing accuracy.
 Overwatch will always trigger when an enemy steps on that block.
 It incurs a 20% accuracy penalty for the reaction but adds a 10% damage modifier,
 since the enemy is unprepared.
+
+## Setting
+
+We have received a generous sum from an anonymous donor to fund our mission of defending earth.
+The mission statement is simple:
+Draft a team
+Build a base
+Exterminate the alien threat

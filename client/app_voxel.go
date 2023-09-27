@@ -90,11 +90,9 @@ func (a *BattleClient) LoadConstructionFile(filename string) *voxel.Map {
 }
 
 func (a *BattleClient) LoadEmptyWorld(mapSize voxel.Int3, chunkSizeHorizontal, chunkSizeHeight int32) *voxel.Map {
-	listOfBlocks := game.GetDebugBlockNames()
 	var loadedMap *voxel.Map
 
-	terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
-	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
+    terrainTexture, bl := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
 	bl.ApplyGameplayRules(a.GameInstance)
 	//bf := voxel.NewBlockFactory(textureIndices)
 	loadedMap = voxel.NewMap(int32(mapSize.X), int32(mapSize.Y), int32(mapSize.Z), chunkSizeHorizontal, chunkSizeHeight)
@@ -113,18 +111,16 @@ func (a *BattleClient) LoadEmptyWorld(mapSize voxel.Int3, chunkSizeHorizontal, c
 	a.SetVoxelMap(loadedMap)
 	return loadedMap
 }
-func (a *BattleClient) LoadMap(filename string) {
-	listOfBlocks := game.GetDebugBlockNames()
+func (a *BattleClient) LoadMapBlocks() {
 	var loadedMap *voxel.Map
 
-	terrainTexture, indexMap := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
+    terrainTexture, bl := a.GetAssets().LoadBlockTextureAtlas("star_odyssey_01")
 	// Create atlas and index from directory
 	//	terrainTexture, indexMap := util.CreateBlockAtlasFromDirectory("./assets/textures/blocks/star_odyssey", listOfBlocks)
 	//	terrainTexture.SaveAsPNG("./assets/textures/blocks/star_odyssey_01.png")
 	//	indexMap.WriteAtlasIndex("./assets/textures/blocks/star_odyssey_01.idx")
 
 	// NOTE: The order of the list of blocks does matter!
-	bl := game.NewBlockLibrary(listOfBlocks, indexMap)
 	bl.ApplyGameplayRules(a.GameInstance)
 	loadedMap = a.GetVoxelMap()
 	loadedMap.SetTerrainTexture(terrainTexture)

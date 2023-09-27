@@ -1099,13 +1099,13 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 		should(exe.YieldFunc(func() bool { return unitImpact }))
 		a.TimeFactor = 0.1
 		toAttacker := attackerEye.Sub(impactPos)
-		dist := min(toAttacker.Len()-1, 4)
+		dist := min(toAttacker.Len()-1, 5)
 		toAttackerDir := toAttacker.Normalize()
 		camPos := impactPos.Add(toAttackerDir.Mul(dist))
 		a.fpsCamera.SetPosition(camPos)
 		a.fpsCamera.SetLookTarget(impactPos)
 
-		should(exe.YieldTime(time.Millisecond * 800))
+		should(exe.YieldTime(time.Millisecond * 1800))
 
 	} else {
 		should(exe.YieldFunc(func() bool { return impactHappened }))

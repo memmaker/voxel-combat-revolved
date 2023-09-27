@@ -51,6 +51,18 @@ func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *M
 	return m
 }
 
+func NewMapWithEmptyChunks(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *Map {
+	m := NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight)
+	for x := int32(0); x < width; x++ {
+		for y := int32(0); y < height; y++ {
+			for z := int32(0); z < depth; z++ {
+				m.NewChunk(x, y, z)
+			}
+		}
+	}
+	return m
+}
+
 func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture) *Map {
 	m := &Map{
 		chunks:             make([]*Chunk, 0),
@@ -60,6 +72,13 @@ func NewMapFromSource(source []byte, shader *glhf.Shader, texture *glhf.Texture)
 	}
 	m.LoadFromSource(source)
 	return m
+}
+
+func NewMapFromGenerator(biomeFunc func() *Map, shader *glhf.Shader, texture *glhf.Texture) *Map {
+	newMap := biomeFunc()
+	newMap.SetShader(shader)
+	newMap.SetTerrainTexture(texture)
+	return newMap
 }
 
 func (m *Map) Update(delta float64) {
