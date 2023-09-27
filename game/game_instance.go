@@ -9,16 +9,59 @@ import (
 	"math"
 )
 
-func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetails) *GameInstance {
-	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
-	assetLoader := NewAssets()
-	mapMetadata := assetLoader.LoadMapMetadata(mapFile)
-	details.SyncFromMap(mapMetadata)
+type DefaultMapInfo struct {
+	mapFile      string
+	details      *MissionDetails
+	metaData     *MapMetadata
+	loadedMap    *voxel.Map
+	blockLibrary *BlockLibrary
+}
 
+func (d DefaultMapInfo) GetBlockLibrary() *BlockLibrary {
+	return d.blockLibrary
+}
+
+func (d DefaultMapInfo) GetMapFilename() string {
+	return d.mapFile
+}
+
+func (d DefaultMapInfo) GetMissionDetails() *MissionDetails {
+	return d.details
+}
+
+func (d DefaultMapInfo) GetMetaData() *MapMetadata {
+	return d.metaData
+}
+
+func (d DefaultMapInfo) GetMap() *voxel.Map {
+	return d.loadedMap
+}
+
+type MapInfo interface {
+	GetMapFilename() string
+	GetMissionDetails() *MissionDetails
+	GetMetaData() *MapMetadata
+	GetMap() *voxel.Map
+	GetBlockLibrary() *BlockLibrary
+}
+
+func NewGameInstanceWithDetails(gameID string, mapFile string, details *MissionDetails) *GameInstance {
+	assetLoader := NewAssets()
+	return NewGameInstanceWithMap(gameID, assetLoader, assetLoader.LoadMapWithDetails(mapFile, details))
+}
+
+func NewGameInstanceWithBiome(gameID string, biome Biome, details *MissionDetails) *GameInstance {
+	assetLoader := NewAssets()
+	return NewGameInstanceWithMap(gameID, assetLoader, assetLoader.LoadBiomeWithDetails(biome, details))
+}
+func NewGameInstanceWithMap(gameID string, assetLoader *Assets, mapInfo MapInfo) *GameInstance {
+	println(fmt.Sprintf("[GameInstance] '%s' created", gameID))
+	details := mapInfo.GetMissionDetails()
 	g := &GameInstance{
         id:             gameID,
-        mapFile:        mapFile,
+		mapFile:      mapInfo.GetMapFilename(),
 		assets:            assetLoader,
+		blockLibrary: mapInfo.GetBlockLibrary(),
         players:        make([]uint64, 0),
         playerFactions: make(map[uint64]*Faction),
         losMatrix:      make(map[uint64]map[uint64]bool),
@@ -27,8 +70,8 @@ func NewGameInstanceWithMap(gameID string, mapFile string, details *MissionDetai
         units:          make(map[uint64]*UnitInstance),
         playersNeeded:  2,
 		waitForDeployment: details.Placement == PlacementModeManual,
-        voxelMap:       voxel.NewMapFromSource(assetLoader.LoadMap(mapFile), nil, nil),
-        mapMeta:        &mapMetadata,
+		voxelMap:     mapInfo.GetMap(),
+		mapMeta:      mapInfo.GetMetaData(),
         overwatch:      make(map[voxel.Int3][]*UnitInstance),
         missionDetails: details,
 		activeBlockEffects: make(map[voxel.Int3]BlockStatusEffectInstance),

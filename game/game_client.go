@@ -31,7 +31,7 @@ type GameClient[U ClientUnit] struct {
 
 func NewGameClient[U ClientUnit](infos GameStartedMessage, newClientUnit func(*UnitInstance) U) *GameClient[U] {
 	return &GameClient[U]{
-		GameInstance:      NewGameInstanceWithMap(infos.GameID, infos.MapFile, infos.MissionDetails),
+		GameInstance: NewGameInstanceWithDetails(infos.GameID, infos.MapFile, infos.MissionDetails),
 		newClientUnit:     newClientUnit,
 		controllingUserID: infos.OwnID,
 		spawnIndex:        infos.SpawnIndex,

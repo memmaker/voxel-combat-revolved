@@ -17,6 +17,8 @@ github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovk
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/mattn/go-isatty v0.0.17 h1:BTarxUcIeDqL27Mc+vyvdWYSL28zpIhv3RoTdsLMPng=
 github.com/mattn/go-isatty v0.0.17/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
+github.com/ojrac/opensimplex-go v1.0.2 h1:l4vs0D+JCakcu5OV0kJ99oEaWJfggSc9jiLpxaWvSzs=
+github.com/ojrac/opensimplex-go v1.0.2/go.mod h1:NwbXFFbXcdGgIFdiA7/REME+7n/lOf1TuEbLiZYOWnM=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/qmuntal/gltf v0.24.2 h1:Cy9gabbcuWl/LJb3EIFXQIiWZ1Jf2V8ZygtiLc7Piyg=

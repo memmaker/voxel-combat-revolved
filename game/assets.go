@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/engine/voxel"
 	"io"
 	"os"
 	"path"
@@ -34,13 +35,52 @@ func NewAssets() *Assets {
 		},
 	}
 }
+func (a *Assets) LoadMapWithDetails(mapFile string, details *MissionDetails) *DefaultMapInfo {
+	mapMetadata := a.LoadMapMetadata(mapFile)
+	details.SyncFromMap(mapMetadata)
+	library := a.LoadBlockLibrary(mapMetadata.Blocks)
+	return &DefaultMapInfo{
+		mapFile:      mapFile,
+		details:      details,
+		metaData:     &mapMetadata,
+		blockLibrary: library,
+		loadedMap:    voxel.NewMapFromSource(a.LoadMap(mapFile), nil, nil),
+	}
+}
 
-func (a *Assets) LoadBlockTextureAtlas(filename string) (*glhf.Texture, util.NameIndex) {
+func (a *Assets) LoadBiomeWithDetails(biome Biome, details *MissionDetails) MapInfo {
+	biomeName := biome.GetName()
+	atlas, library := a.LoadBlockTextureAtlas(biomeName)
+
+	biomeMap, mapMetadata := biome.Generate()
+	biomeMap.SetTerrainTexture(atlas)
+
+	details.SyncFromMap(mapMetadata)
+
+	return &DefaultMapInfo{
+		mapFile:      biomeName,
+		details:      details,
+		metaData:     &mapMetadata,
+		blockLibrary: library,
+		loadedMap:    biomeMap,
+	}
+}
+func (a *Assets) LoadBlockTextureAtlas(filename string) (*glhf.Texture, *BlockLibrary) {
 	filePath := path.Join(a.paths[AssetTypeBlockTextures], filename)
 	texture := mustLoadTexture(filePath + ".png")
 	texture.SetAtlasItemSize(16, 16)
 	indexMap := util.NewBlockIndexFromFile(filePath + ".idx")
-	return texture, indexMap
+	blockList := util.NewBlockListFromFile(filePath + ".txt")
+	bl := NewBlockLibrary(blockList, indexMap)
+	return texture, bl
+}
+
+func (a *Assets) LoadBlockLibrary(filename string) *BlockLibrary {
+	filePath := path.Join(a.paths[AssetTypeBlockTextures], filename)
+	indexMap := util.NewBlockIndexFromFile(filePath + ".idx")
+	blockList := util.NewBlockListFromFile(filePath + ".txt")
+	bl := NewBlockLibrary(blockList, indexMap)
+	return bl
 }
 
 func (a *Assets) LoadBitmapFont(fontName string, glyphWidth int, glyphHeight int) (*glhf.Texture, util.BitmapFontIndex) {

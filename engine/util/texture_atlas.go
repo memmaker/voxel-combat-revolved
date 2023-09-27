@@ -48,6 +48,25 @@ func NewBlockIndexFromFile(filename string) NameIndex {
 	}
 	return indices
 }
+
+func NewBlockListFromFile(filename string) []string {
+    file, err := os.Open(filename)
+    if err != nil {
+        LogTextureError("could not open index file")
+        return nil
+    }
+    defer file.Close()
+    var names []string
+    var name string
+    for {
+        _, scanErr := fmt.Fscanf(file, "%s\n", &name)
+        if scanErr != nil {
+            break
+        }
+        names = append(names, name)
+    }
+    return names
+}
 func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, NameIndex) {
 	indices := map[string]byte{}
 	pixels := image.NewNRGBA(image.Rect(0, 0, 256, 256)) // iterate over the files in the directory

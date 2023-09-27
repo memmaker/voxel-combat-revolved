@@ -11,6 +11,7 @@ type MapMetadata struct {
 	Name           string
 	SpawnPositions [][]voxel.Int3
 	PoIPlacements  []voxel.Int3
+	Blocks         string
 }
 
 func (m *MapMetadata) SaveToDisk(mapfilename string) error {

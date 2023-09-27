@@ -17,6 +17,13 @@ uniform mat4 modelTransform;
 
 out vec4 color;
 
+vec3 toneMapping(vec3 hdrColor, float gamma, float exposure) {
+    vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+    // gamma correction
+    mapped = pow(mapped, vec3(1.0 / gamma));
+    return mapped;
+}
+
 float diffuseBrightnessFromGlobalLight(vec3 worldNormal) {
     //calculate final color of the pixel, based on:
     // 1. The angle of incidence: brightness
@@ -93,6 +100,8 @@ void main() {
 
     vec4 surfaceColor = texture(tex, vec2(u, v));
     //vec4 surfaceColor = vec4(VertColor, 1.0);
-    color = vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+    vec3 litColor = brightness * light_color * surfaceColor.rgb;
+    vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);
+    color = vec4(toneMappedColor, surfaceColor.a);
 }
 

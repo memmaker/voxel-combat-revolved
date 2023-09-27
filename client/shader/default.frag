@@ -26,6 +26,14 @@ uniform sampler2D tex;
 
 out vec4 fragmentColor;
 
+
+vec3 toneMapping(vec3 hdrColor, float gamma, float exposure) {
+    vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+    // gamma correction
+    mapped = pow(mapped, vec3(1.0 / gamma));
+    return mapped;
+}
+
 float diffuseBrightnessFromGlobalLight(vec3 worldNormal) {
     //calculate final color of the pixel, based on:
     // 1. The angle of incidence: brightness
@@ -72,19 +80,23 @@ void drawTexturedQuads() {
     if (surfaceColor.a == 0) {
         discard;
     }
-    fragmentColor = vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+    vec3 litColor = (brightness * light_color) * surfaceColor.rgb;
+    vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);
+    fragmentColor = vec4(toneMappedColor, surfaceColor.a);
 }
 
 void drawColoredQuads() {
     vec4 surfaceColor = vec4(VertColor, 1.0);// we probably wanna set the transparency here
     surfaceColor *= color;
-    fragmentColor = surfaceColor;//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+    vec3 toneMappedColor = toneMapping(surfaceColor.rgb, 1.2, 1.0);
+    fragmentColor = vec4(toneMappedColor, surfaceColor.a);//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
 }
 
 void drawColoredFadingQuads() {
     vec4 surfaceColor = vec4(VertColor, VertUV.y + 0.2);// we probably wanna set the transparency here
     surfaceColor *= color;
-    fragmentColor = surfaceColor;//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
+    vec3 toneMappedColor = toneMapping(surfaceColor.rgb, 1.2, 1.0);
+    fragmentColor = vec4(toneMappedColor, surfaceColor.a);//vec4(brightness * light_color * surfaceColor.rgb, surfaceColor.a);
 }
 
 void drawCircle() {
