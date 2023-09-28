@@ -3,9 +3,31 @@ package voxel
 type Block struct {
 	ID       byte
 	occupant MapObject
+	lightLevel byte
 }
 
 const EMPTYBLOCK = 0
+
+func (b *Block) SetTorchLight(lightLevel byte) {
+	b.lightLevel = (b.lightLevel & 0xF0) | lightLevel
+}
+
+func (b *Block) GetTorchLight() byte {
+	if b == nil {
+		return 0
+	}
+	return b.lightLevel & 0xF
+}
+func (b *Block) SetSunLight(lightLevel byte) {
+	b.lightLevel = (b.lightLevel & 0xF) | (lightLevel << 4)
+}
+
+func (b *Block) GetSunLight() byte {
+	if b == nil {
+		return 0
+	}
+	return b.lightLevel >> 4
+}
 
 func (b *Block) IsAir() bool {
 	return b.ID == EMPTYBLOCK

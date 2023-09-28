@@ -3,6 +3,7 @@
 
 flat in vec3 VertNormal;
 in vec3 VertPos;
+in float VertLightLevel;
 flat in uint VertTexIndex;
 
 uniform sampler2D tex;
@@ -57,13 +58,13 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
 }
 void main() {
     //calculate normal in world coordinates
-    mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
-    vec3 worldNormal = normalize(normalMatrix * VertNormal);
+    //mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
+    //vec3 worldNormal = normalize(normalMatrix * VertNormal);
 
     //calculate the location of this fragment (pixel) in world coordinates
-    float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
-    float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
-    float brightness = clamp(directional_brightness + point_brightness, 0.0, 1.0);
+    //float directional_brightness = diffuseBrightnessFromGlobalLight(worldNormal);
+    //float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
+    //float brightness = clamp(directional_brightness + point_brightness, 0.0, 1.0);
 
     //vec4 surfaceColor = vec4(1, 0.2, 0.2, 1);
     // our uv coords are in steps of 1/16
@@ -100,7 +101,10 @@ void main() {
 
     vec4 surfaceColor = texture(tex, vec2(u, v));
     //vec4 surfaceColor = vec4(VertColor, 1.0);
-    vec3 litColor = brightness * light_color * surfaceColor.rgb;
+
+    vec3 floodLight = vec3(2.0, 2.0, 2.0) * (VertLightLevel/15.0);
+
+    vec3 litColor = floodLight * surfaceColor.rgb;
     vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);
     color = vec4(toneMappedColor, surfaceColor.a);
 }

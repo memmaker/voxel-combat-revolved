@@ -40,6 +40,7 @@
 in uint compressedValue;
 
 flat out vec3 VertNormal;
+out float VertLightLevel;
 out vec3 VertPos;
 flat out uint VertTexIndex;
 // set uniform locations
@@ -79,20 +80,20 @@ attributes := int32(normalDirection) << 21
 // 8 bits for the texture index (0..255)
 attributes |= int32(textureIndex) << 24
 */
-void decompressVertex(uint compressedValue, out vec3 position, out uint normalDir, out uint textureIndex)
+void decompressVertex(uint compressedValue, out vec3 position, out uint normalDir, out uint textureIndex, out float lightLevel)
 {
     uint positionX = compressedValue & uint(0x3F);// 0x3F = 0b111111
     uint yPart = compressedValue >> uint(6);
-    uint positionY = yPart & uint(0x3F);
-    uint zPart = compressedValue >> uint(12);
+    uint positionY = yPart & uint(0x1F); // 6 bits => 0x3F = 0b111111, 5 bits => 0x1F = 0b11111, 4 bits => 0xF = 0b1111
+    uint zPart = compressedValue >> uint(11);
     uint positionZ = zPart & uint(0x3F);
-
-    normalDir = (compressedValue >> uint(18)) & uint(0x7);// 0x7 = 0b111
-    textureIndex = (compressedValue >> uint(21)) & uint(0xFF);// 0xFF = 0b11111111
-    // read bit 30 to determine if this is hovering highlight
     position = vec3(float(positionX), float(positionY), float(positionZ));
-    uint isHovering = (compressedValue >> uint(29)) & uint(0x1);
-    position.y += float(isHovering) * 0.01;
+
+    normalDir = (compressedValue >> uint(17)) & uint(0x7);// 0x7 = 0b111
+    textureIndex = (compressedValue >> uint(20)) & uint(0xFF);// 0xFF = 0b11111111
+
+    uint light = (compressedValue >> uint(28)) & uint(0xF);
+    lightLevel = float(light);
 }
 
 
@@ -100,7 +101,7 @@ void main() {
     // decompress the vertex
     uint normalDir = uint(1);
 
-    decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex);
+    decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex, VertLightLevel);
 
     // pass-through for fragment shader
     VertNormal = normalLookup[normalDir];

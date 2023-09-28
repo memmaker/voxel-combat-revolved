@@ -79,13 +79,15 @@ type VoxelFace struct {
 	inVisible    bool
 	side         FaceType
 	textureIndex byte
+	lightLevel   byte
 }
 
 func (v *VoxelFace) EqualForMerge(face *VoxelFace) bool {
-	if face.inVisible {
-		return face.inVisible == v.inVisible
+	if face.inVisible { // one is transparent
+		return face.inVisible == v.inVisible // so, both have to be transparent
 	}
-	return face.inVisible == v.inVisible && face.textureIndex == v.textureIndex
+	// one is solid
+	return face.inVisible == v.inVisible && face.textureIndex == v.textureIndex && face.lightLevel == v.lightLevel
 }
 
 func (c *Chunk) InitNeighbors() {
@@ -234,7 +236,7 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
 								topLeft := Int3{x[0] + du[0], x[1] + du[1], x[2] + du[2]}
 								bottomRight := Int3{x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]}
 								topRight := Int3{x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]}
-								mesh.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, [4]uint8{})
+								mesh.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, mask[n].lightLevel)
 								// we also would have width (w) and height (h) here
 								// backface is a bool, true if we are rendering the backface of a block
 							}
@@ -326,8 +328,12 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 	}
 
 	face := &VoxelFace{side: side, textureIndex: c.m.getTextureIndexForSide(block, side)}
-	if neighbor != nil && !neighbor.IsAir() && !neighborIsFromChunkAboveOrBelow {
+	solidNeighbor := neighbor != nil && !neighbor.IsAir()
+	if solidNeighbor && !neighborIsFromChunkAboveOrBelow {
 		face.inVisible = true
+	}
+	if !solidNeighbor {
+		face.lightLevel = neighbor.GetTorchLight()
 	}
 	return face
 }

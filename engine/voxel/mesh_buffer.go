@@ -37,14 +37,14 @@ func (m *MeshBuffer) TriangleCount() int {
 // Further reduce the amount of data we need to send to the GPU
 // Use indexed drawing?
 
-func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8) {
+func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, lightLevel byte) {
 	//println(fmt.Sprintf("bl: %v, tl: %v, br: %v, tr: %v, normal: %v, textureIndex: %v", bl, tl, br, tr, normal, textureIndex))
 	// min => bl, max => tr
 	// 8+3 = 11 bits + 4*18 bits => 72 + 11 = 83 bits, one 64bit and one 32bit integer => 96 bits
-	compressedVertexTR := m.Compress(tr, normal, textureIndex, extraBits[0])
-	compressedVertexBR := m.Compress(br, normal, textureIndex, extraBits[1])
-	compressedVertexBL := m.Compress(bl, normal, textureIndex, extraBits[2])
-	compressedVertexTL := m.Compress(tl, normal, textureIndex, extraBits[3]) // we use 29 of 32 bits, only 18 are different between the vertices
+	compressedVertexTR := m.Compress(tr, normal, textureIndex, lightLevel)
+	compressedVertexBR := m.Compress(br, normal, textureIndex, lightLevel)
+	compressedVertexBL := m.Compress(bl, normal, textureIndex, lightLevel)
+	compressedVertexTL := m.Compress(tl, normal, textureIndex, lightLevel) // we use 29 of 32 bits, only 18 are different between the vertices
 
 	// quad info:
 	// 4x Origin (x,y,z) => 4x3x6 bits = 72 bits
@@ -168,17 +168,17 @@ func (m *MeshBuffer) PartialDraw(camDirection Int3) {
 }
 
 // Compresses the position, normal direction and texture index into a 32 bit integer.
-func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte, extraBits uint8) uint32 {
+func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIndex byte, lightLevel byte) uint32 {
 	// 6 bits for the x y z axis
 	// max value for each axis is 2^6 - 1 = 63
 	// we want to pack these into one 32 bit integer
 	maxX := uint32(63)
-	maxY := uint32(63)
+	maxY := uint32(31)
 	maxZ := uint32(63)
 
-	xAxis := uint32(position.X)
-	yAxis := uint32(position.Y) << 6
-	zAxis := uint32(position.Z) << 12
+	xAxis := uint32(position.X)       // 6 bits
+	yAxis := uint32(position.Y) << 6  // 5 bits
+	zAxis := uint32(position.Z) << 11 // 6 bits
 
 	if position.X < 0 || uint32(position.X) > maxX {
 		println("x axis out of bounds: ", position.X)
@@ -192,15 +192,19 @@ func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIn
 	compressedPosition := xAxis | yAxis | zAxis
 
 	// 3 bits for the normal direction (0..5)
-	attributes := uint32(normalDirection) << 18
+	attributes := uint32(normalDirection) << 17
 	// 8 bits for the texture index (0..255)
-	attributes |= uint32(textureIndex) << 21
+	attributes |= uint32(textureIndex) << 20
 
-	// add the first three extra bits
-	attributes |= uint32(extraBits) << 29
+	// add the first four extra bits
+	attributes |= uint32(lightLevel) << 28
+
+	if lightLevel > 0 {
+		println("compressed light level: ", lightLevel)
+	}
 
 	compressedVertex := compressedPosition | attributes
-	// total: 29 bits, 3 bits left
+	// total: 32 bits
 	return compressedVertex
 }
 

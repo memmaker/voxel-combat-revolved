@@ -21,7 +21,7 @@ var Up = Int3{0, 1, 0}
 var Down = Int3{0, -1, 0}
 
 type ChunkMesh interface {
-	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits [4]uint8)
+	AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, extraBits byte)
 	Reset()
 	Draw()
 	UploadMeshToGPU(shader *glhf.Shader)
