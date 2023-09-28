@@ -350,6 +350,24 @@ func (m *Map) GetGlobalBlock(x int32, y int32, z int32) *Block {
 	}
 }
 
+func (m *Map) GetBlockAndChunk(blockPos Int3) (*Block, *Chunk) {
+	x := blockPos.X
+	y := blockPos.Y
+	z := blockPos.Z
+	chunkX := x / m.ChunkSizeHorizontal
+	chunkY := y / m.ChunkSizeHeight
+	chunkZ := z / m.ChunkSizeHorizontal
+	chunk := m.GetChunk(chunkX, chunkY, chunkZ)
+	if chunk != nil {
+		blockX := x % m.ChunkSizeHorizontal
+		blockY := y % m.ChunkSizeHeight
+		blockZ := z % m.ChunkSizeHorizontal
+		return chunk.GetLocalBlock(blockX, blockY, blockZ), chunk
+	} else {
+		return nil, nil
+	}
+}
+
 func (m *Map) IsSolidBlockAt(x int32, y int32, z int32) bool {
 	block := m.GetGlobalBlock(x, y, z)
 	return block != nil && !block.IsAir()
@@ -780,6 +798,70 @@ type DistLocPair struct {
 	Location Int3
 }
 
+func (m *Map) FillTorchlight(origin Int3) {
+	if !m.ContainsGrid(origin) {
+		return
+	}
+	maxLightLevel := 15
+
+	startBlock, startChunk := m.GetBlockAndChunk(origin)
+	startBlock.SetTorchLight(byte(maxLightLevel))
+	startChunk.SetDirty()
+
+	spread := func(origin, currentNode, currentNeighbor Int3, costToPrev int) (bool, int) {
+		if m.IsSolidBlockAt(currentNeighbor.X, currentNeighbor.Y, currentNeighbor.Z) {
+			return false, 0
+		}
+
+		nodeLight := m.GetBlockFromVec(currentNode).GetTorchLight()
+
+		neighborBlock, neighborChunk := m.GetBlockAndChunk(currentNeighbor)
+		neighborLight := neighborBlock.GetTorchLight()
+
+		if neighborLight < nodeLight-1 {
+			neighborBlock.SetTorchLight(nodeLight - 1)
+			neighborChunk.SetDirty()
+			println(fmt.Sprintf("[Map] Spread torchlight from %s to %s: %d -> %d", currentNode.ToString(), currentNeighbor.ToString(), nodeLight, nodeLight-1))
+			return true, costToPrev + 1
+		}
+		return false, 0
+	}
+
+	m.FloodFill(origin, maxLightLevel, spread)
+}
+func (m *Map) FloodFill(origin Int3, maxSteps int, spreadFunc func(origin, location, neighbor Int3, stepsToLocation int) (bool, int)) {
+	visited := make(map[Int3]bool)
+	visited[origin] = true
+	queue := []DistLocPair{{0, 0, origin}}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current.Steps > maxSteps {
+			continue
+		}
+		for _, offset := range cardinalNeighbors3D {
+			neighbor := current.Location.Add(offset)
+			if !m.ContainsGrid(neighbor) {
+				continue
+			}
+			_, alreadyVisited := visited[neighbor]
+			if alreadyVisited {
+				continue
+			}
+
+			shouldSpread, neighborSteps := spreadFunc(origin, current.Location, neighbor, current.Steps)
+
+			if !shouldSpread {
+				continue
+			}
+
+			neighborDistance := origin.Sub(neighbor).Length()
+
+			visited[neighbor] = true
+			queue = append(queue, DistLocPair{neighborSteps, neighborDistance, neighbor})
+		}
+	}
+}
 func (m *Map) ForBlockInSphericFloodFill(origin Int3, radius float64, applyToBlock func(origin Int3, steps int, distance float64, x int32, y int32, z int32)) {
 	visited := make(map[Int3]bool)
 	visited[origin] = true

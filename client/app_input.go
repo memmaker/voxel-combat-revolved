@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"github.com/memmaker/battleground/engine/voxel"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -111,8 +112,9 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 		//a.smoker.AddPoisonCloud(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 5, 1)
 		//a.smoker.AddFire(voxel.PositionToGridInt3(a.groundSelector.GetPosition()), 5)
 		//a.CreateSmokeCloudEffect()
-		a.TimeFactor += 0.1
-		a.Print(fmt.Sprintf("TimeFactor: %0.2f", a.TimeFactor))
+		//a.TimeFactor += 0.1
+		//a.Print(fmt.Sprintf("TimeFactor: %0.2f", a.TimeFactor))
+		a.GetVoxelMap().FillTorchlight(voxel.PositionToGridInt3(a.groundSelector.GetPosition()))
 	}
 	if key == glfw.KeyF9 && action == glfw.Press {
 		a.TimeFactor -= 0.1
