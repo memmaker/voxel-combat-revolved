@@ -43,11 +43,18 @@ func Lerp3(one, two mgl32.Vec3, factor float64) mgl32.Vec3 {
 	return mgl32.Vec3{Mix64(one.X(), two.X(), factor), Mix64(one.Y(), two.Y(), factor), Mix64(one.Z(), two.Z(), factor)}
 }
 
+func Lerp3f(one, two [3]float32, factor float64) [3]float32 {
+	return [3]float32{Mix64(one[0], two[0], factor), Mix64(one[1], two[1], factor), Mix64(one[2], two[2], factor)}
+}
+
 func LerpQuat(one, two [4]float32, factor float64) [4]float32 {
 	if one[0] == two[0] && one[1] == two[1] && one[2] == two[2] && one[3] == two[3] {
 		return one
 	}
 	dotProduct := float64(one[0]*two[0] + one[1]*two[1] + one[2]*two[2] + one[3]*two[3])
+	if dotProduct == 1 {
+		return one
+	}
 	a := math.Acos(math.Abs(dotProduct))
 	s := dotProduct / math.Abs(dotProduct)
 	result := [4]float32{}
@@ -113,6 +120,9 @@ func AngleToVector(angle float64) mgl32.Vec2 {
 func DirectionToAngle(direction voxel.Int3) float32 {
 	angle := float32(math.Atan2(float64(direction.X), float64(direction.Z))) + math.Pi
 	return angle
+}
+func DirectionTo2D(direction mgl32.Vec3) mgl32.Vec3 {
+	return mgl32.Vec3{direction.X(), 0, direction.Z()}
 }
 func DirectionToAngleVec(direction mgl32.Vec3) float32 {
 	angle := float32(math.Atan2(float64(direction.X()), float64(direction.Z()))) + math.Pi

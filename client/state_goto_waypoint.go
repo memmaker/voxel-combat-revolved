@@ -62,7 +62,7 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 	if a.coroutine.Running() {
 		a.coroutine.Update()
-		return EventNone
+		return NewEvent(EventNone)
 	} else {
 		a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
 		if !a.runToCompletion {
@@ -71,7 +71,7 @@ func (a *UnitGotoWaypointBehavior) Execute(deltaTime float64) TransitionEvent {
 		} else {
 			util.LogGreen(fmt.Sprintf("[UnitGotoWaypointBehavior] Unit %s(%d) stopped at %v", a.unit.GetName(), a.unit.UnitID(), a.unit.GetBlockPosition()))
 		}
-		return EventLastWaypointReached
+		return NewEvent(EventLastWaypointReached)
 	}
 }
 
@@ -107,10 +107,10 @@ func (a *UnitGotoWaypointBehavior) startAndWaitForAnimation() bool {
 }
 
 func (a *UnitGotoWaypointBehavior) GetName() AnimationStateName {
-	return UnitGotoWaypoint
+	return StateGotoWaypoint
 }
 
-func (a *UnitGotoWaypointBehavior) Init(unit *Unit) {
+func (a *UnitGotoWaypointBehavior) Init(unit *Unit, event TransitionEvent) {
 	a.unit = unit
 	a.coroutine = gocoro.NewCoroutine()
 	should(a.coroutine.Run(a.GetUnitMovementScript))

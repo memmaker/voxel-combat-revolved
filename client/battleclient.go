@@ -85,7 +85,7 @@ func (a *BattleClient) state() GameState {
 }
 func (a *BattleClient) isBusyMovingUnits() bool {
 	for _, unit := range a.GetAllClientUnits() {
-		if unit.state.GetName() == UnitGotoWaypoint {
+		if unit.state.GetName() == StateGotoWaypoint {
 			return true
 		}
 	}
@@ -886,7 +886,8 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 		attackerUnit.UpdateMapPosition()
 
 		attackerUnit.ConsumeAP(msg.APCostForAttacker)
-		attackerUnit.GetWeapon().ConsumeAmmo(msg.AmmoCost)
+		weapon := attackerUnit.GetWeapon()
+		weapon.ConsumeAmmo(msg.AmmoCost)
 
 		attackerUnit.GetModel().SetAnimationLoop(game.AnimationWeaponIdle.Str(), 1.0)
 		if msg.IsTurnEnding {
@@ -901,7 +902,7 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	activateActionCam := a.settings.EnableActionCam && !activateBulletCam                             // don't use action cam when bullet cam is active
 
 	if activateBulletCam {
-		a.fireProjectiles(msg.Projectiles, func(index int, projectile *Projectile) {
+		a.fireProjectiles(msg.WeaponType, msg.Projectiles, func(index int, projectile *Projectile) {
 			a.startBulletCamFor(attacker, projectile)
 		}, func(index int, projectile game.VisualProjectile) {
 			a.handleProjectileArrival(attacker.UnitInstance, projectile)
@@ -909,42 +910,55 @@ func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
 	} else if activateActionCam {
 		a.startActionCamFor(attacker, msg.Projectiles)
 	} else {
-		a.fireProjectiles(msg.Projectiles, nil, func(index int, projectile game.VisualProjectile) {
+		a.fireProjectiles(msg.WeaponType, msg.Projectiles, func(index int, projectile *Projectile) {
+			attacker.PlayFireAnimation(util.DirectionTo2D(projectile.velocity.Normalize()))
+		}, func(index int, projectile game.VisualProjectile) {
 			a.handleProjectileArrival(attacker.UnitInstance, projectile)
 		})
 	}
 }
 
-func (a *BattleClient) fireProjectiles(projectiles []game.VisualProjectile, onProjectileLaunch func(index int, projectile *Projectile), onProjectileArrived func(int, game.VisualProjectile)) {
+func (a *BattleClient) fireProjectiles(weaponType game.WeaponType, projectiles []game.VisualProjectile, onProjectileLaunch func(index int, projectile *Projectile), onProjectileArrived func(int, game.VisualProjectile)) {
 	damageReport := ""
+	spreadOverMultipleFrames := weaponType == game.WeaponAutomatic || weaponType == game.WeaponPistol
+
 	for i, p := range projectiles {
 		projectile := p
 		index := i
-		newProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
-			if onProjectileArrived != nil {
-				onProjectileArrived(index, projectile)
-			}
-			if i == len(projectiles)-1 {
-				a.Print(damageReport)
-			}
-		})
+		launchFunc := func() {
+			newProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
+				if onProjectileArrived != nil {
+					onProjectileArrived(index, projectile)
+				}
+				if i == len(projectiles)-1 {
+					a.Print(damageReport)
+				}
+			})
 
-		if onProjectileLaunch != nil {
-			onProjectileLaunch(index, newProjectile)
-		}
+			if onProjectileLaunch != nil {
+				onProjectileLaunch(index, newProjectile)
+			}
 
-		projectileNumber := index + 1
-		if projectile.UnitHit >= 0 {
-			hitUnit, knownUnit := a.GetClientUnit(uint64(projectile.UnitHit))
-			if !knownUnit {
-				damageReport += fmt.Sprintf("%d. something was hit\n", projectileNumber)
-			} else if projectile.IsLethal {
-				damageReport += fmt.Sprintf("%d. lethal hit on %s (%s)\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart)
+			projectileNumber := index + 1
+			if projectile.UnitHit >= 0 {
+				hitUnit, knownUnit := a.GetClientUnit(uint64(projectile.UnitHit))
+				if !knownUnit {
+					damageReport += fmt.Sprintf("%d. something was hit\n", projectileNumber)
+				} else if projectile.IsLethal {
+					damageReport += fmt.Sprintf("%d. lethal hit on %s (%s)\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart)
+				} else {
+					damageReport += fmt.Sprintf("%d. hit on %s (%s) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart, projectile.Damage)
+				}
 			} else {
-				damageReport += fmt.Sprintf("%d. hit on %s (%s) for %d damage\n", projectileNumber, hitUnit.GetName(), projectile.BodyPart, projectile.Damage)
+				damageReport += fmt.Sprintf("%d. missed\n", projectileNumber)
 			}
+		}
+		if spreadOverMultipleFrames {
+			a.scheduleUpdateIn(float64(i)*0.1, func(deltaTime float64) {
+				launchFunc()
+			})
 		} else {
-			damageReport += fmt.Sprintf("%d. missed\n", projectileNumber)
+			launchFunc()
 		}
 	}
 }
@@ -1050,7 +1064,7 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 
 	// 1.3. play prepare fire animation
 	// This should be enough?
-	attacker.PlayHitAnimation(firstProjectile.Velocity.Mul(-1), firstProjectile.BodyPart) // TODO: replace with prepare fire animation
+	attacker.PlayFireAnimation(util.DirectionTo2D(firstProjectile.Velocity))
 
 	// 1.4. wait for prepare fire animation to finish
 	should(exe.YieldFunc(func() bool { return attacker.GetModel().IsHoldingAnimation() }))
@@ -1069,7 +1083,7 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 	}
 
 	// 2. fire
-	a.fireProjectiles(projectiles, nil, onArrival)
+	a.fireProjectiles(attacker.GetWeapon().Definition.WeaponType, projectiles, nil, onArrival)
 
 	// wait a bit
 	should(exe.YieldTime(time.Millisecond * 350))

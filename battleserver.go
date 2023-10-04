@@ -26,19 +26,21 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        0,
 				CoreStats: defaultCoreStats,
-				ModelFile: "human",
-				/*
-					AnimationMap: map[string]string{
-						"idle":      game.AnimationIdle.Str(),
-						"idle2":     game.AnimationWeaponIdle.Str(),
-						"hit":       game.AnimationHit.Str(),
-						"run":       game.AnimationWeaponWalk.Str(),
-						"death":     game.AnimationDeath.Str(),
-						"climb":     game.AnimationClimb.Str(),
-						"drop":      game.AnimationDrop.Str(),
-						"wall_idle": game.AnimationWallIdle.Str(),
-					},
-				*/
+				ModelFile: "soldier",
+
+				AnimationMap: map[string]string{
+					"idle_nogun":              game.AnimationIdle.Str(),
+					"idle_twohand":            game.AnimationWeaponIdle.Str(),
+					"fire":                    game.AnimationWeaponFire.Str(),
+					"hit":                     game.AnimationHit.Str(),
+					"run_twohand":             game.AnimationWeaponWalk.Str(),
+					"death_twohand":           game.AnimationDeath.Str(),
+					"climb":                   game.AnimationClimb.Str(),
+					"drop":                    game.AnimationDrop.Str(),
+					"wall_idle_twohand_left":  game.AnimationWallIdleLeft.Str(),
+					"wall_idle_twohand_right": game.AnimationWallIdleRight.Str(),
+				},
+
 				ClientRepresentation: game.UnitClientDefinition{
 					TextureFile: "steve",
 				},
@@ -61,19 +63,21 @@ func NewBattleServer() *server.BattleServer {
 			{
 				ID:        2,
 				CoreStats: defaultCoreStats,
-				ModelFile: "human",
-				/*
-					AnimationMap: map[string]string{
-						"idle":      game.AnimationIdle.Str(),
-						"idle2":     game.AnimationWeaponIdle.Str(),
-						"hit":       game.AnimationHit.Str(),
-						"run":       game.AnimationWeaponWalk.Str(),
-						"death":     game.AnimationDeath.Str(),
-						"climb":     game.AnimationClimb.Str(),
-						"drop":      game.AnimationDrop.Str(),
-						"wall_idle": game.AnimationWallIdle.Str(),
-					},
-				*/
+				ModelFile: "soldier",
+
+				AnimationMap: map[string]string{
+					"idle_nogun":              game.AnimationIdle.Str(),
+					"idle_twohand":            game.AnimationWeaponIdle.Str(),
+					"fire":                    game.AnimationWeaponFire.Str(),
+					"hit":                     game.AnimationHit.Str(),
+					"run_twohand":             game.AnimationWeaponWalk.Str(),
+					"death_twohand":           game.AnimationDeath.Str(),
+					"climb":                   game.AnimationClimb.Str(),
+					"drop":                    game.AnimationDrop.Str(),
+					"wall_idle_twohand_left":  game.AnimationWallIdleLeft.Str(),
+					"wall_idle_twohand_right": game.AnimationWallIdleRight.Str(),
+				},
+
 				ClientRepresentation: game.UnitClientDefinition{
 					//TextureFile: "deep_monster2",
 				},

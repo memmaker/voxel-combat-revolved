@@ -5,13 +5,13 @@ type ActorDeadBehavior struct {
 }
 
 func (a *ActorDeadBehavior) GetName() AnimationStateName {
-	return ActorStateDead
+	return StateDead
 }
 
-func (a *ActorDeadBehavior) Init(actor *Unit) {
+func (a *ActorDeadBehavior) Init(actor *Unit, event TransitionEvent) {
 	a.actor = actor
 }
 
 func (a *ActorDeadBehavior) Execute(deltaTime float64) TransitionEvent {
-	return EventNone
+	return NewEvent(EventNone)
 }
