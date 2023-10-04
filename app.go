@@ -174,7 +174,7 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 			{
 				UnitTypeID: 2,
 				Name:       "Gorn",
-				Weapon: "LAW Rocket",
+				Weapon: "M16 Rifle",
 				Items:  []string{"Poison Grenade"},
 			},
 			{

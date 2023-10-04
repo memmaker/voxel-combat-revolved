@@ -5,14 +5,14 @@ type ActorIdleBehavior struct {
 }
 
 func (a *ActorIdleBehavior) GetName() AnimationStateName {
-	return ActorStateIdle
+	return StateIdle
 }
 
-func (a *ActorIdleBehavior) Init(actor *Unit) {
+func (a *ActorIdleBehavior) Init(actor *Unit, event TransitionEvent) {
 	a.actor = actor
 	actor.StartStanceAnimation()
 }
 
 func (a *ActorIdleBehavior) Execute(deltaTime float64) TransitionEvent {
-	return EventNone
+	return NewEvent(EventNone)
 }

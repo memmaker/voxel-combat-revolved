@@ -6,16 +6,16 @@ type ActorWaitingBehavior struct {
 
 func (a *ActorWaitingBehavior) Execute(deltaTime float64) TransitionEvent {
 	if a.actor.shouldContinue(deltaTime) {
-		return EventFinishedWaiting
+		return NewEvent(EventFinishedWaiting)
 	}
-	return EventNone
+	return NewEvent(EventNone)
 }
 
 func (a *ActorWaitingBehavior) GetName() AnimationStateName {
-	return ActorStateWaiting
+	return StateWaiting
 }
 
-func (a *ActorWaitingBehavior) Init(actor *Unit) {
+func (a *ActorWaitingBehavior) Init(actor *Unit, event TransitionEvent) {
 	a.actor = actor
 	actor.StartStanceAnimation()
 }

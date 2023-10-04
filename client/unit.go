@@ -17,7 +17,6 @@ type Unit struct {
 	waypointTimer      float64
 	state              AnimationState
 	transition         *TransitionTable
-	hitInfo            HitInfo
 	removeActor        bool
 	eventQueue         []TransitionEvent
 	currentPath        []voxel.Int3
@@ -48,19 +47,19 @@ func (p *Unit) GetNextEvent(currentState AnimationStateName) TransitionEvent {
 	if len(p.eventQueue) > 0 {
 		nextEvent := p.eventQueue[0]
 		p.eventQueue = p.eventQueue[1:]
-		if !p.transition.Exists(currentState, nextEvent) {
+        if !p.transition.Exists(currentState, nextEvent.Name()) {
 			// only advance the state machine from the current state, if the transition is defined
 			// otherwise, we just re-emit the event
             p.EmitEvent(nextEvent)
-			return EventNone
+            return NewEvent(EventNone)
 		}
-		util.LogGreen(fmt.Sprintf("[Unit] %s(%d) Event retrieved from Queue %s", p.GetName(), p.UnitID(), nextEvent.ToString()))
+        util.LogGreen(fmt.Sprintf("[Unit] %s(%d) Event retrieved from Queue %s", p.GetName(), p.UnitID(), nextEvent.Name().ToString()))
 		return nextEvent
 	}
-	return EventNone
+    return NewEvent(EventNone)
 }
 func (p *Unit) EmitEvent(stateEvent TransitionEvent) {
-	if stateEvent != EventNone {
+    if stateEvent.Name() != EventNone {
 		p.eventQueue = append(p.eventQueue, stateEvent)
 	}
     if p.eventListener != nil {
@@ -86,10 +85,10 @@ func (p *Unit) Update(deltaTime float64) {
 	currentEvent := p.GetNextEvent(currentState)
 	// HMM2 now the problem is the movement animation not finishing, because we switched to idle before it could register
 
-	if p.transition.Exists(currentState, currentEvent) {
-		nextState := p.transition.GetNextState(currentState, currentEvent)
-		util.LogGlobalUnitDebug(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.ToString(), currentState.ToString(), nextState.ToString()))
-		p.SetState(nextState)
+    if p.transition.Exists(currentState, currentEvent.Name()) {
+        nextState := p.transition.GetNextState(currentState, currentEvent.Name())
+        util.LogGlobalUnitDebug(fmt.Sprintf("[%s] Received %s -> Transition from %s to %s", p.GetName(), currentEvent.Name().ToString(), currentState.ToString(), nextState.ToString()))
+        p.SetState(nextState, currentEvent)
 	}
 }
 
@@ -117,9 +116,9 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 	}
 }
 
-func (p *Unit) SetState(nextState AnimationStateName) {
+func (p *Unit) SetState(nextState AnimationStateName, event TransitionEvent) {
 	p.state = BehaviorFactory(nextState)
-	p.state.Init(p)
+    p.state.Init(p, event)
 }
 
 type HitInfo struct {
@@ -128,20 +127,15 @@ type HitInfo struct {
 }
 
 func (p *Unit) PlayDeathAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
-	// needs to be passed to the new state, we do indirectly via the unit
-	p.hitInfo = HitInfo{
-		ForceOfImpact: forceOfImpact,
-		BodyPart:      bodyPart,
-	}
-    p.EmitEvent(EventLethalHit)
+    p.EmitEvent(NewHitEvent(EventLethalHit, forceOfImpact, bodyPart))
 }
 
 func (p *Unit) PlayHitAnimation(forceOfImpact mgl32.Vec3, bodyPart util.DamageZone) {
-	p.hitInfo = HitInfo{
-		ForceOfImpact: forceOfImpact,
-		BodyPart:      bodyPart,
-	}
-    p.EmitEvent(EventHit)
+    p.EmitEvent(NewHitEvent(EventHit, forceOfImpact, bodyPart))
+}
+
+func (p *Unit) PlayFireAnimation(direction mgl32.Vec3) {
+    p.EmitEvent(NewDirectionalEvent(EventFireWeapon, direction))
 }
 
 func (p *Unit) Draw(shader *glhf.Shader) {
@@ -159,7 +153,7 @@ func (p *Unit) GetTransformMatrix() mgl32.Mat4 {
 func (p *Unit) SetPath(path []voxel.Int3) {
 	p.currentPath = path
 	p.currentWaypoint = 0
-    p.EmitEvent(EventNewPath)
+    p.EmitEvent(NewEvent(EventNewPath))
 	util.LogGreen(fmt.Sprintf("[Unit] %s(%d) SetPath %v", p.GetName(), p.UnitID(), path))
 }
 func (p *Unit) GetWaypoint() voxel.Int3 {
@@ -202,11 +196,11 @@ func (p *Unit) turnToDiagonalDirectionForAnimation(direction voxel.Int3) {
 }
 
 func (p *Unit) IsDead() bool {
-	return p.state.GetName() == ActorStateDead
+    return p.state.GetName() == StateDead
 }
 
 func (p *Unit) IsDying() bool {
-	return p.state.GetName() == ActorStateDying
+    return p.state.GetName() == StateDying
 }
 
 func (p *Unit) ShouldBeRemoved() bool {
@@ -259,7 +253,7 @@ func (p *Unit) GetLastDirection() voxel.Int3 {
 }
 
 func (p *Unit) IsIdle() bool {
-	return p.state.GetName() == ActorStateIdle
+    return p.state.GetName() == StateIdle
 }
 
 func (p *Unit) FreezeStanceAnimation() {
@@ -305,7 +299,7 @@ func NewClientUnit(instance *game.UnitInstance) *Unit {
 		clientOnlyRotation: mgl32.QuatIdent(),
 	}
 	a.SetServerInstance(instance)
-	a.SetState(ActorStateIdle)
+    a.SetState(StateIdle, nil)
 	return a
 }
 func (p *Unit) UpdateFromServerInstance(unit *game.UnitInstance) {

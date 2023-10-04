@@ -6,7 +6,7 @@
   "FPSCameraInvertedMouse":           true,
   "FPSCameraMouseSensitivity":        0.08,
   "EnableBulletCam":                  false,
-  "EnableActionCam":                  true,
+  "EnableActionCam":                  false,
   "EnableCameraAnimations":           true,
   "FullScreen":                       false,
   "AutoSwitchToIsoCameraAfterFiring": true

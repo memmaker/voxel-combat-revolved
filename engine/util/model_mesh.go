@@ -33,10 +33,12 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 	}
 	scaledDeltaTime := deltaTime * m.animationSpeed
 	animationFinished := m.RootNode.UpdateAnimation(scaledDeltaTime)
-	if animationFinished && !m.loopAnimation {
-		//ts := time.Now().Format("15:04:05.000")
-		//println(fmt.Sprintf("[CompoundMesh] Animation %s finished at %s -> holding", m.currentAnimation, ts))
-		m.holdAnimation = true
+	if animationFinished {
+		if m.loopAnimation {
+			m.ResetAnimations()
+		} else {
+			m.holdAnimation = true
+		}
 	}
 	return animationFinished
 }
@@ -103,15 +105,11 @@ type MeshNode struct {
 	currentAnimation string
 	animationTimer   float64
 
-	currentTranslationFrame int
-	currentRotationFrame    int
-	currentScaleFrame       int
+	// animation frames (trans, rot, scale)
+	currentFrame [3]int
 
 	// collision
 	colliders              []Collider
-	outOfTranslationFrames bool
-	outOfRotationFrames    bool
-	outOfScaleFrames       bool
 	hidden                 bool
 
 	samplerSource func(animationName string) [][]float32
@@ -290,12 +288,7 @@ func (m *MeshNode) SetAnimation(name string) {
 
 func (m *MeshNode) ResetAnimationTimer() {
 	m.animationTimer = 0
-	m.currentTranslationFrame = 0
-	m.currentRotationFrame = 0
-	m.currentScaleFrame = 0
-	m.outOfTranslationFrames = false
-	m.outOfRotationFrames = false
-	m.outOfScaleFrames = false
+	m.currentFrame = [3]int{0, 0, 0}
 }
 func (m *MeshNode) InitAnimationPose() {
 	if m.IsCurrentAnimationValid() {
@@ -314,122 +307,84 @@ func (m *MeshNode) InitAnimationPose() {
 		child.InitAnimationPose()
 	}
 }
+
+func KeyframeAnimation[T any](currentTime float64, currentFrame *int, frames []T, frameTimes []float32, lerp func(T, T, float64) T, setter func(T)) bool {
+	frameCount := len(frames)
+	framesLeft := frameCount > 0
+	if len(frames) > 0 {
+		currentFrameIsLastFrame := (*currentFrame) == frameCount-1
+		if !currentFrameIsLastFrame {
+			nextFrameIndex := ((*currentFrame) + 1) % frameCount
+			nextKeyFrameTime := frameTimes[nextFrameIndex]
+			if currentTime >= float64(nextKeyFrameTime) { // hit next keyframe
+				*currentFrame = nextFrameIndex
+				setter(frames[(*currentFrame)])
+			} else if (*currentFrame) != nextFrameIndex { // lerp between keyframes
+				currentFrameTime := frameTimes[(*currentFrame)]
+				nextFrameTime := frameTimes[nextFrameIndex]
+				deltaTimeBetweenFrames := nextFrameTime - currentFrameTime
+				timeSinceCurrentKeyframe := currentTime - float64(currentFrameTime)
+				percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
+
+				currentKeyFrame := frames[(*currentFrame)]
+				nextKeyFrame := frames[nextFrameIndex]
+
+				lerpedValue := lerp(currentKeyFrame, nextKeyFrame, percentageBetweenFrames)
+				//println(fmt.Sprintf("lerpedValue: %v", lerpedValue))
+				setter(lerpedValue)
+			} else { // only one keyframe
+				setter(frames[(*currentFrame)])
+			}
+		} else {
+			framesLeft = false
+		}
+	}
+	return !framesLeft
+}
+
 func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
-	animationFinished := false
+	outOfTranslationFrames := true
+	outOfRotationFrames := true
+	outOfScaleFrames := true
 	if m.IsCurrentAnimationValid() {
 		m.animationTimer += deltaTime
 		animation := m.GetCurrentAnimation()
-
 		// translate the mesh
-		if len(animation.TranslationFrames) > 0 {
-			translationFrameTimes := m.samplerSource(m.currentAnimation)[animation.TranslationSamplerIndex]
-			nextTranslationFrameIndex := (m.currentTranslationFrame + 1) % len(translationFrameTimes)
-			nextKeyFrameTime := translationFrameTimes[nextTranslationFrameIndex]
-			if m.animationTimer >= float64(nextKeyFrameTime) {
-				m.currentTranslationFrame = m.currentTranslationFrame + 1
-				if m.currentTranslationFrame >= len(translationFrameTimes) {
-					m.outOfTranslationFrames = true
-					m.currentTranslationFrame = 0
-				} else {
-					translation := animation.TranslationFrames[m.currentTranslationFrame]
-					m.setTranslation(translation)
-				}
-			} else if m.currentTranslationFrame != nextTranslationFrameIndex { // lerp between keyframes
-				currentFrameTime := translationFrameTimes[m.currentTranslationFrame]
-				nextTranslationFrameTime := translationFrameTimes[nextTranslationFrameIndex]
-				deltaTimeBetweenFrames := nextTranslationFrameTime - currentFrameTime
-				timeSinceCurrentKeyframe := m.animationTimer - float64(currentFrameTime)
-				percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
-
-				currentTranslationKeyFrame := animation.TranslationFrames[m.currentTranslationFrame]
-				nextTranslationKeyFrame := animation.TranslationFrames[nextTranslationFrameIndex]
-
-				lerpedPos := Lerp3(currentTranslationKeyFrame, nextTranslationKeyFrame, percentageBetweenFrames)
-				//println(fmt.Sprintf("lerpedPos: %v", lerpedPos))
-				m.setTranslation(lerpedPos)
-			} else {
-				m.setTranslation(animation.TranslationFrames[m.currentTranslationFrame])
-			}
-		} else {
-			m.outOfTranslationFrames = true
-		}
-
+		outOfTranslationFrames = KeyframeAnimation(
+			m.animationTimer,
+			&m.currentFrame[0],
+			animation.TranslationFrames,
+			m.samplerSource(m.currentAnimation)[animation.TranslationSamplerIndex],
+			Lerp3f,
+			m.setTranslation,
+		)
 		// rotate the mesh
-		if len(animation.RotationFrames) > 0 {
-			rotationFrameTimes := m.samplerSource(m.currentAnimation)[animation.RotationSamplerIndex]
-			nextRotationFrameIndex := (m.currentRotationFrame + 1) % len(rotationFrameTimes)
-			nextKeyFrameTime := rotationFrameTimes[nextRotationFrameIndex]
-			if m.animationTimer >= float64(nextKeyFrameTime) { // hit a keyframe
-				m.currentRotationFrame = m.currentRotationFrame + 1
-				if m.currentRotationFrame >= len(rotationFrameTimes) {
-					m.outOfRotationFrames = true
-					m.currentRotationFrame = 0
-				} else {
-					m.setRotation(animation.RotationFrames[m.currentRotationFrame])
-				}
-			} else if m.currentRotationFrame != nextRotationFrameIndex { // lerp between keyframes
-				currentKeyFrameTime := rotationFrameTimes[m.currentRotationFrame]
-				nextRotationFrameTime := rotationFrameTimes[nextRotationFrameIndex]
-				deltaTimeBetweenFrames := nextRotationFrameTime - currentKeyFrameTime
-				timeSinceCurrentKeyframe := m.animationTimer - float64(currentKeyFrameTime)
-				percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
-
-				currentRotationKeyFrame := animation.RotationFrames[m.currentRotationFrame]
-				nextRotationKeyFrame := animation.RotationFrames[nextRotationFrameIndex]
-				lerpedRotation := LerpQuat(currentRotationKeyFrame, nextRotationKeyFrame, percentageBetweenFrames)
-				m.setRotation(lerpedRotation)
-			} else {
-				m.setRotation(animation.RotationFrames[m.currentRotationFrame])
-			}
-		} else {
-			m.outOfRotationFrames = true
-		}
+		outOfRotationFrames = KeyframeAnimation(
+			m.animationTimer,
+			&m.currentFrame[1],
+			animation.RotationFrames,
+			m.samplerSource(m.currentAnimation)[animation.RotationSamplerIndex],
+			LerpQuat,
+			m.setRotation,
+		)
 		// scale the mesh
-		if len(animation.ScaleFrames) > 0 {
-			scaleFrameTimes := m.samplerSource(m.currentAnimation)[animation.ScaleSamplerIndex]
-			nextScaleFrameIndex := (m.currentScaleFrame + 1) % len(scaleFrameTimes)
-			nextKeyFrameTime := scaleFrameTimes[nextScaleFrameIndex]
-			if m.animationTimer >= float64(nextKeyFrameTime) {
-				m.currentScaleFrame = m.currentScaleFrame + 1
-				if m.currentScaleFrame >= len(scaleFrameTimes) {
-					m.outOfScaleFrames = true
-					m.currentScaleFrame = 0
-				} else {
-					m.setScale(animation.ScaleFrames[m.currentScaleFrame])
-				}
-			} else if m.currentScaleFrame != nextScaleFrameIndex { // lerp between keyframes
-				currentKeyFrameTime := scaleFrameTimes[m.currentScaleFrame]
-				nextScaleFrameTime := scaleFrameTimes[nextScaleFrameIndex]
-				deltaTimeBetweenFrames := nextScaleFrameTime - currentKeyFrameTime
-				timeSinceCurrentKeyframe := m.animationTimer - float64(currentKeyFrameTime)
-				percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
-
-				currentScaleKeyFrame := animation.ScaleFrames[m.currentScaleFrame]
-				nextScaleKeyFrame := animation.ScaleFrames[nextScaleFrameIndex]
-
-				lerpedScale := Lerp3(currentScaleKeyFrame, nextScaleKeyFrame, percentageBetweenFrames)
-
-				m.setScale(lerpedScale)
-			} else {
-				m.setScale(animation.ScaleFrames[m.currentScaleFrame])
-			}
-		} else {
-			m.outOfScaleFrames = true
-		}
-
-		if m.outOfTranslationFrames && m.outOfRotationFrames && m.outOfScaleFrames {
-			m.ResetAnimationTimer()
-			animationFinished = true
-		}
+		outOfScaleFrames = KeyframeAnimation(
+			m.animationTimer,
+			&m.currentFrame[2],
+			animation.ScaleFrames,
+			m.samplerSource(m.currentAnimation)[animation.ScaleSamplerIndex],
+			Lerp3f,
+			m.setScale,
+		)
 	}
+	animationFinished := outOfTranslationFrames && outOfRotationFrames && outOfScaleFrames
+	childAnimationsFinished := true
 	for _, child := range m.children {
 		childAnimationFinished := child.UpdateAnimation(deltaTime)
-		if childAnimationFinished {
-			animationFinished = true
-		}
+		childAnimationsFinished = childAnimationsFinished && childAnimationFinished
 	}
 
-	return animationFinished
+	return animationFinished && childAnimationsFinished
 }
 
 func (m *MeshNode) IsCurrentAnimationValid() bool {
@@ -484,7 +439,6 @@ func (m *MeshNode) GetColliders() []Collider {
 }
 
 func (m *MeshNode) ResetAnimations() {
-	m.currentAnimation = ""
 	m.ResetAnimationTimer()
 	for _, child := range m.children {
 		child.ResetAnimations()

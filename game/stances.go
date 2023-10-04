@@ -14,27 +14,32 @@ func (a HumanoidAnimation) Str() string {
 const (
 	AnimationIdle       HumanoidAnimation = "animation.idle"
 	AnimationWeaponIdle HumanoidAnimation = "animation.weapon_idle"
-	AnimationWallIdle   HumanoidAnimation = "animation.wall_idle"
+	AnimationWallIdleLeft HumanoidAnimation = "animation.wall_idle_Left"
+	AnimationWallIdleRight HumanoidAnimation = "animation.wall_idle_right"
 	AnimationWalk       HumanoidAnimation = "animation.walk"
 	AnimationWeaponWalk HumanoidAnimation = "animation.weapon_walk"
 	AnimationClimb      HumanoidAnimation = "animation.climb"
 	AnimationDrop       HumanoidAnimation = "animation.drop"
 	AnimationDeath      HumanoidAnimation = "animation.death"
 	AnimationHit        HumanoidAnimation = "animation.hit"
+	AnimationWeaponFire HumanoidAnimation = "animation.weapon_fire"
 	AnimationDebug      HumanoidAnimation = "animation.debug"
 )
 
 type Stance int
 
 const (
-	StanceLeanWall Stance = iota
+	StanceLeanWallLeft  Stance = iota
+	StanceLeanWallRight Stance = iota
 	StanceWeaponReady
 )
 
 func HumanStanceFromID(id Stance) HumanoidStance {
 	switch id {
-	case StanceLeanWall:
-		return LeanWall{}
+	case StanceLeanWallLeft:
+		return LeanWallLeft{}
+	case StanceLeanWallRight:
+		return LeanWallRight{}
 	case StanceWeaponReady:
 		return WeaponReady{}
 	}
@@ -49,17 +54,34 @@ type HumanoidStance interface {
 	// It expects the forward vector to be one of (0,0,1), (0,0,-1), (1,0,0), (-1,0,0)
 	GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3
 }
-type LeanWall struct{}
+type LeanWallLeft struct{}
 
-func (s LeanWall) GetName() string {
+func (s LeanWallLeft) GetName() string {
 	return "wall leaning"
 }
 
-func (s LeanWall) GetAnimation() HumanoidAnimation {
-	return AnimationWallIdle
+func (s LeanWallLeft) GetAnimation() HumanoidAnimation {
+	return AnimationWallIdleLeft
 }
 
-func (s LeanWall) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
+func (s LeanWallLeft) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
+	return []voxel.Int3{
+		{0, 0, 0}, // legs
+		{Y: 1},    // torso
+	}
+}
+
+type LeanWallRight struct{}
+
+func (s LeanWallRight) GetName() string {
+	return "wall leaning right"
+}
+
+func (s LeanWallRight) GetAnimation() HumanoidAnimation {
+	return AnimationWallIdleRight
+}
+
+func (s LeanWallRight) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
 	return []voxel.Int3{
 		{0, 0, 0}, // legs
 		{Y: 1},    // torso

@@ -18,29 +18,31 @@ type ActorHitBehavior struct {
 }
 
 func (a *ActorHitBehavior) GetName() AnimationStateName {
-	return ActorStateHit
+	return StateHit
 }
 
-func (a *ActorHitBehavior) Init(actor *Unit) {
+func (a *ActorHitBehavior) Init(actor *Unit, event TransitionEvent) {
 	a.unit = actor
 	a.coroutine = gocoro.NewCoroutine()
-	should(a.coroutine.Run(a.GetHitScript))
+	hitEvent := event.(HitEvent)
+	should(a.coroutine.Run(a.GetHitScript, hitEvent.ForceOfImpact, hitEvent.BodyPart))
 }
 
 func (a *ActorHitBehavior) Execute(deltaTime float64) TransitionEvent {
 	if a.lerper != nil && !a.lerper.IsDone() {
 		a.lerper.Update(deltaTime)
-		return EventNone
+		return NewEvent(EventNone)
 	} else if a.coroutine.Running() {
 		a.coroutine.Update()
-		return EventNone
+		return NewEvent(EventNone)
 	}
 
-	return EventAnimationFinished
+	return NewEvent(EventAnimationFinished)
 }
 
 func (a *ActorHitBehavior) GetHitScript(exe *gocoro.Execution) {
-	direction := a.unit.hitInfo.ForceOfImpact.Normalize().Mul(-1)
+	foi := exe.Args[0].(mgl32.Vec3)
+	direction := foi.Normalize().Mul(-1)
 	a.unit.turnToDirectionForAnimation(direction)
 	util.LogGlobalUnitDebug(fmt.Sprintf("[ActorHitBehavior] Start hit script for %d (%v)", a.unit.UnitID(), direction))
 

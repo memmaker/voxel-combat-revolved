@@ -374,7 +374,8 @@ func (u *UnitInstance) IsPlayingIdleAnimation() bool {
     currentAnimation := u.model.GetAnimationName()
     return currentAnimation == AnimationWeaponIdle.Str() ||
         currentAnimation == AnimationIdle.Str() ||
-        currentAnimation == AnimationWallIdle.Str()
+        currentAnimation == AnimationWallIdleLeft.Str() ||
+        currentAnimation == AnimationWallIdleRight.Str()
 }
 
 func (u *UnitInstance) HasModel() bool {
@@ -495,20 +496,21 @@ func AutoChoseStanceAndForward(voxelMap *voxel.Map, unitID uint64, unitPosition,
         return StanceWeaponReady, unitForward.ToCardinalDirection()
     } else {
         // if there is a wall next to us, we need to turn to face it
-        newFront := getWallIdleDirection(solidNeighbors[0].Sub(unitPosition))
-        return StanceLeanWall, newFront
+        wallPos := solidNeighbors[0]
+        newFront := getWallIdleDirection(wallPos.Sub(unitPosition))
+        return StanceLeanWallRight, newFront
     }
 }
 func getWallIdleDirection(wallDirection voxel.Int3) voxel.Int3 {
     switch wallDirection {
     case voxel.NorthDir:
-        return voxel.EastDir
-    case voxel.EastDir:
         return voxel.SouthDir
-    case voxel.SouthDir:
+    case voxel.EastDir:
         return voxel.WestDir
-    case voxel.WestDir:
+    case voxel.SouthDir:
         return voxel.NorthDir
+    case voxel.WestDir:
+        return voxel.EastDir
     }
     return voxel.NorthDir
 }
