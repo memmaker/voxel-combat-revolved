@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -31,15 +32,26 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 	if m.holdAnimation {
 		return false
 	}
+	duration := m.GetAnimationDuration()
 	scaledDeltaTime := deltaTime * m.animationSpeed
-	animationFinished := m.RootNode.UpdateAnimation(scaledDeltaTime)
+	m.animationTimer += scaledDeltaTime
+	animationFinished := m.animationTimer > duration
 	if animationFinished {
 		if m.loopAnimation {
+			//loopDelta := math.Floor(m.animationTimer / duration)
+			m.RootNode.UpdateAnimation(m.animationTimer)
+			m.animationTimer -= duration //* loopDelta
 			m.ResetAnimations()
+			return animationFinished
 		} else {
 			m.holdAnimation = true
+			return animationFinished
 		}
 	}
+	// animationTimer will always be <= duration here
+	// and also animationTimer > 0
+	m.RootNode.UpdateAnimation(m.animationTimer)
+
 	return animationFinished
 }
 func (m *CompoundMesh) getSamplerFrames(animationName string) [][]float32 {
@@ -78,6 +90,8 @@ type SimpleAnimationData struct {
 
 	ScaleSamplerIndex uint32
 	ScaleFrames       [][3]float32
+
+	Duration float32
 }
 type MeshNode struct {
 	name string
@@ -103,7 +117,6 @@ type MeshNode struct {
 	// animation
 	animations       map[string]*SimpleAnimationData
 	currentAnimation string
-	animationTimer   float64
 
 	// animation frames (trans, rot, scale)
 	currentFrame [3]int
@@ -194,6 +207,7 @@ func (m *MeshNode) GetLocalMatrix() mgl32.Mat4 {
 
 func (m *CompoundMesh) ResetAnimations() {
 	//println("[CompoundMesh] Resetting animations")
+	//m.animationTimer = 0
 	m.RootNode.ResetAnimations()
 }
 func (m *CompoundMesh) StopAnimations() {
@@ -203,6 +217,7 @@ func (m *CompoundMesh) StopAnimations() {
 func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float64) {
 	m.SetAnimationSpeed(speedFactor)
 	if m.currentAnimation != animationName {
+		m.animationTimer = 0
 		LogAnimationDebug(fmt.Sprintf("[CompoundMesh] Changing animation loop %s", animationName))
 	}
 	m.currentAnimation = animationName
@@ -213,6 +228,7 @@ func (m *CompoundMesh) SetAnimationLoop(animationName string, speedFactor float6
 func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
 	m.SetAnimationSpeed(speedFactor)
 	if m.currentAnimation != animationName {
+		m.animationTimer = 0
 		LogAnimationDebug(fmt.Sprintf("[CompoundMesh] Changing animation %s", animationName))
 	}
 	m.currentAnimation = animationName
@@ -226,6 +242,7 @@ func (m *CompoundMesh) SetAnimation(animationName string, speedFactor float64) {
 
 func (m *CompoundMesh) SetAnimationPose(animation string) {
 	LogAnimationDebug(fmt.Sprintf("[CompoundMesh] Setting animation pose to %s", animation))
+	m.animationTimer = 0
 	m.currentAnimation = animation
 	m.RootNode.SetAnimationPose(animation)
 	m.holdAnimation = true
@@ -254,6 +271,10 @@ func (m *CompoundMesh) HasBone(name string) bool {
 	return m.RootNode.HasBone(name)
 }
 
+func (m *CompoundMesh) GetAnimationDuration() float64 {
+	return m.RootNode.GetAnimationDuration()
+}
+
 func (m *MeshNode) SetAnimationPose(name string) {
 	for _, child := range m.children {
 		child.SetAnimationPose(name)
@@ -261,11 +282,11 @@ func (m *MeshNode) SetAnimationPose(name string) {
 	m.ResetToInitialTransform()
 	if _, ok := m.animations[name]; ok {
 		m.currentAnimation = name
-		m.ResetAnimationTimer()
+		m.ResetAnimationFrames()
 		m.InitAnimationPose()
 	} else {
 		m.currentAnimation = ""
-		m.ResetAnimationTimer()
+		m.ResetAnimationFrames()
 	}
 }
 func (m *MeshNode) SetAnimation(name string) {
@@ -282,12 +303,11 @@ func (m *MeshNode) SetAnimation(name string) {
 	} else {
 		m.currentAnimation = ""
 	}
-	m.ResetAnimationTimer()
+	m.ResetAnimationFrames()
 
 }
 
-func (m *MeshNode) ResetAnimationTimer() {
-	m.animationTimer = 0
+func (m *MeshNode) ResetAnimationFrames() {
 	m.currentFrame = [3]int{0, 0, 0}
 }
 func (m *MeshNode) InitAnimationPose() {
@@ -308,50 +328,64 @@ func (m *MeshNode) InitAnimationPose() {
 	}
 }
 
-func KeyframeAnimation[T any](currentTime float64, currentFrame *int, frames []T, frameTimes []float32, lerp func(T, T, float64) T, setter func(T)) bool {
+func KeyframeAnimation[T any](currentTime float64, currentFrame *int, frames []T, frameTimes []float32, lerp func(T, T, float64) T, setter func(T)) {
 	frameCount := len(frames)
-	framesLeft := frameCount > 0
-	if len(frames) > 0 {
-		currentFrameIsLastFrame := (*currentFrame) == frameCount-1
-		if !currentFrameIsLastFrame {
-			nextFrameIndex := ((*currentFrame) + 1) % frameCount
-			nextKeyFrameTime := frameTimes[nextFrameIndex]
-			if currentTime >= float64(nextKeyFrameTime) { // hit next keyframe
-				*currentFrame = nextFrameIndex
-				setter(frames[(*currentFrame)])
-			} else if (*currentFrame) != nextFrameIndex { // lerp between keyframes
-				currentFrameTime := frameTimes[(*currentFrame)]
-				nextFrameTime := frameTimes[nextFrameIndex]
-				deltaTimeBetweenFrames := nextFrameTime - currentFrameTime
-				timeSinceCurrentKeyframe := currentTime - float64(currentFrameTime)
-				percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
-
-				currentKeyFrame := frames[(*currentFrame)]
-				nextKeyFrame := frames[nextFrameIndex]
-
-				lerpedValue := lerp(currentKeyFrame, nextKeyFrame, percentageBetweenFrames)
-				//println(fmt.Sprintf("lerpedValue: %v", lerpedValue))
-				setter(lerpedValue)
-			} else { // only one keyframe
-				setter(frames[(*currentFrame)])
-			}
-		} else {
-			framesLeft = false
-		}
+	if frameCount == 0 {
+		return
 	}
-	return !framesLeft
+	if frameCount == 1 {
+		setter(frames[0])
+		return
+	}
+	firstFrameTime := frameTimes[0]
+	lastFrameTime := frameTimes[frameCount-1]
+
+	if currentTime <= float64(firstFrameTime) { // before first keyframe
+		*currentFrame = 0
+		setter(frames[(*currentFrame)])
+		return
+	}
+
+	if currentTime >= float64(lastFrameTime) { // after last keyframe
+		*currentFrame = frameCount - 1
+		setter(frames[(*currentFrame)])
+		return
+	}
+
+	nextFrameIndex := ((*currentFrame) + 1) % frameCount
+	nextFrameTime := frameTimes[nextFrameIndex]
+
+	if currentTime >= float64(nextFrameTime) { // new keyframe
+		*currentFrame = nextFrameIndex
+		setter(frames[(*currentFrame)])
+		return
+	}
+	// between keyframes
+	if nextFrameIndex == 0 {
+		println("nextFrameIndex == 0")
+	}
+	{
+		currentFrameTime := frameTimes[(*currentFrame)]
+		deltaTimeBetweenFrames := nextFrameTime - currentFrameTime
+		timeSinceCurrentKeyframe := currentTime - float64(currentFrameTime)
+		percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
+
+		currentKeyFrame := frames[(*currentFrame)]
+		nextKeyFrame := frames[nextFrameIndex]
+
+		lerpedValue := lerp(currentKeyFrame, nextKeyFrame, percentageBetweenFrames)
+		//println(fmt.Sprintf("lerpedValue: %v", lerpedValue))
+		setter(lerpedValue)
+		return
+	}
 }
 
-func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
-	outOfTranslationFrames := true
-	outOfRotationFrames := true
-	outOfScaleFrames := true
+func (m *MeshNode) UpdateAnimation(animationTime float64) {
 	if m.IsCurrentAnimationValid() {
-		m.animationTimer += deltaTime
 		animation := m.GetCurrentAnimation()
 		// translate the mesh
-		outOfTranslationFrames = KeyframeAnimation(
-			m.animationTimer,
+		KeyframeAnimation(
+			animationTime,
 			&m.currentFrame[0],
 			animation.TranslationFrames,
 			m.samplerSource(m.currentAnimation)[animation.TranslationSamplerIndex],
@@ -359,8 +393,8 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 			m.setTranslation,
 		)
 		// rotate the mesh
-		outOfRotationFrames = KeyframeAnimation(
-			m.animationTimer,
+		KeyframeAnimation(
+			animationTime,
 			&m.currentFrame[1],
 			animation.RotationFrames,
 			m.samplerSource(m.currentAnimation)[animation.RotationSamplerIndex],
@@ -368,8 +402,8 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 			m.setRotation,
 		)
 		// scale the mesh
-		outOfScaleFrames = KeyframeAnimation(
-			m.animationTimer,
+		KeyframeAnimation(
+			animationTime,
 			&m.currentFrame[2],
 			animation.ScaleFrames,
 			m.samplerSource(m.currentAnimation)[animation.ScaleSamplerIndex],
@@ -377,14 +411,9 @@ func (m *MeshNode) UpdateAnimation(deltaTime float64) bool {
 			m.setScale,
 		)
 	}
-	animationFinished := outOfTranslationFrames && outOfRotationFrames && outOfScaleFrames
-	childAnimationsFinished := true
 	for _, child := range m.children {
-		childAnimationFinished := child.UpdateAnimation(deltaTime)
-		childAnimationsFinished = childAnimationsFinished && childAnimationFinished
+		child.UpdateAnimation(animationTime)
 	}
-
-	return animationFinished && childAnimationsFinished
 }
 
 func (m *MeshNode) IsCurrentAnimationValid() bool {
@@ -439,7 +468,7 @@ func (m *MeshNode) GetColliders() []Collider {
 }
 
 func (m *MeshNode) ResetAnimations() {
-	m.ResetAnimationTimer()
+	m.ResetAnimationFrames()
 	for _, child := range m.children {
 		child.ResetAnimations()
 	}
@@ -556,6 +585,20 @@ func (m *MeshNode) SetUniformScale(f float64) {
 	m.scale = [3]float32{float32(f), float32(f), float32(f)}
 }
 
+func (m *MeshNode) GetAnimationDuration() float64 {
+	ownDuration := 0.0
+	if m.IsCurrentAnimationValid() {
+		animation := m.GetCurrentAnimation()
+		ownDuration = float64(animation.Duration)
+	}
+	maxChildDuration := 0.0
+	for _, child := range m.children {
+		childDuration := child.GetAnimationDuration()
+		maxChildDuration = max(maxChildDuration, childDuration)
+	}
+	return max(ownDuration, maxChildDuration)
+}
+
 type SubMesh struct {
 	TextureIndex uint32
 	VertexData   []glhf.GlFloat
@@ -570,6 +613,13 @@ func (m SubMesh) ToVertexSlice(shader *glhf.Shader) *glhf.VertexSlice[glhf.GlFlo
 	} else {
 		slice = glhf.MakeVertexSlice(shader, m.VertexCount, m.VertexCount)
 	}
+
+	glErr := gl.GetError()
+	if glErr != gl.NO_ERROR {
+		panic(fmt.Sprintf("glhf.MakeVertexSlice failed with error %d", glErr))
+	}
+
+
 	slice.Begin()
 	slice.SetVertexData(m.VertexData)
 	slice.End()

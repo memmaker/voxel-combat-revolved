@@ -45,7 +45,8 @@ func (g *GameStateBlockTarget) OnKeyPressed(key glfw.Key) {
 
 func (g *GameStateBlockTarget) Init(bool) {
 	validTargets := g.selectedAction.GetValidTargets()
-	g.engine.groundSelector.Hide()
+	g.engine.SwitchToGroundSelector()
+	//g.engine.groundSelector.Hide()
 	g.engine.lines.Clear()
 
 	if len(validTargets) > 0 {
