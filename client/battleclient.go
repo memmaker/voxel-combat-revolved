@@ -296,6 +296,10 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 func (a *BattleClient) CreateClientUnit(currentUnit *game.UnitInstance) *Unit {
 	// load model
 	model := a.GetAssets().LoadAnimatedMeshWithTextures(currentUnit.Definition.ModelFile, currentUnit.Definition.AnimationMap)
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("CreateClientUnit:", glError)
+	}
 	// upload vertex data to GPU
 	model.UploadVertexData(a.defaultShader)
 	// select weapon model by hiding the others
@@ -954,7 +958,7 @@ func (a *BattleClient) fireProjectiles(weaponType game.WeaponType, projectiles [
 			}
 		}
 		if spreadOverMultipleFrames {
-			a.scheduleUpdateIn(float64(i)*0.1, func(deltaTime float64) {
+			a.scheduleUpdateIn(float64(i)*0.2, func(deltaTime float64) {
 				launchFunc()
 			})
 		} else {
@@ -1018,12 +1022,20 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 	cam := a.fpsCamera
 	attackerEye := attacker.GetEyePosition()
 
-	var unitsHit []uint64
+	hitUnitIDs := make(map[uint64]bool)
 	for _, projectile := range projectiles {
 		if projectile.UnitHit > -1 {
-			unitsHit = append(unitsHit, uint64(projectile.UnitHit))
+			hitUnitIDs[uint64(projectile.UnitHit)] = true
 		}
 	}
+	hitUnits := make([]*Unit, 0)
+	for unitID := range hitUnitIDs {
+		unit, exists := a.GetClientUnit(unitID)
+		if exists {
+			hitUnits = append(hitUnits, unit)
+		}
+	}
+
 
 	firstProjectile := projectiles[0]
 	fpOrigin := firstProjectile.Origin
@@ -1072,6 +1084,7 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 	//attacker.turnToDirectionForAnimation(direction)
 	//attacker.PlayPrepareFireAnimation()
 	unitImpact := false
+
 	impactPos := mgl32.Vec3{}
 	onArrival := func(index int, projectile game.VisualProjectile) {
 		a.handleProjectileArrival(attacker.UnitInstance, projectile)
@@ -1109,7 +1122,7 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 	a.fpsCamera.SetLookTarget(center)
 
 	// 4. impact
-	if len(unitsHit) > 0 {
+	if len(hitUnits) > 0 {
 		should(exe.YieldFunc(func() bool { return unitImpact }))
 		a.TimeFactor = 0.1
 		toAttacker := attackerEye.Sub(impactPos)
@@ -1119,8 +1132,10 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 		a.fpsCamera.SetPosition(camPos)
 		a.fpsCamera.SetLookTarget(impactPos)
 
-		should(exe.YieldTime(time.Millisecond * 1800))
+		unitHit := hitUnits[0]
+		should(exe.YieldFunc(func() bool { return unitHit.GetModel().IsHoldingAnimation() }))
 
+		should(exe.YieldTime(time.Millisecond * 800))
 	} else {
 		should(exe.YieldFunc(func() bool { return impactHappened }))
 		should(exe.YieldTime(time.Millisecond * 350))

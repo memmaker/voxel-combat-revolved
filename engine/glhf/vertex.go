@@ -216,9 +216,13 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 		va.offset[i] = offset
 		offset += attr.Type.Size()
 	}
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("failure before array buffers", glError)
+	}
 	if len(indices) > 0 {
 		gl.GenBuffers(1, &va.ibo.obj) // create buffer and get the name
-		glError := gl.GetError()
+		glError = gl.GetError()
 		if glError != gl.NO_ERROR {
 			println("failed to create vertex array: failed to generate index buffer:", glError)
 		}
@@ -241,7 +245,7 @@ func newIndexedVertexArray[V any](shader *Shader, cap int, indices []uint32) *ve
 	emptyData := make([]byte, cap*va.stride) // creaty an empty buffer of the right size
 	gl.BufferData(gl.ARRAY_BUFFER, len(emptyData), gl.Ptr(emptyData), gl.STATIC_DRAW)
 
-	glError := gl.GetError()
+	glError = gl.GetError()
 	if glError != gl.NO_ERROR {
 		println("BufferData:", glError)
 	}
@@ -329,6 +333,10 @@ func (va *vertexArray[V]) setAttributesForArray() {
 			gl.EnableVertexAttribArray(uint32(loc)) // Enable and use this attribute for rendering the associated array
 		}
 	}
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("After Vertex Attributes:", glError)
+	}
 }
 
 func (va *vertexArray[V]) delete() {
@@ -379,7 +387,18 @@ func (va *vertexArray[V]) setVertexDataWithOffset(i int, data []V) {
 		// avoid setting 0 bytes of buffer data
 		return
 	}
+
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("before setVertexDataWithOffset:", glError)
+	}
+
 	gl.BufferSubData(gl.ARRAY_BUFFER, i*va.stride, len(data)*4, gl.Ptr(data))
+
+	glError = gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("after setVertexDataWithOffset:", glError)
+	}
 }
 
 func (va *vertexArray[V]) setVertexData(data []V) {

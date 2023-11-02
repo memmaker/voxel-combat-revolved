@@ -50,7 +50,7 @@ func (a *ActionSnapShot) GetValidTargets() []voxel.Int3 {
 }
 
 func (a *ActionSnapShot) updateValidTargets() {
-	for _, otherUnit := range a.engine.GetVisibleEnemyUnits(a.unit.UnitID()) {
+	for _, otherUnit := range a.engine.GetVisibleUnits(a.unit.UnitID()) {
 		a.valid[otherUnit.GetBlockPosition()] = true
 	}
 }

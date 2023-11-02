@@ -45,7 +45,7 @@ func (a *ActorFireBehavior) GetFireScript(exe *gocoro.Execution) {
     a.unit.turnToDirectionForAnimation(direction)
     util.LogGlobalUnitDebug(fmt.Sprintf("[ActorHitBehavior] Start fire script for %d (%v)", a.unit.UnitID(), direction))
 
-    a.unit.GetModel().SetAnimation(game.AnimationWeaponFire.Str(), 1.0)
+    a.unit.GetModel().SetAnimation(game.AnimationWeaponFire.Str(), 0.5)
     should(exe.YieldFunc(a.unit.GetModel().IsHoldingAnimation))
 
     should(exe.YieldTime(time.Millisecond * 500))

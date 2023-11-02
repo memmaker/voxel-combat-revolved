@@ -125,6 +125,24 @@ honestly i think it would work best if there was just no permadeath
  - Units have action points that can be used to move, attack, etc.
  - Attacking usually ends the turn
 
+# How to design for Yomi
+ - Hidden/partial information
+   - Fog of war
+   - Designated Leader
+ - Multiple viable moves must be available
+   - Movement
+   - Ranged Attack
+   - Melee Attack
+   - Special Attack (Explosive, Fire, Poison, etc.)
+   - Item Use
+ - There must be a counter to every move
+   - Dodge - Ranged
+   - Deflect - Special
+   - Parry - Melee
+   - Harden - Focus fire
+ - Counters must be different for each move
+ - Predicting the opponents next move grants an advantage
+
 
 # On Balance
  - Always allow players to risk more for a greater reward

@@ -3,6 +3,7 @@ package util
 import (
 	bytes2 "bytes"
 	"fmt"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/qmuntal/gltf"
@@ -87,8 +88,11 @@ func LoadGLTF(filename string, animationMap map[string]string, forcedVertexColor
 		//println(fmt.Sprintf("\nFound Animation: %s", anim.GameIdentifier))
 		samplerFrames := make([][]float32, len(anim.Samplers))
 		//samplerOutput := make([][][4]float32, len(anim.Samplers))
+		var duration float32
 		for samplerIndex, sampler := range anim.Samplers {
 			samplerFrames[samplerIndex] = inputKeyframesFromSampler(doc, sampler)
+			lastFrameTime := samplerFrames[samplerIndex][len(samplerFrames[samplerIndex])-1]
+			duration = max(duration, lastFrameTime)
 		}
 
 		animationName := anim.Name
@@ -110,7 +114,9 @@ func LoadGLTF(filename string, animationMap map[string]string, forcedVertexColor
 			sampler := anim.Samplers[samplerIndex]
 			outputValues := outputKeyframesFromSampler(doc, sampler)
 			if _, exists := node.animations[animationName]; !exists {
-				node.animations[animationName] = &SimpleAnimationData{}
+				node.animations[animationName] = &SimpleAnimationData{
+					Duration: duration,
+				}
 			}
 
 			switch channel.Target.Path { // THIS IS NEEDED FOR ANIMATION
@@ -138,6 +144,10 @@ func LoadGLTF(filename string, animationMap map[string]string, forcedVertexColor
 }
 
 func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
+	glError := gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("failure before textures", glError)
+	}
 	results := make([]*glhf.Texture, len(doc.Textures))
 	for texIndex, texture := range doc.Textures {
 		//print(fmt.Sprintf("[LoadGLTFWithTextures] Texture at index %d ('%s'): ", texIndex, texture.name))
@@ -156,7 +166,10 @@ func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 			}
 		}
 	}
-
+	glError = gl.GetError()
+	if glError != gl.NO_ERROR {
+		println("failure after textures", glError)
+	}
 	return results
 }
 
@@ -347,12 +360,15 @@ func buildNodeHierarchy(document *gltf.Document, meshNodes []*MeshNode, nodeInde
 func inputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSampler) []float32 {
 	var result []float32
 	inputAccessor := doc.Accessors[sampler.Input]
+	/*
 	inputAcr := &gltf.Accessor{
 		BufferView: gltf.Index(*inputAccessor.BufferView), Count: inputAccessor.Count, Type: inputAccessor.Type, ComponentType: inputAccessor.ComponentType,
 	}
+
+	*/
 	var inputBufferUntyped interface{}
 	var err error
-	inputBufferUntyped, err = modeler.ReadAccessor(doc, inputAcr, inputBufferUntyped)
+	inputBufferUntyped, err = modeler.ReadAccessor(doc, inputAccessor, inputBufferUntyped)
 	if err != nil {
 		println(err)
 		return nil
@@ -363,12 +379,15 @@ func inputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSample
 
 func outputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSampler) interface{} {
 	outputAccessor := doc.Accessors[sampler.Output]
+	/*
 	outputAcr := &gltf.Accessor{
 		BufferView: gltf.Index(*outputAccessor.BufferView), Count: outputAccessor.Count, Type: outputAccessor.Type, ComponentType: outputAccessor.ComponentType,
 	}
+
+	*/
 	var inputBufferUntyped interface{}
 	var err error
-	inputBufferUntyped, err = modeler.ReadAccessor(doc, outputAcr, inputBufferUntyped)
+	inputBufferUntyped, err = modeler.ReadAccessor(doc, outputAccessor, inputBufferUntyped)
 	if err != nil {
 		println(err)
 		return nil
