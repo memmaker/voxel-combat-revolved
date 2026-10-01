@@ -3,22 +3,24 @@ package util
 import (
 	bytes2 "bytes"
 	"fmt"
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/glhf"
-	"github.com/qmuntal/gltf"
-	"github.com/qmuntal/gltf/modeler"
 	"image"
 	"image/draw"
 	_ "image/png"
 	"io"
 	"os"
 	"path"
+
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/afs"
+	"github.com/memmaker/battleground/engine/glhf"
+	"github.com/qmuntal/gltf"
+	"github.com/qmuntal/gltf/modeler"
 )
 
 func LoadGLTFWithTextures(filename string) *CompoundMesh {
 	result := LoadGLTF(filename, nil, nil)
-	doc, err := gltf.Open(filename)
+	doc, err := openGLTF(filename)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -29,7 +31,7 @@ func LoadGLTFWithTextures(filename string) *CompoundMesh {
 
 func LoadGLTFWithAnimationAndTextures(filename string, animationMap map[string]string) *CompoundMesh {
 	result := LoadGLTF(filename, animationMap, nil)
-	doc, err := gltf.Open(filename)
+	doc, err := openGLTF(filename)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -40,7 +42,7 @@ func LoadGLTFWithAnimationAndTextures(filename string, animationMap map[string]s
 
 func LoadGLTFWithTexturesAndExtrusion(filename string) *CompoundMesh {
 	result := LoadGLTF(filename, nil, nil)
-	doc, err := gltf.Open(filename)
+	doc, err := openGLTF(filename)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -50,7 +52,7 @@ func LoadGLTFWithTexturesAndExtrusion(filename string) *CompoundMesh {
 }
 
 func LoadGLTF(filename string, animationMap map[string]string, forcedVertexColor *mgl32.Vec3) *CompoundMesh {
-	doc, err := gltf.Open(filename)
+	doc, err := openGLTF(filename)
 	if err != nil {
 		println(err.Error())
 		return nil
@@ -176,12 +178,12 @@ func tryLoadTextures(doc *gltf.Document) []*glhf.Texture {
 func loadFileTexture(imageSource *gltf.Image) (*glhf.Texture, error) {
 	filename := imageSource.Name + ".png"
 	filePath := path.Join("assets", "rawpng", filename)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err := afs.Stat(filePath); os.IsNotExist(err) {
 		println(fmt.Sprintf("Error loading file texture: %s", err.Error()))
 		return nil, err
 	} else {
 		// load bytes from file
-		file, err := os.Open(filePath)
+		file, err := afs.Open(filePath)
 		if err != nil {
 			println(fmt.Sprintf("Error loading file texture: %s", err.Error()))
 		}
@@ -361,9 +363,9 @@ func inputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSample
 	var result []float32
 	inputAccessor := doc.Accessors[sampler.Input]
 	/*
-	inputAcr := &gltf.Accessor{
-		BufferView: gltf.Index(*inputAccessor.BufferView), Count: inputAccessor.Count, Type: inputAccessor.Type, ComponentType: inputAccessor.ComponentType,
-	}
+		inputAcr := &gltf.Accessor{
+			BufferView: gltf.Index(*inputAccessor.BufferView), Count: inputAccessor.Count, Type: inputAccessor.Type, ComponentType: inputAccessor.ComponentType,
+		}
 
 	*/
 	var inputBufferUntyped interface{}
@@ -380,9 +382,9 @@ func inputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSample
 func outputKeyframesFromSampler(doc *gltf.Document, sampler *gltf.AnimationSampler) interface{} {
 	outputAccessor := doc.Accessors[sampler.Output]
 	/*
-	outputAcr := &gltf.Accessor{
-		BufferView: gltf.Index(*outputAccessor.BufferView), Count: outputAccessor.Count, Type: outputAccessor.Type, ComponentType: outputAccessor.ComponentType,
-	}
+		outputAcr := &gltf.Accessor{
+			BufferView: gltf.Index(*outputAccessor.BufferView), Count: outputAccessor.Count, Type: outputAccessor.Type, ComponentType: outputAccessor.ComponentType,
+		}
 
 	*/
 	var inputBufferUntyped interface{}
@@ -423,4 +425,14 @@ func NewTextureFromReader(r io.Reader, flipY bool) (*glhf.Texture, error) {
 		nrgba.Pix,
 	)
 	return texture, nil
+}
+
+func openGLTF(filename string) (*gltf.Document, error) {
+	f, err := afs.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	doc := new(gltf.Document)
+	return doc, gltf.NewDecoder(f).Decode(doc)
 }

@@ -1,13 +1,14 @@
 package game
 
 import (
+	"io"
+	"path"
+
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/afs"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
-	"io"
-	"os"
-	"path"
 )
 
 type Assets struct {
@@ -130,7 +131,7 @@ func (a *Assets) getModelFile(name string) string {
 
 func (a *Assets) LoadMap(filename string) []byte {
 	filePath := path.Join(a.paths[AssetTypeMaps], filename+".bin")
-	file, err := os.Open(filePath)
+	file, err := afs.Open(filePath)
 	if err != nil {
 		panic(err)
 	}
@@ -156,7 +157,7 @@ func (a *Assets) GetMapPath(mapName string) string {
 }
 
 func mustLoadTexture(filePath string) *glhf.Texture {
-	file, err := os.Open(filePath)
+	file, err := afs.Open(filePath)
 	if err != nil {
 		panic(err)
 	}

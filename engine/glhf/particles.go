@@ -80,6 +80,9 @@ type ParticleSystem struct {
 // Then we'll swap the buffers and repeat
 
 func NewParticleSystem(particleCount int, tfShader, particleShader *Shader, getView, getProj func() mgl32.Mat4) *ParticleSystem {
+	if tfShader == nil || particleShader == nil {
+		return nil // unsupported (WebGL2 has no geometry shaders); a nil system ignores all calls
+	}
 	v := &ParticleSystem{ // TODO: specify DYNAMIC_READ instead of STATIC_DRAW during buffer creation
 		maxVertexCount:          particleCount,
 		transformFeedbackShader: tfShader,
@@ -123,6 +126,9 @@ func (v *ParticleSystem) initializeBuffers(particleCount int) {
 	}
 }
 func (v *ParticleSystem) Draw(deltaTime float64) {
+	if v == nil {
+		return
+	}
 	if v.lastParticleLifetime <= 0.00 && !v.isInfiteEmitter {
 		return
 	}
@@ -207,6 +213,9 @@ func (v *ParticleSystem) draw(deltaTime float64, drawBuffer *vertexArray[GlFloat
 	v.particleShader.End()
 }
 func (v *ParticleSystem) Emit(props ParticleProperties, count int) int {
+	if v == nil {
+		return 0
+	}
 	if props.Lifetime > v.lastParticleLifetime {
 		v.lastParticleLifetime = props.Lifetime
 	} else if props.Lifetime < 0 {
@@ -308,6 +317,9 @@ func (v *ParticleSystem) createParticle(props ParticleProperties, index int) []G
 }
 
 func (v *ParticleSystem) Clear(vertexOffset int, vertexCount int) {
+	if v == nil {
+		return
+	}
 	// we want to write a zero to the lifetime of each particle
 	//buffer := v.currentBackBuffer()
 	flatStride := v.particleShader.VertexFormat().Size() / SizeOfFloat32 // distance between two particles in a list of GlFloats == number of floats per particle/vertex

@@ -2,6 +2,8 @@ package client
 
 import (
 	_ "embed"
+	"runtime"
+
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/util"
@@ -87,6 +89,9 @@ func getParticleVertexFormat() glhf.AttrFormat {
 	}
 }
 func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
+	if runtime.GOOS == "js" {
+		return nil // particles disabled in the browser
+	}
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "deltaTime", Type: glhf.Float},
 		glhf.Attr{Name: "maxDistance", Type: glhf.Float},
@@ -109,6 +114,9 @@ func loadTransformFeedbackShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 }
 
 func loadParticleShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
+	if runtime.GOOS == "js" {
+		return nil
+	}
 	uniformFormat := glhf.AttrFormat{
 		glhf.Attr{Name: "projection", Type: glhf.Mat4},
 		glhf.Attr{Name: "modelView", Type: glhf.Mat4},

@@ -102,7 +102,8 @@ void main() {
     vec4 surfaceColor = texture(tex, vec2(u, v));
     //vec4 surfaceColor = vec4(VertColor, 1.0);
 
-    vec3 floodLight = vec3(2.0, 2.0, 2.0) * (VertLightLevel/15.0);
+    // ambient floor: without it, blocks no torch reaches (i.e. all of them, nothing calls FillTorchlight by default) render black
+    vec3 floodLight = max(vec3(1.0), vec3(2.0, 2.0, 2.0) * (VertLightLevel/15.0));
 
     vec3 litColor = floodLight * surfaceColor.rgb;
     vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);

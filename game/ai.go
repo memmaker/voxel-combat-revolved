@@ -1,6 +1,5 @@
 package game
 
-import "C"
 import (
 	"fmt"
 	"github.com/memmaker/battleground/engine/util"

@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/memmaker/battleground/engine/util"
-	"github.com/memmaker/battleground/game"
 	"log"
 	"net"
 	"strings"
+
+	"github.com/memmaker/battleground/engine/util"
+	"github.com/memmaker/battleground/game"
 )
 
 type BattleServer struct {
@@ -23,6 +24,7 @@ type BattleServer struct {
 
 	// game instances
 	runningGames map[string]*game.GameInstance
+	memClients   uint64
 }
 
 func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string, message string) {
@@ -134,6 +136,14 @@ func (b *BattleServer) ListenTCP(endpoint string) {
 		go b.handleClientRequest(con, clientID)
 		clientID++
 	}
+}
+
+// DialMem connects a client over an in-memory pipe (browser build: no real network).
+func (b *BattleServer) DialMem(string) (net.Conn, error) {
+	clientEnd, serverEnd := game.MemPipe()
+	b.memClients++
+	go b.handleClientRequest(serverEnd, 1<<32+b.memClients)
+	return clientEnd, nil
 }
 
 func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {

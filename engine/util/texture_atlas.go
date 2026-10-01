@@ -2,13 +2,15 @@ package util
 
 import (
 	"fmt"
-	"github.com/memmaker/battleground/engine/glhf"
-	"github.com/memmaker/battleground/engine/voxel"
-	_ "github.com/spakin/netpbm"
 	"image"
 	"os"
 	"path"
 	"sort"
+
+	"github.com/memmaker/battleground/engine/afs"
+	"github.com/memmaker/battleground/engine/glhf"
+	"github.com/memmaker/battleground/engine/voxel"
+	_ "github.com/spakin/netpbm"
 )
 
 // plan:
@@ -30,7 +32,7 @@ func (i NameIndex) WriteAtlasIndex(filename string) {
 }
 
 func NewBlockIndexFromFile(filename string) NameIndex {
-	file, err := os.Open(filename)
+	file, err := afs.Open(filename)
 	if err != nil {
 		LogTextureError("could not open index file")
 		return nil
@@ -50,22 +52,22 @@ func NewBlockIndexFromFile(filename string) NameIndex {
 }
 
 func NewBlockListFromFile(filename string) []string {
-    file, err := os.Open(filename)
-    if err != nil {
-        LogTextureError("could not open index file")
-        return nil
-    }
-    defer file.Close()
-    var names []string
-    var name string
-    for {
-        _, scanErr := fmt.Fscanf(file, "%s\n", &name)
-        if scanErr != nil {
-            break
-        }
-        names = append(names, name)
-    }
-    return names
+	file, err := afs.Open(filename)
+	if err != nil {
+		LogTextureError("could not open index file")
+		return nil
+	}
+	defer file.Close()
+	var names []string
+	var name string
+	for {
+		_, scanErr := fmt.Fscanf(file, "%s\n", &name)
+		if scanErr != nil {
+			break
+		}
+		names = append(names, name)
+	}
+	return names
 }
 func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*glhf.Texture, NameIndex) {
 	indices := map[string]byte{}
@@ -75,7 +77,7 @@ func CreateFixed256PxAtlasFromDirectory(directory string, whiteList []string) (*
 	itemSizeY := 0
 	for _, blockName := range whiteList {
 		texturePath := path.Join(directory, blockName+".png")
-		file, err := os.Open(texturePath)
+		file, err := afs.Open(texturePath)
 		if err != nil {
 			LogTextureError(fmt.Sprintf("[Atlas] Error loading %s from %s", blockName, texturePath))
 			continue
@@ -240,7 +242,7 @@ func MapFaceToTextureIndex(blockname string, face voxel.FaceType, availableSuffi
 	return availableSuffixes[blockname]
 }
 func DoesFileExist(filename string) bool {
-	_, err := os.Stat(filename)
+	_, err := afs.Stat(filename)
 	if os.IsNotExist(err) {
 		return false
 	}
