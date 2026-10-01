@@ -5,14 +5,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/glhf"
 	"image"
 	"image/color"
 	"math"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/afs"
+	"github.com/memmaker/battleground/engine/glhf"
 )
 
 type BitmapFontMesh struct {
@@ -228,7 +230,7 @@ func (i BitmapFontIndex) GetMapper() func(character rune) uint16 {
 }
 func NewBitmapFontIndexFromFile(filename string) BitmapFontIndex {
 	index := map[rune]uint16{}
-	file, err := os.Open(filename)
+	file, err := afs.Open(filename)
 	if err != nil {
 		println("could not open atlas index file")
 		return index
@@ -301,7 +303,7 @@ func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.T
 	// 14*16 = 224
 	indices := map[rune]uint16{}
 	textureIndex := uint16(0)
-	entries, readError := os.ReadDir(directory)
+	entries, readError := afs.ReadDir(directory)
 	if readError != nil {
 		println(fmt.Sprintf("[Atlas] Error reading directory %s", directory))
 		return nil, nil
@@ -335,7 +337,7 @@ func CreateAtlasFromPBMs(directory string, glyphWidth, glyphHeight int) (*glhf.T
 		glyph := runeFromHexString(hexString)
 
 		texturePath := path.Join(directory, dirEntry.Name())
-		file, err := os.Open(texturePath)
+		file, err := afs.Open(texturePath)
 		if err != nil {
 			println(fmt.Sprintf("[Atlas] Error loading %s from %s", dirEntry, texturePath))
 			continue

@@ -3,8 +3,10 @@ package voxel
 import (
 	"compress/gzip"
 	"encoding/binary"
+	"io"
+
 	"github.com/Tnze/go-mc/nbt"
-	"os"
+	"github.com/memmaker/battleground/engine/afs"
 )
 
 /*
@@ -90,10 +92,11 @@ type ConstructionSection struct {
 }
 
 func LoadConstruction(filename string) *Construction {
-	fileReader, err := os.Open(filename)
+	file, err := afs.Open(filename)
 	if err != nil {
 		panic(err)
 	}
+	fileReader := file.(io.ReadSeeker)
 	var magicNumber [8]byte
 	err = binary.Read(fileReader, binary.BigEndian, &magicNumber)
 	if err != nil {

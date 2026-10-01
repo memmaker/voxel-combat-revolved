@@ -4,12 +4,14 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime"
+
 	"github.com/faiface/mainthread"
 	"github.com/memmaker/battleground/client"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/game"
 	"golang.org/x/term"
-	"os"
 )
 
 func runGame() {
@@ -26,7 +28,11 @@ func runGame() {
 
 func runStandalone() {
 	battleServer := NewBattleServer()
-	go battleServer.ListenTCP("127.0.0.1:9999")
+	if runtime.GOOS == "js" {
+		game.Dial = battleServer.DialMem
+	} else {
+		go battleServer.ListenTCP("127.0.0.1:9999")
+	}
 
 	dummyClient := game.NewDummyClient("127.0.0.1:9999")
 	dummyClient.CreateGameSequence()
@@ -139,19 +145,19 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 				UnitTypeID: 0,
 				Name:       "Jimmy",
 				Weapon:     "Mossberg 500",
-				Items: []string{"Smoke Grenade"},
+				Items:      []string{"Smoke Grenade"},
 			},
 			{
 				UnitTypeID: 0,
 				Name:       "Bimmy",
 				Weapon:     "Steyr SSG 69",
-				Items: []string{"Frag Grenade"},
+				Items:      []string{"Frag Grenade"},
 			},
 			{
 				UnitTypeID: 0,
 				Name:       "Timmy",
 				Weapon:     "M16 Rifle",
-				Items: []string{"Poison Grenade"},
+				Items:      []string{"Poison Grenade"},
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)
@@ -167,21 +173,21 @@ func terminalClient(con *game.ServerConnection, argOne string) {
 			{
 				UnitTypeID: 2,
 				Name:       "Gnarg",
-				Weapon: "M1911 Pistol",
-				Items:  []string{"Frag Grenade"},
+				Weapon:     "M1911 Pistol",
+				Items:      []string{"Frag Grenade"},
 			},
 
 			{
 				UnitTypeID: 2,
 				Name:       "Gorn",
-				Weapon: "M16 Rifle",
-				Items:  []string{"Poison Grenade"},
+				Weapon:     "M16 Rifle",
+				Items:      []string{"Poison Grenade"},
 			},
 			{
 				UnitTypeID: 2,
 				Name:       "Grimbel",
 				Weapon:     "Mossberg 500",
-				Items: []string{"Smoke Grenade"},
+				Items:      []string{"Smoke Grenade"},
 			},
 		}))
 		util.WaitForTrue(&unitSelectionSuccess)

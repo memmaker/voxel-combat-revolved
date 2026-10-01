@@ -7,3 +7,7 @@ bg_local
 battleground
 debug_atlas.png
 *.prof
+web/assets/
+web/dist/
+go.web.mod
+go.web.sum

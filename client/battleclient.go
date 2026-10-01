@@ -2,18 +2,19 @@ package client
 
 import (
 	"fmt"
+	"math"
+	"strings"
+	"time"
+
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/memmaker/battleground/engine/afs"
 	"github.com/memmaker/battleground/engine/glhf"
 	"github.com/memmaker/battleground/engine/gui"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
 	"github.com/solarlune/gocoro"
-	"math"
-	"os"
-	"strings"
-	"time"
 )
 
 type Flyer interface {
@@ -115,7 +116,7 @@ type ClientSettings struct {
 func NewClientSettingsFromFile(filename string) ClientSettings {
 	if util.DoesFileExist(filename) {
 		var settings ClientSettings
-		file, _ := os.ReadFile(filename)
+		file, _ := afs.ReadFile(filename)
 		if util.FromJson(string(file), &settings) {
 			return settings
 		}
@@ -144,7 +145,7 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 		WindowHeight:  usedHeight,
 		Window:        window,
 		TerminateFunc: terminateFunc,
-		TimeFactor: 1.0,
+		TimeFactor:    1.0,
 	}
 	window.SetKeyCallback(glApp.KeyCallback)
 	window.SetCursorPosCallback(glApp.MousePosCallback)
@@ -155,11 +156,11 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 	fpsCamera.SetInvertedY(settings.FPSCameraInvertedMouse)
 
 	myApp := &BattleClient{
-		GlApplication: glApp,
-		isoCamera:     util.NewISOCamera(usedWidth, usedHeight),
-		fpsCamera:     fpsCamera,
-		timer:         util.NewTimer(),
-		settings:      settings,
+		GlApplication:     glApp,
+		isoCamera:         util.NewISOCamera(usedWidth, usedHeight),
+		fpsCamera:         fpsCamera,
+		timer:             util.NewTimer(),
+		settings:          settings,
 		scriptedAnimation: gocoro.NewCoroutine(),
 		particleProps: map[ParticleName]glhf.ParticleProperties{
 			ParticlesBlood: {
@@ -1036,7 +1037,6 @@ func (a *BattleClient) actionCameraScript(exe *gocoro.Execution) {
 		}
 	}
 
-
 	firstProjectile := projectiles[0]
 	fpOrigin := firstProjectile.Origin
 	fpDirection := firstProjectile.Velocity.Normalize()
@@ -1550,4 +1550,3 @@ func (a *BattleClient) DebugPosHandler(pos, color mgl32.Vec3) {
 	}
 
 }
-

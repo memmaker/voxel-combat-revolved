@@ -2,9 +2,11 @@ package game
 
 import (
 	"encoding/json"
+	"os"
+
+	"github.com/memmaker/battleground/engine/afs"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
-	"os"
 )
 
 type MapMetadata struct {
@@ -30,7 +32,7 @@ func (m *MapMetadata) SaveToDisk(mapfilename string) error {
 func NewMapMetadataFromFile(filename string) MapMetadata {
 	if util.DoesFileExist(filename) {
 		var metadata MapMetadata
-		data, err := os.ReadFile(filename)
+		data, err := afs.ReadFile(filename)
 		if err == nil {
 			if util.FromJson(string(data), &metadata) {
 				return metadata

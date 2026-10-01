@@ -22,7 +22,7 @@ type StringMessage struct {
 }
 
 func NewTCPConnection(endpoint string) *ServerConnection {
-	con, err := net.Dial("tcp", endpoint)
+	con, err := Dial(endpoint)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -33,7 +33,7 @@ func NewTCPConnection(endpoint string) *ServerConnection {
 }
 
 func NewTCPConnectionWithHandler(endpoint string, handler func(msg StringMessage)) *ServerConnection {
-	con, err := net.Dial("tcp", endpoint)
+	con, err := Dial(endpoint)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -156,3 +156,34 @@ func (c *ServerConnection) DebugRequest(command string) error {
 	message := DebugRequest{Command: command}
 	return c.send("DebugRequest", message)
 }
+
+// Dial opens the client connection; the browser build swaps it for an in-memory pipe to an in-process server.
+var Dial = func(endpoint string) (net.Conn, error) { return net.Dial("tcp", endpoint) }
+
+// MemPipe is a buffered in-memory net.Conn pair (net.Pipe is unbuffered and would deadlock request/response handlers).
+func MemPipe() (net.Conn, net.Conn) {
+	a, b := make(chan []byte, 4096), make(chan []byte, 4096)
+	return &memConn{in: a, out: b}, &memConn{in: b, out: a}
+}
+
+type memConn struct {
+	net.Conn // unused methods panic
+	in, out  chan []byte
+	buf      []byte
+}
+
+func (c *memConn) Write(p []byte) (int, error) {
+	c.out <- append([]byte(nil), p...)
+	return len(p), nil
+}
+
+func (c *memConn) Read(p []byte) (int, error) {
+	if len(c.buf) == 0 {
+		c.buf = <-c.in
+	}
+	n := copy(p, c.buf)
+	c.buf = c.buf[n:]
+	return n, nil
+}
+
+func (c *memConn) Close() error { return nil }

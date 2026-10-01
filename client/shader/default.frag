@@ -76,8 +76,8 @@ void drawTexturedQuads() {
     float point_brightness = diffuseBrightnessFromPointLight(worldNormal);
     float brightness = clamp(directional_brightness + point_brightness, 0.0, 1.0);
 
-    vec4 surfaceColor = texture(tex, vec2(VertUV.x, 1-VertUV.y));// 1-Tex.y because texture is flipped
-    if (surfaceColor.a == 0) {
+    vec4 surfaceColor = texture(tex, vec2(VertUV.x, 1.0-VertUV.y));// 1-Tex.y because texture is flipped
+    if (surfaceColor.a == 0.0) {
         discard;
     }
     vec3 litColor = (brightness * light_color) * surfaceColor.rgb;
