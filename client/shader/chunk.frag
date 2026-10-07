@@ -114,8 +114,8 @@ void main() {
     if (VertNormal.y > 0.5) shade = 1.0;          // tops catch the sky
     else if (VertNormal.y < -0.5) shade = 0.5;    // undersides
     else if (abs(VertNormal.x) > 0.5) shade = 0.84; // east / west walls
-    float ambient = 0.16;
-    float brightness = shade * (ambient + (1.0 - ambient) * pow(light, 1.6));
+    float ambient = 0.12;
+    float brightness = shade * (ambient + (1.0 - ambient) * pow(light, 2.2));
     vec3 tint = mix(vec3(0.75, 0.8, 1.0), vec3(1.05, 1.0, 0.94), light); // cool shade, warm light
 
     vec3 litColor = surfaceColor.rgb * brightness * tint * 1.15;

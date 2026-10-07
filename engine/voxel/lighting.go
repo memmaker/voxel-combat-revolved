@@ -7,6 +7,28 @@ package voxel
 
 const maxLightLevel = 15
 
+// shadowLightLevel is the most light a block in the shade of direct sunlight gets
+const shadowLightLevel = 8
+
+// sunDirection points towards the sun, per block of height
+var sunDirection = [3]float32{0.55, 1, 0.35}
+
+// seesSun marches from the block's center towards the sun until it leaves the map.
+func (m *Map) seesSun(x, y, z, sizeX, sizeY, sizeZ int32) bool {
+	px, py, pz := float32(x)+0.5, float32(y)+0.5, float32(z)+0.5
+	const step = 0.5
+	for {
+		px, py, pz = px+sunDirection[0]*step, py+sunDirection[1]*step, pz+sunDirection[2]*step
+		bx, by, bz := int32(px), int32(py), int32(pz)
+		if px < 0 || pz < 0 || bx >= sizeX || by >= sizeY || bz >= sizeZ {
+			return true
+		}
+		if m.IsSolidBlockAt(bx, by, bz) {
+			return false
+		}
+	}
+}
+
 // EnableLighting turns on light propagation for this map (only clients need it) and computes it.
 func (m *Map) EnableLighting(lamps []Int3) {
 	m.lightingEnabled = true
@@ -46,6 +68,18 @@ func (m *Map) RecomputeLighting() {
 		}
 	}
 	m.spreadLight(sun, queue, index, sizeX, sizeY, sizeZ)
+	// direct sunlight: only blocks with a clear slanted ray to the sun keep full light,
+	// everything else is in shadow, so walls and crates cast shadows onto the ground
+	for x := int32(0); x < sizeX; x++ {
+		for y := int32(0); y < sizeY; y++ {
+			for z := int32(0); z < sizeZ; z++ {
+				i := index(x, y, z)
+				if sun[i] > shadowLightLevel && !m.seesSun(x, y, z, sizeX, sizeY, sizeZ) {
+					sun[i] = shadowLightLevel
+				}
+			}
+		}
+	}
 
 	queue = queue[:0]
 	for _, lamp := range m.lamps {
