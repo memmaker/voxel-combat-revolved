@@ -168,6 +168,7 @@ type GameInstance struct {
 	// clients receive the results via UnitDamage lists, so all parties stay in sync.
 	isAuthoritative bool
 	effectDamageLog []UnitDamage
+	destroyedBlocks []voxel.Int3 // the server remembers terrain changes for rejoining players
 
 	turnCounter        int
 	activeBlockEffects map[voxel.Int3]BlockStatusEffectInstance
@@ -598,6 +599,21 @@ func (g *GameInstance) DestroyBlock(pos voxel.Int3) {
 		return
 	}
 	g.voxelMap.SetAir(pos)
+	if g.isAuthoritative {
+		g.destroyedBlocks = append(g.destroyedBlocks, pos)
+	}
+}
+
+func (g *GameInstance) GetDestroyedBlocks() []voxel.Int3 {
+	return g.destroyedBlocks
+}
+
+func (g *GameInstance) GetTurnCounter() int {
+	return g.turnCounter
+}
+
+func (g *GameInstance) GetCurrentPlayer() uint64 {
+	return g.currentPlayerID()
 }
 func (g *GameInstance) SetBlockLibrary(bl *BlockLibrary) {
 	g.blockLibrary = bl

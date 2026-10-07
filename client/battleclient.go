@@ -1,6 +1,7 @@
 package client
 
 import (
+	"math/rand"
 	"os"
 	"fmt"
 	"math"
@@ -129,6 +130,7 @@ type ClientSettings struct {
 	AutoSwitchToIsoCameraAfterFiring bool
 	SoundVolume                      float32
 	MusicVolume                      float32
+	PlayerName                       string
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
@@ -136,6 +138,10 @@ func NewClientSettingsFromFile(filename string) ClientSettings {
 		settings := DefaultClientSettings() // keys missing in the file keep their defaults
 		file, _ := afs.ReadFile(filename)
 		if util.FromJson(string(file), &settings) {
+			if settings.PlayerName == "" {
+				settings.PlayerName = DefaultClientSettings().PlayerName
+				_ = settings.SaveToFile(filename) // keep the name, so rejoining a match works
+			}
 			return settings
 		}
 	}
@@ -154,6 +160,7 @@ func DefaultClientSettings() ClientSettings {
 		AutoSwitchToIsoCameraAfterFiring: true,
 		SoundVolume:                      0.7,
 		MusicVolume:                      0.5,
+		PlayerName:                       fmt.Sprintf("Player-%04d", rand.Intn(10000)),
 	}
 }
 
@@ -903,6 +910,17 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 				a.UpdateActionbarFor(healer)
 			}
 		}
+	case "PlayerConnection":
+		var msg game.PlayerConnectionMessage
+		if util.FromJson(messageAsJson, &msg) {
+			if msg.Connected {
+				a.FlashText("OPPONENT IS BACK", 3)
+				a.Print(fmt.Sprintf("%s reconnected.", msg.Name))
+			} else {
+				a.FlashText("OPPONENT LEFT", 4)
+				a.Print(fmt.Sprintf("%s lost the connection. They have %d seconds to come back, otherwise you win.", msg.Name, msg.Seconds))
+			}
+		}
 	case "Melee":
 		var msg game.VisualMelee
 		if util.FromJson(messageAsJson, &msg) {
@@ -1486,6 +1504,15 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 
 	*/
 
+	if msg.Resume { // back in a running match after a reconnect: keep everyone's AP
+		a.hud.OnTurnResumed(msg.YourTurn, msg.TurnSeconds)
+		if msg.YourTurn {
+			a.SwitchToUnitNoCameraMovement(a.FirstUnit())
+		} else {
+			a.SwitchToWaitForEvents()
+		}
+		return
+	}
 	a.hud.OnTurnStarted(msg.YourTurn, msg.TurnSeconds)
 	if msg.YourTurn {
 		a.audio.Play(SoundTurnStart)
@@ -1842,4 +1869,13 @@ func (a *BattleClient) OnMelee(msg game.VisualMelee) {
 	if attackerKnown && a.selectedUnit == attacker {
 		a.UpdateActionbarFor(attacker)
 	}
+}
+
+// RestoreAfterRejoin replays the terrain destruction that happened while the player was away.
+func (a *BattleClient) RestoreAfterRejoin(destroyedBlocks []voxel.Int3, round int) {
+	for _, pos := range destroyedBlocks {
+		a.GetVoxelMap().SetAir(pos)
+	}
+	a.hud.SetRound(round)
+	a.FlashText("RECONNECTED", 3)
 }

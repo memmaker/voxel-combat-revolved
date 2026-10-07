@@ -232,7 +232,7 @@ func (a *GameClient[U]) OnNextPlayer(msg NextPlayerMessage) {
 		}
 
 	*/
-	if msg.YourTurn {
+	if msg.YourTurn && !msg.Resume {
 		a.ResetUnitsForNextTurn()
 		println(fmt.Sprintf("[%s] It's your turn!", a.environment))
 	}

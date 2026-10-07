@@ -111,6 +111,54 @@ func TestTurnTimerEndsIdleTurns(t *testing.T) {
 	}
 }
 
+func TestPlayerCanRejoinAfterDisconnect(t *testing.T) {
+	battleServer, err := NewBattleServerFromAssets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	game.Dial = battleServer.DialMem
+	results := make(chan game.GameOverMessage, 3)
+
+	host := game.NewDummyClient("mem")
+	host.SetOnGameOver(func(msg game.GameOverMessage) { results <- msg })
+	setup := game.DefaultAISetup()
+	setup.GameID = "rejoin-test"
+	setup.MapFile = "gen:urban:2"
+	host.RunSetupSequence(setup)
+
+	guestSetup := game.AIGameSetup{
+		Username: "guest", GameID: "rejoin-test", FactionName: "Deep Ones",
+		Units: []game.UnitChoice{
+			{UnitTypeID: 2, Name: "Gnarg", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 9, Name: "Gorn", Weapon: "Steyr SSG 69"},
+		},
+	}
+	guest := game.NewDummyClient("mem")
+	guest.RunSetupSequence(guestSetup)
+
+	time.Sleep(40 * time.Millisecond) // the first turns are under way
+	select {
+	case <-results:
+		t.Skip("the match ended before the disconnect could be tested")
+	default:
+	}
+	guest.Close()
+	time.Sleep(200 * time.Millisecond)
+
+	rejoined := game.NewDummyClient("mem")
+	rejoined.SetOnGameOver(func(msg game.GameOverMessage) { results <- msg })
+	rejoined.Join("guest", "rejoin-test")
+
+	select {
+	case <-results:
+		if !rejoined.Rejoined() {
+			t.Fatal("the match ended, but the guest never got its seat back")
+		}
+	case <-time.After(90 * time.Second):
+		t.Fatal("the match did not continue after the rejoin")
+	}
+}
+
 func TestAIMatchFinishes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("plays full matches")

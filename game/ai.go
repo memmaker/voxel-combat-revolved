@@ -44,6 +44,23 @@ type DummyClient struct {
 	isMyTurn   bool
 	onGameOver func(msg GameOverMessage)
 	passive    bool
+	rejoined   bool
+}
+
+// Rejoined reports whether this client took over a seat in a running match.
+func (c *DummyClient) Rejoined() bool {
+	return c.rejoined
+}
+
+// Close drops the connection (used to test reconnecting).
+func (c *DummyClient) Close() {
+	_ = c.connection.Close()
+}
+
+// Join takes this client into an existing game, e.g. to rejoin after a disconnect.
+func (c *DummyClient) Join(username, gameID string) {
+	util.MustSend(c.connection.Login(username))
+	util.MustSend(c.connection.JoinGame(gameID))
 }
 
 func NewDummyClient(endpoint string) *DummyClient {
@@ -98,6 +115,10 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		}
 
 		c.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
+		for _, pos := range gameInfo.DestroyedBlocks { // rejoining: replay the terrain changes
+			c.GetVoxelMap().SetAir(pos)
+		}
+		c.rejoined = gameInfo.Rejoin
 		c.brain = NewAIBrain(c.GameInstance, c.GetControllingUserID(), int(c.GetSpawnIndex()), c.difficulty)
 
 		util.MustSend(c.connection.MapLoaded())
@@ -170,6 +191,8 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 			}
 			c.continueTurn()
 		}
+	case "PlayerConnection":
+		// the opponent dropped out or came back; nothing to do for the AI
 	case "ActionResponse":
 		var msg ActionResponse
 		if util.FromJson(messageAsJson, &msg) {

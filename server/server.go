@@ -29,6 +29,9 @@ type BattleServer struct {
 	runningGames map[string]*game.GameInstance
 	memClients   uint64
 	turnTokens   map[string]int // identifies the current turn of each game for the turn timer
+	offline      map[uint64]*offlinePlayer
+	aliases      map[uint64]uint64 // connection id -> player id, for players who rejoined
+	inProgress   map[string]bool   // games whose first turn has started
 	// mu serializes all message handling: every client is read on its own goroutine,
 	// but games, users and the maps holding them are shared.
 	mu sync.Mutex
@@ -114,7 +117,13 @@ func (b *BattleServer) ListGames(userID uint64) {
 	listing := game.GameListMessage{Games: []game.GameListing{}}
 	for gameID, gameInstance := range b.runningGames {
 		players := gameInstance.GetPlayerIDs()
-		if len(players) >= gameInstance.GetPlayersNeeded() {
+		absent := ""
+		for _, playerID := range players {
+			if info := b.offline[playerID]; info != nil && info.gameID == gameID {
+				absent = info.name
+			}
+		}
+		if len(players) >= gameInstance.GetPlayersNeeded() && absent == "" {
 			continue
 		}
 		hostName := ""
@@ -130,6 +139,8 @@ func (b *BattleServer) ListGames(userID uint64) {
 			Scenario:      gameInstance.GetMissionDetails().Scenario,
 			Players:       len(players),
 			PlayersNeeded: gameInstance.GetPlayersNeeded(),
+			Rejoinable:    absent != "",
+			Absent:        absent,
 		})
 	}
 	b.respondWithMessage(user, listing)
@@ -141,8 +152,12 @@ func (b *BattleServer) onClientDisconnected(userID uint64) {
 	if !exists {
 		return
 	}
-	delete(b.connectedClients, userID)
 	gameInstance, inGame := b.runningGames[user.activeGame]
+	if inGame && b.inProgress[gameInstance.GetID()] && b.otherPlayerConnected(gameInstance, userID) {
+		b.holdSeat(gameInstance, user) // the player may come back
+		return
+	}
+	delete(b.connectedClients, userID)
 	if !inGame {
 		return
 	}
@@ -215,7 +230,7 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 	connectionDropped := func() {
 		util.LogNetworkInfo(fmt.Sprintf("[BattleServer] Client(%d) disconnected!", id))
 		b.mu.Lock()
-		b.onClientDisconnected(id)
+		b.onClientDisconnected(b.resolvePlayer(id))
 		b.mu.Unlock()
 		con.Close()
 	}
@@ -239,7 +254,7 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 		util.LogNetworkDebug(fmt.Sprintf("\n[Server] FROM Client(%d) msg(%s):\n%s\n", id, messageType, message))
 
 		b.mu.Lock()
-		b.GenerateResponse(con, id, messageType, message)
+		b.GenerateResponse(con, b.resolvePlayer(id), messageType, message)
 		b.mu.Unlock()
 	}
 }
@@ -360,6 +375,9 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 		return
 	}
 	gameInstance := b.runningGames[gameID]
+	if b.tryRejoin(id, user, gameInstance) {
+		return
+	}
 	if len(gameInstance.GetPlayerIDs()) >= gameInstance.GetPlayersNeeded() {
 		b.respond(user, "JoinGameResponse", game.ActionResponse{Success: false, Message: "Game is full"})
 		return
@@ -378,42 +396,35 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 func (b *BattleServer) startGame(battleGame *game.GameInstance) {
 	util.LogGameInfo(fmt.Sprintf("[BattleServer] Starting game %s", battleGame.GetID()))
 	battleGame.Start()
-	playerNames := make(map[uint64]string)
-	playerFactions := battleGame.GetPlayerFactions()
-
-	for _, playerID := range battleGame.GetPlayerIDs() {
-		user, exists := b.connectedClients[playerID]
-		if !exists {
-			util.LogGameError(fmt.Sprintf("[BattleServer] ERR -> Player %d does not exist", playerID))
-			continue
-		}
-		playerNames[playerID] = user.name
-	}
-
 	// also send the initial LOS state
 	battleGame.InitLOSAndPressure()
 
-	for spawnIndex, playerID := range battleGame.GetPlayerIDs() {
-		user := b.connectedClients[playerID]
+	for _, playerID := range battleGame.GetPlayerIDs() {
+		b.respond(b.connectedClients[playerID], "GameStarted", b.gameStateFor(battleGame, playerID))
+	}
+}
 
-		// broadcast game started event to all players, tell everyone who's turn it is
-		units := battleGame.GetPlayerUnits(playerID)
-		whoCanSeeWho, visibleUnits := battleGame.GetLOSState(playerID)
-		pressure := battleGame.GetPressureMatrix()
-
-		b.respond(user, "GameStarted", game.GameStartedMessage{
-			GameID:           battleGame.GetID(),
-			PlayerNameMap:    playerNames,
-			PlayerFactionMap: playerFactions,
-			OwnID:            playerID,
-			SpawnIndex:       uint64(spawnIndex),
-			OwnUnits:         units,
-			MapFile:          battleGame.GetMapFile(),
-			LOSMatrix:        whoCanSeeWho,
-			PressureMatrix:   pressure,
-			VisibleUnits:     visibleUnits,
-			MissionDetails:   battleGame.GetMissionDetails(),
-		})
+// gameStateFor is everything a player needs to set up the match view (also used when rejoining).
+func (b *BattleServer) gameStateFor(battleGame *game.GameInstance, playerID uint64) game.GameStartedMessage {
+	playerNames := make(map[uint64]string)
+	for _, id := range battleGame.GetPlayerIDs() {
+		if user, exists := b.connectedClients[id]; exists {
+			playerNames[id] = user.name
+		}
+	}
+	whoCanSeeWho, visibleUnits := battleGame.GetLOSState(playerID)
+	return game.GameStartedMessage{
+		GameID:           battleGame.GetID(),
+		PlayerNameMap:    playerNames,
+		PlayerFactionMap: battleGame.GetPlayerFactions(),
+		OwnID:            playerID,
+		SpawnIndex:       uint64(battleGame.IndexOfPlayer(playerID)),
+		OwnUnits:         battleGame.GetPlayerUnits(playerID),
+		MapFile:          battleGame.GetMapFile(),
+		LOSMatrix:        whoCanSeeWho,
+		PressureMatrix:   battleGame.GetPressureMatrix(),
+		VisibleUnits:     visibleUnits,
+		MissionDetails:   battleGame.GetMissionDetails(),
 	}
 }
 func (b *BattleServer) SelectDeployment(userID uint64, msg game.DeploymentMessage) {
@@ -631,6 +642,7 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	*/
 	util.LogNetworkInfo(fmt.Sprintf("[BattleServer] New turn for game %s", gameInstance.GetID()))
 
+	b.inProgress[gameInstance.GetID()] = true
 	nextPlayer := gameInstance.NextPlayer()
 	turnSeconds := gameInstance.GetMissionDetails().TurnSeconds
 	for _, playerID := range gameInstance.GetPlayerIDs() {
@@ -680,6 +692,10 @@ func (b *BattleServer) MapLoaded(userID uint64, msg game.MapLoadedMessage) {
 		return
 	}
 	user.isReady = true
+	if b.inProgress[gameID] { // a rejoined player: continue the running turn
+		b.resumeTurnFor(gameInstance, user)
+		return
+	}
 
 	allReady := true
 	for _, playerID := range gameInstance.GetPlayerIDs() {
@@ -770,6 +786,9 @@ func NewBattleServer() *BattleServer {
 		availableMaps:     make(map[string]string),             // filename -> display name
 		availableFactions: make(map[string]*game.Faction),      // faction name -> faction
 		availableUnits:    make(map[uint64]*game.UnitDefinition),
+		offline:           make(map[uint64]*offlinePlayer),
+		aliases:           make(map[uint64]uint64),
+		inProgress:        make(map[string]bool),
 		connectedClients:  make(map[uint64]*UserConnection),    // client id -> client
 		runningGames:      make(map[string]*game.GameInstance), // game id -> game
 		availableWeapons:  make(map[string]*game.WeaponDefinition),

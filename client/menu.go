@@ -487,7 +487,7 @@ func (m *Menu) buildConfig() *MatchConfig {
 	units := m.playableUnits(m.faction)
 	config := &MatchConfig{
 		Mode:        m.mode,
-		PlayerName:  "Player",
+		PlayerName:  m.settings.PlayerName,
 		Scenario:    scenarioOptions[m.scenario],
 		Placement:   placementOptions[m.placement],
 		FactionName: m.content.Factions[m.faction].Name,
@@ -600,7 +600,7 @@ func (m *Menu) joinScreen() {
 		if m.lobby != nil {
 			m.lobby.close()
 		}
-		m.lobby = newLobbyConnection(m.address)
+		m.lobby = newLobbyConnection(m.address, m.settings.PlayerName)
 	}
 	y += 50
 	if m.lobby != nil {
@@ -617,9 +617,16 @@ func (m *Menu) joinScreen() {
 			}
 			for _, listing := range games {
 				label := fmt.Sprintf("%s  -  %s on %s  (%d/%d players)", listing.GameID, listing.Scenario, listing.MapFile, listing.Players, listing.PlayersNeeded)
+				if listing.Rejoinable {
+					label = fmt.Sprintf("REJOIN %s  -  waiting for %s", listing.GameID, listing.Absent)
+				}
 				if m.ui.Button(left, y, 600, 30, label, true) {
 					m.lobby.selectedGame = listing.GameID
-					m.screen = screenSetup
+					if listing.Rejoinable { // the squad is already on the battlefield: go straight in
+						m.result = m.buildConfig()
+					} else {
+						m.screen = screenSetup
+					}
 				}
 				y += 36
 			}
@@ -735,7 +742,7 @@ type lobbyConnection struct {
 	detached     bool
 }
 
-func newLobbyConnection(address string) *lobbyConnection {
+func newLobbyConnection(address, name string) *lobbyConnection {
 	l := &lobbyConnection{updates: make(chan func(l *lobbyConnection), 16)}
 	go func() {
 		conn, err := dialWithTimeout(address, 4*time.Second)
@@ -756,7 +763,7 @@ func newLobbyConnection(address string) *lobbyConnection {
 		})
 		l.updates <- func(l *lobbyConnection) {
 			l.connection = connection
-			util.MustSend(connection.Login(fmt.Sprintf("player-%d", rand.Intn(10000))))
+			util.MustSend(connection.Login(name))
 		}
 	}()
 	return l

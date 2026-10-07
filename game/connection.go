@@ -1,6 +1,7 @@
 package game
 
 import (
+	"io"
 	"bufio"
 	"encoding/json"
 	"github.com/go-gl/mathgl/mgl32"
@@ -188,27 +189,46 @@ var Dial = func(endpoint string) (net.Conn, error) { return net.Dial("tcp", endp
 // MemPipe is a buffered in-memory net.Conn pair (net.Pipe is unbuffered and would deadlock request/response handlers).
 func MemPipe() (net.Conn, net.Conn) {
 	a, b := make(chan []byte, 4096), make(chan []byte, 4096)
-	return &memConn{in: a, out: b}, &memConn{in: b, out: a}
+	closedA, closedB := make(chan struct{}), make(chan struct{})
+	return &memConn{in: a, out: b, closed: closedA, peerClosed: closedB}, &memConn{in: b, out: a, closed: closedB, peerClosed: closedA}
 }
 
 type memConn struct {
-	net.Conn // unused methods panic
-	in, out  chan []byte
-	buf      []byte
+	net.Conn   // unused methods panic
+	in, out    chan []byte
+	buf        []byte
+	closed     chan struct{} // closed when this end hangs up
+	peerClosed chan struct{} // closed when the other end hangs up
+	closeOnce  sync.Once
 }
 
 func (c *memConn) Write(p []byte) (int, error) {
-	c.out <- append([]byte(nil), p...)
-	return len(p), nil
+	select {
+	case <-c.closed:
+		return 0, io.ErrClosedPipe
+	case <-c.peerClosed:
+		return 0, io.ErrClosedPipe
+	case c.out <- append([]byte(nil), p...):
+		return len(p), nil
+	}
 }
 
 func (c *memConn) Read(p []byte) (int, error) {
 	if len(c.buf) == 0 {
-		c.buf = <-c.in
+		select {
+		case c.buf = <-c.in:
+		case <-c.closed:
+			return 0, io.EOF
+		case <-c.peerClosed:
+			return 0, io.EOF
+		}
 	}
 	n := copy(p, c.buf)
 	c.buf = c.buf[n:]
 	return n, nil
 }
 
-func (c *memConn) Close() error { return nil }
+func (c *memConn) Close() error {
+	c.closeOnce.Do(func() { close(c.closed) })
+	return nil
+}

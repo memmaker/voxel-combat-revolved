@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/faiface/mainthread"
@@ -141,6 +142,9 @@ func startMatchSetup(con *game.ServerConnection, setup game.AIGameSetup, already
 			}
 			if msg.MessageType == "CreateGameResponse" {
 				m.created <- struct{}{}
+			}
+			if msg.MessageType == "JoinGameResponse" && strings.HasPrefix(response.Message, "Rejoined") {
+				return // our squad is already in the match; the server sends the game state next
 			}
 			advance()
 		case "GameStarted":
@@ -322,6 +326,9 @@ func runBattle(window *glfw.Window, con *game.ServerConnection, gameInfo game.Ga
 	}
 
 	gameClient.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
+	if gameInfo.Rejoin {
+		gameClient.RestoreAfterRejoin(gameInfo.DestroyedBlocks, gameInfo.Round)
+	}
 
 	gameClient.SwitchToWaitForEvents()
 

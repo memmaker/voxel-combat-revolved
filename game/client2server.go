@@ -88,6 +88,9 @@ type GameListing struct {
 	Scenario      MissionScenario
 	Players       int
 	PlayersNeeded int
+	// Rejoinable: the match is running and waits for a dropped player to come back
+	Rejoinable bool `json:",omitempty"`
+	Absent     string `json:",omitempty"` // name of the dropped player
 }
 
 type GameListMessage struct {

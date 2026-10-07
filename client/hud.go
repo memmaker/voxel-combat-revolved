@@ -104,6 +104,20 @@ func (h *HUD) OnTurnStarted(isMyTurn bool, turnSeconds int) {
 	h.isMyTurn = isMyTurn
 }
 
+// OnTurnResumed restores the turn display after a reconnect, without counting a new round.
+func (h *HUD) OnTurnResumed(isMyTurn bool, turnSeconds int) {
+	h.isMyTurn = isMyTurn
+	h.turnDeadline = time.Time{}
+	if turnSeconds > 0 {
+		h.turnDeadline = time.Now().Add(time.Duration(turnSeconds) * time.Second)
+	}
+}
+
+// SetRound sets the round counter (used when rejoining a running match).
+func (h *HUD) SetRound(round int) {
+	h.round = round
+}
+
 func (h *HUD) Round() int {
 	return h.round
 }
