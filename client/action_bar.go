@@ -73,6 +73,15 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 	if unit.CanSnapshot() {
 		actions = append(actions, snapshot)
 	}
+	if unit.CanMelee() && len(game.NewActionMelee(a.GameInstance, unit.UnitInstance).GetValidTargets()) > 0 {
+		actions = append(actions, gui.ActionItem{
+			Name:         "Melee: strike an adjacent enemy (2 AP, 85% for 4 damage)",
+			TextureIndex: a.guiIcons["melee"],
+			Execute: func() {
+				a.SwitchToBlockTarget(unit, game.NewActionMelee(a.GameInstance, unit.UnitInstance))
+			},
+		})
+	}
 	if unit.CanReact() {
 		for _, reaction := range []struct {
 			kind game.Reaction
@@ -81,6 +90,7 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 		}{
 			{game.ReactionDodge, "walk", "Dodge: until your next turn, every bullet that would hit misses with 50% (not explosions)"},
 			{game.ReactionBrace, "shield", "Brace: until your next turn, -1 damage per bullet and half damage from explosions"},
+			{game.ReactionParry, "interact", "Parry: until your next turn, melee attacks fail and the attacker takes 3 damage"},
 		} {
 			kind := reaction.kind
 			actions = append(actions, gui.ActionItem{

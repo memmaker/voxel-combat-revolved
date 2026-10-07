@@ -21,6 +21,7 @@ type AICommander interface {
 	Overwatch(unitID uint64, targets []voxel.Int3)
 	Reload(unitID uint64)
 	React(unitID uint64, reaction Reaction)
+	Melee(unitID uint64, target voxel.Int3)
 	EndTurn()
 }
 
@@ -345,6 +346,24 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 			b.log(fmt.Sprintf("[AI] %s repositions before shooting to %s (%.2f > %.2f)", unit.GetName(), target.ToString(), value, currentValue))
 			b.move(unit, target, cmd)
 			return true
+		}
+	}
+
+	// 3b. an enemy right next to us: strike if that beats shooting
+	if unit.CanMelee() && b.difficulty != AIEasy {
+		for _, enemy := range visibleEnemies {
+			if !IsInMeleeRange(unit.GetBlockPosition(), enemy.GetBlockPosition()) {
+				continue
+			}
+			meleeValue := MeleeHitChance * MeleeDamage * b.noise()
+			if enemy.Health <= MeleeDamage {
+				meleeValue *= 1.5
+			}
+			if meleeValue > bestShotScore || !canShootNow {
+				b.log(fmt.Sprintf("[AI] %s strikes %s in melee", unit.GetName(), enemy.GetName()))
+				cmd.Melee(unit.UnitID(), enemy.GetBlockPosition())
+				return true
+			}
 		}
 	}
 
@@ -791,10 +810,19 @@ func (b *AIBrain) chooseDefense(unit *UnitInstance, visibleEnemies []*UnitInstan
 				grenadeThreat += 0.3 // grouped up: one grenade hits several of us
 			}
 		}
+		meleeThreat := 0.0
+		for _, enemy := range visibleEnemies {
+			if blockDistance(unit.GetBlockPosition(), enemy.GetBlockPosition()) <= 4 {
+				meleeThreat += 0.6 // close enough to run up and strike
+			}
+		}
 		options = append(options,
 			option{1.0, func() { cmd.React(unit.UnitID(), ReactionDodge) }, "dodge"},
 			option{0.4 + grenadeThreat + shotgunThreat, func() { cmd.React(unit.UnitID(), ReactionBrace) }, "brace"},
 		)
+		if meleeThreat > 0 {
+			options = append(options, option{meleeThreat, func() { cmd.React(unit.UnitID(), ReactionParry) }, "parry"})
+		}
 	}
 	if len(options) == 0 {
 		return false

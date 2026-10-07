@@ -130,3 +130,21 @@ func TestSaveAndReloadEditedMap(t *testing.T) {
 		t.Fatalf("metadata was not preserved: %+v", meta)
 	}
 }
+
+func TestMeleeRange(t *testing.T) {
+	origin := voxel.Int3{X: 5, Y: 1, Z: 5}
+	for _, c := range []struct {
+		to    voxel.Int3
+		reach bool
+	}{
+		{voxel.Int3{X: 6, Y: 1, Z: 5}, true},
+		{voxel.Int3{X: 6, Y: 2, Z: 6}, true},
+		{voxel.Int3{X: 5, Y: 1, Z: 5}, false},
+		{voxel.Int3{X: 7, Y: 1, Z: 5}, false},
+		{voxel.Int3{X: 6, Y: 3, Z: 5}, false},
+	} {
+		if IsInMeleeRange(origin, c.to) != c.reach {
+			t.Errorf("melee range to %v should be %v", c.to, c.reach)
+		}
+	}
+}

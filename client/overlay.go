@@ -234,6 +234,8 @@ var helpSections = []struct {
 	{"Reactions (secret until they trigger)", []string{
 		"Dodge: bullets that would hit you miss half the time. Useless vs grenades.",
 		"Brace: -1 damage per bullet, half damage from explosions.",
+		"Parry: melee attacks fail and the attacker takes 3 damage.",
+		"Melee (2 AP): strike an adjacent enemy, 85% for 4 damage.",
 		"Guess what the enemy will do: shoot, throw or advance.",
 	}},
 }

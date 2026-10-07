@@ -95,6 +95,10 @@ func (p *autoPlayer) Overwatch(unitID uint64, targets []voxel.Int3) {
 	util.MustSend(p.engine.server.TargetedUnitAction(unitID, "Overwatch", targets))
 }
 
+func (p *autoPlayer) Melee(unitID uint64, target voxel.Int3) {
+	util.MustSend(p.engine.server.TargetedUnitAction(unitID, "Melee", []voxel.Int3{target}))
+}
+
 func (p *autoPlayer) React(unitID uint64, reaction game.Reaction) {
 	util.MustSend(p.engine.server.TargetedUnitAction(unitID, string(reaction), nil))
 }

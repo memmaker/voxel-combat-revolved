@@ -138,6 +138,14 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 				c.continueTurn()
 			}
 		}
+	case "Melee":
+		var msg VisualMelee
+		if util.FromJson(messageAsJson, &msg) {
+			c.ApplyMelee(msg)
+			if c.IsMyUnit(msg.Attacker) {
+				c.continueTurn()
+			}
+		}
 	case "Reaction":
 		var msg VisualReaction
 		if util.FromJson(messageAsJson, &msg) {
@@ -216,6 +224,10 @@ func (c *DummyClient) Throw(unitID uint64, itemName string, target mgl32.Vec3) {
 
 func (c *DummyClient) Overwatch(unitID uint64, targets []voxel.Int3) {
 	util.MustSend(c.connection.TargetedUnitAction(unitID, "Overwatch", targets))
+}
+
+func (c *DummyClient) Melee(unitID uint64, target voxel.Int3) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, "Melee", []voxel.Int3{target}))
 }
 
 func (c *DummyClient) React(unitID uint64, reaction Reaction) {

@@ -312,7 +312,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.grenadeModel.RootNode.SetUniformScale(2.4)
 	myApp.grenadeModel.UploadVertexData(myApp.defaultShader)
 
-	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield"})
+	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
@@ -890,6 +890,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		var msg game.UnitMessage
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnReload(msg)
+		}
+	case "Melee":
+		var msg game.VisualMelee
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnMelee(msg)
 		}
 	case "Reaction":
 		var msg game.VisualReaction
@@ -1794,4 +1799,35 @@ func (a *BattleClient) drawUnitSilhouettes() {
 	gl.DepthMask(true)
 	gl.DepthFunc(gl.LESS)
 	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
+}
+
+func (a *BattleClient) OnMelee(msg game.VisualMelee) {
+	attacker, attackerKnown := a.GetClientUnit(msg.Attacker)
+	target, targetKnown := a.GetClientUnit(msg.Target)
+	if attackerKnown {
+		a.blastCenter = attacker.GetPosition() // hits push the target away from the attacker
+		attacker.PlayFireAnimation(msg.TargetPosition.ToBlockCenterVec3().Sub(attacker.GetPosition()))
+	}
+	if targetKnown {
+		textPos := target.GetPosition().Add(mgl32.Vec3{0, 3.3, 0})
+		switch {
+		case msg.Parried:
+			a.hud.AddFloatingText("PARRIED", textPos, game.ColorTechTeal.Vec3())
+			a.audio.PlayAt(SoundImpactWall, target.GetPosition())
+			if attackerKnown {
+				a.blastCenter = target.GetPosition()
+			}
+		case msg.Hit:
+			a.audio.PlayAt(SoundImpactFlesh, target.GetPosition())
+			if msg.Braced {
+				a.hud.AddFloatingText("BRACED", textPos, game.ColorTechTeal.Vec3())
+			}
+		default:
+			a.hud.AddFloatingText("MISSED", textPos, mgl32.Vec3{0.8, 0.8, 0.8})
+		}
+	}
+	a.ApplyMelee(msg)
+	if attackerKnown && a.selectedUnit == attacker {
+		a.UpdateActionbarFor(attacker)
+	}
 }
