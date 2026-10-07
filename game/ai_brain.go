@@ -22,6 +22,7 @@ type AICommander interface {
 	Reload(unitID uint64)
 	React(unitID uint64, reaction Reaction)
 	Melee(unitID uint64, target voxel.Int3)
+	Heal(unitID uint64, target voxel.Int3)
 	EndTurn()
 }
 
@@ -327,6 +328,17 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 		return b.tryMove(unit, cmd, false)
 	}
 
+	// 1b. medics patch up badly wounded allies within reach
+	if unit.CanHeal() {
+		for _, target := range NewActionHeal(b.g, unit).GetValidTargets() {
+			if ally, ok := b.g.GetVoxelMap().GetMapObjectAt(target).(*UnitInstance); ok && ally.Health*2 <= ally.Definition.CoreStats.Health {
+				b.log(fmt.Sprintf("[AI] %s heals %s", unit.GetName(), ally.GetName()))
+				cmd.Heal(unit.UnitID(), target)
+				return true
+			}
+		}
+	}
+
 	shotCost := int(weapon.Definition.BaseAPForShot)
 	canShootNow := unit.CanSnapshot()
 	bestShot, bestShotScore := b.bestShotFrom(unit, unit.GetBlockPosition(), visibleEnemies)
@@ -419,7 +431,7 @@ func hitChance(accuracy float64, distance float64) float64 {
 
 func (b *AIBrain) estimatedShotAccuracy(unit *UnitInstance) float64 {
 	pressure := 1.0
-	if unit.GetWeapon().Definition.WeaponType == WeaponSniper {
+	if unit.GetWeapon().Definition.WeaponType == WeaponSniper && !unit.Definition.CoreStats.IgnoresPressure {
 		pressure = math.Max(0.5, 1.0-b.g.GetTotalPressure(unit.UnitID())*0.25)
 	}
 	return unit.GetFreeAimAccuracy() * pressure

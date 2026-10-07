@@ -62,9 +62,9 @@ func playAIMatch(t *testing.T, gameID string, mapName string, mission *game.Miss
 		GameID:      gameID,
 		FactionName: "Deep Ones",
 		Units: []game.UnitChoice{
-			{UnitTypeID: 2, Name: "Gnarg", Weapon: "M1911 Pistol", Items: []string{"Frag Grenade"}},
-			{UnitTypeID: 2, Name: "Gorn", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
-			{UnitTypeID: 2, Name: "Grimbel", Weapon: "Mossberg 500", Items: []string{"Smoke Grenade"}},
+			{UnitTypeID: 11, Name: "Gnarg", Weapon: "M1911 Pistol", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 10, Name: "Gorn", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 8, Name: "Grimbel", Weapon: "Mossberg 500", Items: []string{"Smoke Grenade"}},
 		},
 	})
 

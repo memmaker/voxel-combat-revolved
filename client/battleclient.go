@@ -312,7 +312,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.grenadeModel.RootNode.SetUniformScale(2.4)
 	myApp.grenadeModel.UploadVertexData(myApp.defaultShader)
 
-	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact"})
+	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact", "poi"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
@@ -890,6 +890,18 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		var msg game.UnitMessage
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnReload(msg)
+		}
+	case "Heal":
+		var msg game.VisualHeal
+		if util.FromJson(messageAsJson, &msg) {
+			a.ApplyHeal(msg)
+			if target, known := a.GetClientUnit(msg.Target); known {
+				a.hud.AddFloatingText(fmt.Sprintf("+%d", msg.Amount), target.GetPosition().Add(mgl32.Vec3{0, 2.9, 0}), game.ColorPositiveGreen.Vec3())
+				a.audio.PlayAt(SoundOverwatch, target.GetPosition())
+			}
+			if healer, known := a.GetClientUnit(msg.Healer); known && a.selectedUnit == healer {
+				a.UpdateActionbarFor(healer)
+			}
 		}
 	case "Melee":
 		var msg game.VisualMelee

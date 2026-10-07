@@ -19,12 +19,18 @@ type UnitCoreStats struct {
     MaxActionPoints float64 // MaxActionPoints Maximum action points
     ThrowVelocity   float64 // ThrowVelocity Velocity of thrown objects
     BaseAPForThrow  int
+    // IgnoresPressure: nearby enemies do not spoil this unit's aim (marksmen)
+    IgnoresPressure bool `json:",omitempty"`
+    // HealCharges is how often per match the unit can heal an adjacent ally (medics)
+    HealCharges int `json:",omitempty"`
 }
 
 // UnitDefinition is the definition of a unit type. It contains the static information about the unit type.
 // This is a basic unit archetype, from which the player chooses.
 type UnitDefinition struct {
     ID uint64 // ID of the unit definition (= unit type)
+    ClassName   string `json:",omitempty"` // e.g. Scout, Marksman; shown in the squad editor
+    Description string `json:",omitempty"`
 
     ClientRepresentation UnitClientDefinition
     CoreStats            UnitCoreStats
@@ -57,6 +63,7 @@ type UnitInstance struct {
     Inventory       []*Item
     // Reaction is secret: it is never serialized, so opponents only learn about it when it triggers
     Reaction        Reaction `json:"-"`
+    HealsUsed       int
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {

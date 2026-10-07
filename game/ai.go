@@ -138,6 +138,16 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 				c.continueTurn()
 			}
 		}
+	case "Heal":
+		var msg VisualHeal
+		if util.FromJson(messageAsJson, &msg) {
+			if !c.IsMyUnit(msg.Healer) {
+				c.ApplyHeal(msg)
+			} else {
+				c.ApplyHeal(msg)
+				c.continueTurn()
+			}
+		}
 	case "Melee":
 		var msg VisualMelee
 		if util.FromJson(messageAsJson, &msg) {
@@ -226,6 +236,10 @@ func (c *DummyClient) Overwatch(unitID uint64, targets []voxel.Int3) {
 	util.MustSend(c.connection.TargetedUnitAction(unitID, "Overwatch", targets))
 }
 
+func (c *DummyClient) Heal(unitID uint64, target voxel.Int3) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, "Heal", []voxel.Int3{target}))
+}
+
 func (c *DummyClient) Melee(unitID uint64, target voxel.Int3) {
 	util.MustSend(c.connection.TargetedUnitAction(unitID, "Melee", []voxel.Int3{target}))
 }
@@ -264,9 +278,9 @@ func DefaultAISetup() AIGameSetup {
 		Mission:     NewRandomDeathmatch(),
 		FactionName: "X-Com",
 		Units: []UnitChoice{
-			{UnitTypeID: 0, Name: "Jimmy", Weapon: "Mossberg 500", Items: []string{"Smoke Grenade"}},
-			{UnitTypeID: 0, Name: "Bimmy", Weapon: "Steyr SSG 69", Items: []string{"Frag Grenade"}},
-			{UnitTypeID: 0, Name: "Timmy", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 4, Name: "Jimmy", Weapon: "Mossberg 500", Items: []string{"Smoke Grenade"}},
+			{UnitTypeID: 5, Name: "Bimmy", Weapon: "Steyr SSG 69", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 7, Name: "Timmy", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
 		},
 	}
 }

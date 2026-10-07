@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/memmaker/battleground/engine/gui"
 	"github.com/memmaker/battleground/engine/util"
@@ -79,6 +80,15 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 			TextureIndex: a.guiIcons["melee"],
 			Execute: func() {
 				a.SwitchToBlockTarget(unit, game.NewActionMelee(a.GameInstance, unit.UnitInstance))
+			},
+		})
+	}
+	if unit.CanHeal() && len(game.NewActionHeal(a.GameInstance, unit.UnitInstance).GetValidTargets()) > 0 {
+		actions = append(actions, gui.ActionItem{
+			Name:         fmt.Sprintf("Heal: +%d HP for yourself or an adjacent ally (2 AP, %d left)", game.HealAmount, unit.HealsLeft()),
+			TextureIndex: a.guiIcons["poi"],
+			Execute: func() {
+				a.SwitchToBlockTarget(unit, game.NewActionHeal(a.GameInstance, unit.UnitInstance))
 			},
 		})
 	}

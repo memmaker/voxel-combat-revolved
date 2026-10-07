@@ -322,9 +322,10 @@ func (m *Menu) resetSquad() {
 	m.squad = nil
 	for i := 0; i < 3; i++ {
 		m.squad = append(m.squad, squadSlot{
-			name:   unitNames[names[i]],
-			weapon: m.weaponIndex(defaultWeapons[i]),
-			item:   m.itemIndex(defaultItems[i]) + 1,
+			name:     unitNames[names[i]],
+			unitType: []int{0, 2, 1}[i], // rifleman, marksman, scout (order of the content file)
+			weapon:   m.weaponIndex(defaultWeapons[i]),
+			item:     m.itemIndex(defaultItems[i]) + 1,
 		})
 	}
 }
@@ -410,7 +411,11 @@ func (m *Menu) setupScreen() {
 	units := m.playableUnits(m.faction)
 	unitTypeNames := make([]string, len(units))
 	for i, unit := range units {
-		unitTypeNames[i] = fmt.Sprintf("%s (%d HP)", unit.ModelFile, unit.CoreStats.Health)
+		name := unit.ClassName
+		if name == "" {
+			name = unit.ModelFile
+		}
+		unitTypeNames[i] = fmt.Sprintf("%s (%d HP)", name, unit.CoreStats.Health)
 	}
 	weaponNames := make([]string, len(m.content.Weapons))
 	for i, weapon := range m.content.Weapons {
@@ -522,24 +527,30 @@ func (c MatchConfig) OpponentSquad(content game.Content) []game.UnitChoice {
 			faction = f
 		}
 	}
-	var unitType uint64
-	for _, unit := range faction.Units {
-		if len(unit.AnimationMap) > 0 {
-			unitType = unit.ID
-			break
+	classID := func(className string) uint64 {
+		for _, unit := range faction.Units {
+			if unit.ClassName == className {
+				return unit.ID
+			}
 		}
+		for _, unit := range faction.Units {
+			if len(unit.AnimationMap) > 0 {
+				return unit.ID
+			}
+		}
+		return 0
 	}
-	loadouts := []struct{ weapon, item string }{
-		{"M16 Rifle", "Frag Grenade"},
-		{"Steyr SSG 69", "Smoke Grenade"},
-		{"Mossberg 500", "Frag Grenade"},
-		{"M1911 Pistol", "Frag Grenade"},
+	loadouts := []struct{ class, weapon, item string }{
+		{"Rifleman", "M16 Rifle", "Frag Grenade"},
+		{"Marksman", "Steyr SSG 69", "Smoke Grenade"},
+		{"Scout", "Mossberg 500", "Frag Grenade"},
+		{"Medic", "M1911 Pistol", "Smoke Grenade"},
 	}
 	names := []string{"Gnarg", "Gorn", "Grimbel", "Gluk"}
 	var squad []game.UnitChoice
 	for i := range c.Squad {
 		loadout := loadouts[i%len(loadouts)]
-		squad = append(squad, game.UnitChoice{UnitTypeID: unitType, Name: names[i%len(names)], Weapon: loadout.weapon, Items: []string{loadout.item}})
+		squad = append(squad, game.UnitChoice{UnitTypeID: classID(loadout.class), Name: names[i%len(names)], Weapon: loadout.weapon, Items: []string{loadout.item}})
 	}
 	return squad
 }

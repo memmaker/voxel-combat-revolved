@@ -32,7 +32,9 @@
           "run_twohand": "animation.weapon_walk",
           "wall_idle_twohand_left": "animation.wall_idle_Left",
           "wall_idle_twohand_right": "animation.wall_idle_right"
-        }
+        },
+        "ClassName": "Rifleman",
+        "Description": "Balanced all-rounder."
       },
       {
         "ID": 1,
@@ -49,6 +51,124 @@
         },
         "ModelFile": "walker_3x3",
         "AnimationMap": null
+      },
+      {
+        "ID": 4,
+        "ClientRepresentation": {
+          "TextureFile": "xcom_soldier"
+        },
+        "CoreStats": {
+          "Health": 9,
+          "Accuracy": 0.9,
+          "MovementPerAP": 4,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Scout",
+        "Description": "Fast: moves 4 blocks per AP."
+      },
+      {
+        "ID": 5,
+        "ClientRepresentation": {
+          "TextureFile": "xcom_soldier"
+        },
+        "CoreStats": {
+          "Health": 9,
+          "Accuracy": 0.97,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2,
+          "IgnoresPressure": true
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Marksman",
+        "Description": "Very accurate and keeps calm: nearby enemies do not spoil the aim."
+      },
+      {
+        "ID": 6,
+        "ClientRepresentation": {
+          "TextureFile": "xcom_soldier"
+        },
+        "CoreStats": {
+          "Health": 14,
+          "Accuracy": 0.85,
+          "MovementPerAP": 2.4,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 1
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Heavy",
+        "Description": "Tough and throws grenades for 1 AP, but slow."
+      },
+      {
+        "ID": 7,
+        "ClientRepresentation": {
+          "TextureFile": "xcom_soldier"
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2,
+          "HealCharges": 3
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Medic",
+        "Description": "Can heal itself or an adjacent ally 3 times per match."
       }
     ]
   },
@@ -85,7 +205,9 @@
           "run_twohand": "animation.weapon_walk",
           "wall_idle_twohand_left": "animation.wall_idle_Left",
           "wall_idle_twohand_right": "animation.wall_idle_right"
-        }
+        },
+        "ClassName": "Rifleman",
+        "Description": "Balanced all-rounder."
       },
       {
         "ID": 3,
@@ -102,6 +224,124 @@
         },
         "ModelFile": "deep_monster_3x3",
         "AnimationMap": null
+      },
+      {
+        "ID": 8,
+        "ClientRepresentation": {
+          "TextureFile": "deep_ones_soldier"
+        },
+        "CoreStats": {
+          "Health": 9,
+          "Accuracy": 0.9,
+          "MovementPerAP": 4,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Scout",
+        "Description": "Fast: moves 4 blocks per AP."
+      },
+      {
+        "ID": 9,
+        "ClientRepresentation": {
+          "TextureFile": "deep_ones_soldier"
+        },
+        "CoreStats": {
+          "Health": 9,
+          "Accuracy": 0.97,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2,
+          "IgnoresPressure": true
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Marksman",
+        "Description": "Very accurate and keeps calm: nearby enemies do not spoil the aim."
+      },
+      {
+        "ID": 10,
+        "ClientRepresentation": {
+          "TextureFile": "deep_ones_soldier"
+        },
+        "CoreStats": {
+          "Health": 14,
+          "Accuracy": 0.85,
+          "MovementPerAP": 2.4,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 1
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Heavy",
+        "Description": "Tough and throws grenades for 1 AP, but slow."
+      },
+      {
+        "ID": 11,
+        "ClientRepresentation": {
+          "TextureFile": "deep_ones_soldier"
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2,
+          "HealCharges": 3
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        },
+        "ClassName": "Medic",
+        "Description": "Can heal itself or an adjacent ally 3 times per match."
       }
     ]
   }

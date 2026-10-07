@@ -18,7 +18,7 @@ type BattleServer struct {
 	// global state for the whole server
 	availableMaps     map[string]string
 	availableFactions map[string]*game.Faction
-	availableUnits    []*game.UnitDefinition
+	availableUnits    map[uint64]*game.UnitDefinition
 	availableWeapons  map[string]*game.WeaponDefinition
 	availableItems    map[string]*game.ItemDefinition
 	content           game.Content
@@ -171,7 +171,7 @@ func (b *BattleServer) AddFaction(def game.FactionDefinition) {
 }
 
 func (b *BattleServer) AddUnitDefinition(unit *game.UnitDefinition) {
-	b.availableUnits = append(b.availableUnits, unit)
+	b.availableUnits[unit.ID] = unit
 }
 func (b *BattleServer) ListenTCP(endpoint string) {
 	clientID := uint64(0)
@@ -460,7 +460,7 @@ func (b *BattleServer) SelectUnits(userID uint64, msg game.SelectUnitsMessage) {
 		return
 	}
 	for _, unitRequest := range msg.Units {
-		if unitRequest.UnitTypeID >= uint64(len(b.availableUnits)) {
+		if _, known := b.availableUnits[unitRequest.UnitTypeID]; !known {
 			b.respond(user, "SelectUnitsResponse", game.ActionResponse{Success: false, Message: fmt.Sprintf("Unit %d does not exist", unitRequest.UnitTypeID)})
 			return
 		}
@@ -769,6 +769,7 @@ func NewBattleServer() *BattleServer {
 	return &BattleServer{
 		availableMaps:     make(map[string]string),             // filename -> display name
 		availableFactions: make(map[string]*game.Faction),      // faction name -> faction
+		availableUnits:    make(map[uint64]*game.UnitDefinition),
 		connectedClients:  make(map[uint64]*UserConnection),    // client id -> client
 		runningGames:      make(map[string]*game.GameInstance), // game id -> game
 		availableWeapons:  make(map[string]*game.WeaponDefinition),

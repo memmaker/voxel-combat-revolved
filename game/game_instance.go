@@ -117,7 +117,7 @@ func (r *Ruleset) GetShotAccuracy(action ShotAction) float64 {
 
 	// pressure rule for the sniper rifle
 	pressureModifier := 1.0
-    if unit.HasWeaponOfType(WeaponSniper) {
+    if unit.HasWeaponOfType(WeaponSniper) && !unit.Definition.CoreStats.IgnoresPressure {
 		// add penalty for sniper shots under pressure
 		pressureOnUnit := r.engine.GetTotalPressure(unit.UnitID())
 		pressureOnUnit = util.Clamp(pressureOnUnit, 0.0, 1.0)

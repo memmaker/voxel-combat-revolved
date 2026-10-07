@@ -48,13 +48,13 @@ func LoadContent() (Content, error) {
 
 // Validate checks the references between content entries, so modding mistakes fail loudly at startup.
 func (c Content) Validate() error {
-	nextUnitID := uint64(0)
+	seen := make(map[uint64]string)
 	for _, faction := range c.Factions {
 		for _, unit := range faction.Units {
-			if unit.ID != nextUnitID {
-				return fmt.Errorf("unit type IDs must be consecutive starting at 0 (faction %s has ID %d, expected %d)", faction.Name, unit.ID, nextUnitID)
+			if other, duplicate := seen[unit.ID]; duplicate {
+				return fmt.Errorf("unit type ID %d is used twice (%s and %s)", unit.ID, other, faction.Name)
 			}
-			nextUnitID++
+			seen[unit.ID] = faction.Name
 		}
 	}
 	if len(c.Maps) == 0 {
