@@ -189,7 +189,7 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 
 	unit.UseMovement(msg.Cost)
 	if instance, known := a.GetUnit(msg.UnitID); known {
-		instance.Crouched = false
+		instance.Posture = PostureStand
 	}
 
 	a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)
@@ -287,7 +287,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 	}
 	hasPath := len(msg.PathParts) > 0 && len(msg.PathParts[0]) > 0
 	if instance, known := a.GetUnit(msg.MovingUnit); known && hasPath {
-		instance.Crouched = false
+		instance.Posture = PostureStand
 	}
 	changeLOS := func() {
 		a.SetLOSAndPressure(msg.LOSMatrix, msg.PressureMatrix)

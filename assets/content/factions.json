@@ -24,6 +24,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -70,6 +71,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -101,6 +103,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -131,6 +134,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -162,6 +166,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -202,6 +207,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -248,6 +254,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -279,6 +286,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -309,6 +317,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -340,6 +349,7 @@
         "AnimationMap": {
           "climb": "animation.climb",
           "crouch_twohand": "animation.crouch",
+          "prone_twohand": "animation.prone",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",

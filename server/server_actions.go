@@ -64,8 +64,12 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 		return NewServerActionReaction(unit, game.ReactionBrace)
 	case string(game.ReactionParry):
 		return NewServerActionReaction(unit, game.ReactionParry)
-	case "Crouch":
-		return NewServerActionCrouch(g, unit)
+	case string(game.PostureCrouch), string(game.PostureProne), "Stand":
+		posture := game.Posture(targetAction.Action)
+		if targetAction.Action == "Stand" {
+			posture = game.PostureStand
+		}
+		return NewServerActionPosture(g, unit, posture, targetAction.Targets)
 	case "Heal":
 		return NewServerActionHeal(g, unit, targetAction.Targets)
 	case "Melee":

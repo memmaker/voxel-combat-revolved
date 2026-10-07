@@ -26,6 +26,9 @@ func (a ServerActionMove) IsValid() (bool, string) {
 	if len(a.targets) != 1 {
 		return false, fmt.Sprintf("Expected 1 movement target for now, got %d", len(a.targets))
 	}
+	if a.unit.Posture == game.PostureProne {
+		return false, "Prone units have to stand up before moving"
+	}
 	for _, target := range a.targets {
 		if !a.gameAction.IsValidTarget(target) {
 			return false, fmt.Sprintf("Target %s is not valid (unit at %s, %d moves left)", target.ToString(), a.unit.GetBlockPosition().ToString(), a.unit.MovesLeft())
@@ -50,7 +53,7 @@ func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, tar
 	}
 }
 func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
-	a.unit.Crouched = false // moving stands a unit up
+	a.unit.Posture = game.PostureStand // moving stands a crouching unit up (prone units cannot move)
 	currentPos := a.unit.GetBlockPosition()
 	moveTarget := a.targets[0]
 	distance := a.gameAction.GetCost(moveTarget)

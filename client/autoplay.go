@@ -107,8 +107,8 @@ func (p *autoPlayer) React(unitID uint64, reaction game.Reaction) {
 	util.MustSend(p.engine.server.TargetedUnitAction(unitID, string(reaction), nil))
 }
 
-func (p *autoPlayer) Crouch(unitID uint64) {
-	util.MustSend(p.engine.server.TargetedUnitAction(unitID, "Crouch", nil))
+func (p *autoPlayer) ChangePosture(unitID uint64, posture game.Posture, target voxel.Int3) {
+	util.MustSend(p.engine.server.TargetedUnitAction(unitID, posture.Name(), []voxel.Int3{target}))
 }
 
 func (p *autoPlayer) Reload(unitID uint64) {

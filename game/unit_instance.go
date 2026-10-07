@@ -63,8 +63,8 @@ type UnitInstance struct {
     Inventory       []*Item
     // Reaction is secret: it is never serialized, so opponents only learn about it when it triggers
     Reaction        Reaction `json:"-"`
-    // Crouched units kneel: lower eyes and a smaller target, better aim. Moving stands them up.
-    Crouched        bool
+    // Posture: standing, crouching or prone (see posture.go). Opponents see it.
+    Posture         Posture
     HealsUsed       int
 }
 
@@ -149,7 +149,7 @@ func (u *UnitInstance) NextTurn() {
 }
 
 func (u *UnitInstance) CanMove() bool {
-    return u.HasActionPointsLeft() && u.MovesLeft() > 0 && u.IsActive()
+    return u.HasActionPointsLeft() && u.MovesLeft() > 0 && u.IsActive() && u.Posture != PostureProne
 }
 
 func (u *UnitInstance) MovesLeft() int {
@@ -236,10 +236,7 @@ func (u *UnitInstance) SetVoxelMap(voxelMap *voxel.Map) {
 }
 
 func (u *UnitInstance) GetEyeOffset() mgl32.Vec3 {
-    if u.Crouched {
-        return mgl32.Vec3{0, CrouchEyeHeight, 0}
-    }
-    return mgl32.Vec3{0, 1.75, 0}
+    return mgl32.Vec3{0, postures[u.Posture].eyeHeight, 0}
 }
 
 func (u *UnitInstance) GetColliders() []util.Collider {
@@ -284,10 +281,7 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
 }
 
 func (u *UnitInstance) centerOfMassOffset() mgl32.Vec3 {
-    if u.Crouched {
-        return mgl32.Vec3{0, 0.95, 0}
-    }
-    return mgl32.Vec3{0, 1.25, 0}
+    return mgl32.Vec3{0, postures[u.Posture].centerOfMass, 0}
 }
 
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
@@ -432,6 +426,9 @@ func (u *UnitInstance) GetExactAP() float64 {
 
 // this is the official way to set the forward vector
 func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
+    if u.Posture == PostureProne {
+        return
+    }
     currentForward := u.Transform.GetForward2DCardinal()
     if forward2d == currentForward {
         return
@@ -441,8 +438,11 @@ func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
 func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int3) {
     currentForward := u.Transform.GetForward2DDiagonal()
 
-    if u.Crouched {
-        stance = StanceCrouch
+    if u.Posture != PostureStand {
+        stance = postures[u.Posture].stance
+    }
+    if u.Posture == PostureProne { // lying down: turning would sweep the body through other blocks
+        forward2d = u.GetForward2DCardinal()
     }
     if u.CurrentStance == stance && forward2d == currentForward {
         return

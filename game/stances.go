@@ -25,6 +25,7 @@ const (
 	AnimationWeaponFire HumanoidAnimation = "animation.weapon_fire"
 	AnimationDebug      HumanoidAnimation = "animation.debug"
 	AnimationCrouch     HumanoidAnimation = "animation.crouch"
+	AnimationProne      HumanoidAnimation = "animation.prone"
 )
 
 type Stance int
@@ -34,6 +35,7 @@ const (
 	StanceLeanWallRight Stance = iota
 	StanceWeaponReady
 	StanceCrouch
+	StanceProne
 )
 
 func HumanStanceFromID(id Stance) HumanoidStance {
@@ -46,6 +48,8 @@ func HumanStanceFromID(id Stance) HumanoidStance {
 		return WeaponReady{}
 	case StanceCrouch:
 		return Crouch{}
+	case StanceProne:
+		return Prone{}
 	}
 	println(fmt.Sprintf("[HumanStanceFromID] ERROR: Unknown stance %d", id))
 	return nil
@@ -110,7 +114,7 @@ func (s WeaponReady) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
 	}
 }
 
-// Crouch is a kneeling stance the player chooses (see UnitInstance.Crouched).
+// Crouch is the kneeling stance of PostureCrouch.
 // The head stays above the first block, so a crouching unit still occupies two blocks,
 // but less of its body sticks out over low cover.
 type Crouch struct{}
@@ -128,4 +132,19 @@ func (s Crouch) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
 		{Y: 0}, // legs
 		{Y: 1}, // torso & head
 	}
+}
+
+// Prone is the lying stance of PostureProne: head and arms in the forward block, no second block of height.
+type Prone struct{}
+
+func (s Prone) GetName() string {
+	return "prone"
+}
+
+func (s Prone) GetAnimation() HumanoidAnimation {
+	return AnimationProne
+}
+
+func (s Prone) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
+	return proneOffsets(forward)
 }

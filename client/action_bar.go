@@ -114,17 +114,25 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 			})
 		}
 	}
-	if unit.CanCrouch() {
-		name := fmt.Sprintf("Crouch: kneel for %d AP. Smaller target, steadier aim, lower eyes. Moving stands you up", game.CrouchAPCost)
-		if unit.Crouched {
-			name = fmt.Sprintf("Stand up (%d AP)", game.CrouchAPCost)
+	for _, choice := range []struct {
+		posture game.Posture
+		icon    string
+		name    string
+	}{
+		{game.PostureCrouch, "crouch", fmt.Sprintf("Crouch: kneel for %d AP. Smaller target, steadier aim, lower eyes. Moving stands you up", game.PostureAPCost)},
+		{game.PostureProne, "prone", fmt.Sprintf("Prone: lie down facing ahead for %d AP. Hidden behind low walls, steadiest aim, but you cannot move until you stand up", game.PostureAPCost)},
+		{game.PostureStand, "walk", fmt.Sprintf("Stand up (%d AP)", game.PostureAPCost)},
+	} {
+		posture := choice.posture
+		if !unit.CanTakePosture(posture) {
+			continue
 		}
 		actions = append(actions, gui.ActionItem{
-			Name:         name,
-			TextureIndex: a.guiIcons["crouch"],
+			Name:         choice.name,
+			TextureIndex: a.guiIcons[choice.icon],
 			Execute: func() {
-				if unit.CanCrouch() {
-					util.MustSend(a.server.TargetedUnitAction(unit.UnitID(), "Crouch", nil))
+				if unit.CanTakePosture(posture) {
+					util.MustSend(a.server.TargetedUnitAction(unit.UnitID(), posture.Name(), nil))
 				}
 			},
 		})

@@ -21,7 +21,8 @@ type AICommander interface {
 	Overwatch(unitID uint64, targets []voxel.Int3)
 	Reload(unitID uint64)
 	React(unitID uint64, reaction Reaction)
-	Crouch(unitID uint64)
+	// ChangePosture stands, crouches or lies down; a prone unit lies towards target
+	ChangePosture(unitID uint64, posture Posture, target voxel.Int3)
 	Melee(unitID uint64, target voxel.Int3)
 	Heal(unitID uint64, target voxel.Int3)
 	EndTurn()
@@ -322,6 +323,22 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 	weapon := unit.GetWeapon()
 	visibleEnemies := b.g.GetVisibleEnemyUnits(unit.UnitID())
 
+	// 0. prone units get up when there is nothing to shoot at (to move again) or an enemy comes close
+	if unit.Posture == PostureProne && unit.CanTakePosture(PostureStand) {
+		nearest := b.distanceToNearestThreat(unit.GetBlockPosition())
+		if len(visibleEnemies) == 0 || nearest < 6 {
+			b.log(fmt.Sprintf("[AI] %s stands up (enemies in sight: %d, nearest %.1f)", unit.GetName(), len(visibleEnemies), nearest))
+			cmd.ChangePosture(unit.UnitID(), PostureStand, unit.GetBlockPosition())
+			return true
+		}
+	}
+	// 0b. marksmen lie down for long shots
+	if target, ok := b.proneTarget(unit, visibleEnemies); ok {
+		b.log(fmt.Sprintf("[AI] %s goes prone facing %s", unit.GetName(), target.ToString()))
+		cmd.ChangePosture(unit.UnitID(), PostureProne, target)
+		return true
+	}
+
 	// 1. an empty gun is useless: reload if possible
 	if !weapon.IsReady() {
 		if unit.CanReload() {
@@ -356,7 +373,7 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 
 	// 3. reposition first, if the unit can still shoot afterwards and the new spot is clearly better
 	apAfterShot := unit.GetIntegerAP() - shotCost
-	if canShootNow && len(visibleEnemies) > 0 && apAfterShot >= 1 && b.difficulty != AIEasy {
+	if canShootNow && unit.CanMove() && len(visibleEnemies) > 0 && apAfterShot >= 1 && b.difficulty != AIEasy {
 		currentValue := b.positionValue(unit, unit.GetBlockPosition(), true)
 		if target, value, found := b.bestPosition(unit, float64(apAfterShot), true); found && value > currentValue+1.0 {
 			b.log(fmt.Sprintf("[AI] %s repositions before shooting to %s (%.2f > %.2f)", unit.GetName(), target.ToString(), value, currentValue))
@@ -402,7 +419,7 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 	if b.difficulty != AIEasy && b.shouldCrouch(unit) {
 		b.log(fmt.Sprintf("[AI] %s crouches behind low cover", unit.GetName()))
 		b.crouched[unit.UnitID()] = true
-		cmd.Crouch(unit.UnitID())
+		cmd.ChangePosture(unit.UnitID(), PostureCrouch, unit.GetBlockPosition())
 		return true
 	}
 	if b.difficulty != AIEasy && b.chooseDefense(unit, visibleEnemies, cmd) {
@@ -868,7 +885,7 @@ func (b *AIBrain) chooseDefense(unit *UnitInstance, visibleEnemies []*UnitInstan
 // shouldCrouch is true when a wall in front of the unit is only one block high towards the nearest
 // threat: kneeling then hides most of the body. It keeps enough AP to take a defensive stance afterwards.
 func (b *AIBrain) shouldCrouch(unit *UnitInstance) bool {
-	if unit.Crouched || !unit.CanCrouch() || unit.GetIntegerAP() < CrouchAPCost+ReactionAPCost {
+	if !unit.CanTakePosture(PostureCrouch) || unit.GetIntegerAP() < PostureAPCost+ReactionAPCost {
 		return false
 	}
 	pos := unit.GetBlockPosition()
@@ -896,4 +913,30 @@ func abs32(v int32) int32 {
 		return -v
 	}
 	return v
+}
+
+// proneTarget picks the enemy a sniper should lie down towards: far away, so the lost mobility does not
+// matter yet, and with enough AP left to still fire after lying down.
+func (b *AIBrain) proneTarget(unit *UnitInstance, visibleEnemies []*UnitInstance) (voxel.Int3, bool) {
+	if b.difficulty == AIEasy || unit.Posture == PostureProne || !unit.HasWeaponOfType(WeaponSniper) || len(visibleEnemies) == 0 {
+		return voxel.Int3{}, false
+	}
+	if unit.GetIntegerAP() < PostureAPCost+int(unit.GetWeapon().Definition.BaseAPForShot) || !unit.GetWeapon().IsReady() {
+		return voxel.Int3{}, false
+	}
+	pos := unit.GetBlockPosition()
+	nearest := visibleEnemies[0]
+	for _, enemy := range visibleEnemies {
+		if blockDistance(pos, enemy.GetBlockPosition()) < blockDistance(pos, nearest.GetBlockPosition()) {
+			nearest = enemy
+		}
+	}
+	if blockDistance(pos, nearest.GetBlockPosition()) < 12 {
+		return voxel.Int3{}, false
+	}
+	facing := nearest.GetBlockPosition().Sub(pos).ToCardinalDirection()
+	if !unit.CanAct() || !unit.HasRoomToLieDown(facing) || !unit.hasAnimation(AnimationProne) {
+		return voxel.Int3{}, false
+	}
+	return pos.Add(facing), true
 }

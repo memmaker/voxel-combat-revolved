@@ -16,7 +16,7 @@ func topOfBody(unit *UnitInstance) float32 {
 	return top - unit.GetPosition().Y()
 }
 
-func TestCrouchLowersTheBodyAndEyes(t *testing.T) {
+func newTestSoldier(t *testing.T) *UnitInstance {
 	content, err := LoadContent()
 	if err != nil {
 		t.Fatal(err)
@@ -29,16 +29,23 @@ func TestCrouchLowersTheBodyAndEyes(t *testing.T) {
 			}
 		}
 	}
-	unit := NewUnitInstance(NewAssets(), "Kneeler", soldier)
-	unit.SetVoxelMap(voxel.NewMapWithEmptyChunks(16, 8, 16, 16, 8))
+	voxelMap := voxel.NewMapWithEmptyChunks(16, 8, 16, 16, 8)
+	voxelMap.SetFloorAtHeight(0, voxel.NewBlock(1))
+	unit := NewUnitInstance(NewAssets(), "Soldier", soldier)
+	unit.SetVoxelMap(voxelMap)
 	unit.SetBlockPositionAndUpdateStance(voxel.Int3{X: 5, Y: 1, Z: 5})
 	unit.StartStanceAnimation()
-	if !unit.CanCrouch() {
+	return unit
+}
+
+func TestCrouchLowersTheBodyAndEyes(t *testing.T) {
+	unit := newTestSoldier(t)
+	if !unit.CanTakePosture(PostureCrouch) {
 		t.Fatal("a soldier with full AP should be able to crouch")
 	}
 
 	standingTop, standingEyes := topOfBody(unit), unit.GetEyePosition().Y()
-	unit.SetCrouched(true)
+	unit.SetPosture(PostureCrouch)
 	if unit.CurrentStance != StanceCrouch {
 		t.Fatalf("stance is %d, want crouch", unit.CurrentStance)
 	}
@@ -51,8 +58,38 @@ func TestCrouchLowersTheBodyAndEyes(t *testing.T) {
 		t.Errorf("crouching should lower the eyes: %.2f -> %.2f", standingEyes, crouchedEyes)
 	}
 
-	unit.SetCrouched(false)
+	unit.SetPosture(PostureStand)
 	if unit.CurrentStance == StanceCrouch || topOfBody(unit) < standingTop-0.01 {
 		t.Error("standing up should restore the standing pose")
+	}
+}
+
+func TestProneLiesAcrossTheForwardBlock(t *testing.T) {
+	unit := newTestSoldier(t)
+	if !unit.CanTakePosture(PostureProne) {
+		t.Fatal("a soldier with full AP on open ground should be able to go prone")
+	}
+	standingTop := topOfBody(unit)
+	facing := voxel.Int3{X: 1}
+	unit.GoProneFacing(facing)
+	if unit.CurrentStance != StanceProne {
+		t.Fatalf("stance is %d, want prone", unit.CurrentStance)
+	}
+	proneTop := topOfBody(unit)
+	t.Logf("top of body: standing %.2f, prone %.2f", standingTop, proneTop)
+	if proneTop > 1.0 {
+		t.Errorf("a prone soldier should stay below one block: %.2f", proneTop)
+	}
+	head := unit.GetBlockPosition().Add(facing)
+	if unit.GetVoxelMap().GetMapObjectAt(head) != unit {
+		t.Error("a prone soldier should occupy the block in front of it")
+	}
+	if unit.CanMove() {
+		t.Error("a prone soldier should not be able to move")
+	}
+
+	unit.SetPosture(PostureStand)
+	if unit.GetVoxelMap().GetMapObjectAt(head) == unit {
+		t.Error("standing up should free the forward block")
 	}
 }

@@ -289,8 +289,8 @@ func (c *DummyClient) React(unitID uint64, reaction Reaction) {
 	c.send(c.connection.TargetedUnitAction(unitID, string(reaction), nil))
 }
 
-func (c *DummyClient) Crouch(unitID uint64) {
-	c.send(c.connection.TargetedUnitAction(unitID, "Crouch", nil))
+func (c *DummyClient) ChangePosture(unitID uint64, posture Posture, target voxel.Int3) {
+	c.send(c.connection.TargetedUnitAction(unitID, posture.Name(), []voxel.Int3{target}))
 }
 
 func (c *DummyClient) Reload(unitID uint64) {

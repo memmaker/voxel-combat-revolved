@@ -319,7 +319,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.grenadeModel.RootNode.SetUniformScale(2.4)
 	myApp.grenadeModel.UploadVertexData(myApp.defaultShader)
 
-	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact", "poi", "crouch"})
+	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact", "poi", "crouch", "prone"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
@@ -1021,9 +1021,12 @@ func (a *BattleClient) OnStanceChange(msg game.VisualStanceChange) {
 		return
 	}
 	a.audio.PlayAt(SoundReload, unit.GetPosition())
-	if msg.Crouched {
+	switch msg.Posture {
+	case game.PostureCrouch:
 		a.Print(fmt.Sprintf("%s crouches.", unit.GetName()))
-	} else {
+	case game.PostureProne:
+		a.Print(fmt.Sprintf("%s goes prone.", unit.GetName()))
+	default:
 		a.Print(fmt.Sprintf("%s stands up.", unit.GetName()))
 	}
 	if a.selectedUnit == unit {

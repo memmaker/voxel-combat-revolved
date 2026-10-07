@@ -125,9 +125,8 @@ func (r *Ruleset) GetShotAccuracy(action ShotAction) float64 {
 	}
 
 	accuracy := unitAndWeaponAccuracy * actionModifier * pressureModifier
-	if unit.Crouched { // a steadier aim: less spread
-		accuracy = 1 - (1-accuracy)*CrouchSpreadFactor
-	}
+	// a lower posture steadies the aim: less spread
+	accuracy = 1 - (1-accuracy)*postures[unit.Posture].spreadFactor
 	return accuracy
 }
 
