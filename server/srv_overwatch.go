@@ -56,7 +56,8 @@ func NewServerActionOverwatch(g *game.GameInstance, unit *game.UnitInstance, tar
 
 func (a *ServerActionOverwatch) Execute(mb *game.MessageBuffer) {
 	a.engine.RegisterOverwatch(a.unit, a.targets)
-	mb.AddMessageForAll(game.VisualBeginOverwatch{
+	// overwatch is secret like a reaction: the opponent only finds out when it fires
+	mb.AddMessageFor(a.unit.ControlledBy(), game.VisualBeginOverwatch{
 		Watcher:          a.unit.UnitID(),
 		WatchedLocations: a.targets,
 	})

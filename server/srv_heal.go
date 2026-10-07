@@ -38,5 +38,11 @@ func (a *ServerActionHeal) Execute(mb *game.MessageBuffer) {
 	a.unit.ConsumeAP(game.HealAPCost)
 	a.unit.HealsUsed++
 	healed := target.Heal(game.HealAmount)
-	mb.AddMessageForAll(game.VisualHeal{Healer: a.unit.UnitID(), Target: target.UnitID(), Amount: healed})
+	// opponents only learn about heals they can see
+	heal := game.VisualHeal{Healer: a.unit.UnitID(), Target: target.UnitID(), Amount: healed}
+	for _, userID := range mb.UserIDs() {
+		if userID == a.unit.ControlledBy() || a.engine.UnitIsVisibleToPlayer(userID, a.unit.UnitID()) || a.engine.UnitIsVisibleToPlayer(userID, target.UnitID()) {
+			mb.AddMessageFor(userID, heal)
+		}
+	}
 }

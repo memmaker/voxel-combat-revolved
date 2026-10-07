@@ -30,7 +30,7 @@ Design goals live in `readme.md` and `notes.txt`.
 - [x] Melee attacks (2 AP, 85% for 4) with the Parry reaction as counter
 - [ ] Shields & armor (localized, toggleable)
 - [~] Stances: Crouch (1 AP, lower hitbox and eyes, 25% less spread, moving stands up; AI ducks behind low cover, `game/crouch.go`); prone still missing
-- [ ] Hidden information: fog of war hides enemies client-side; designated leader
+- [~] Hidden information: the server only sends enemies a player can see; overwatch is secret, heals are only shown when seen, LOS rows omit hidden enemy IDs. Shots and throws still reveal the shooter's position (intended). Designated leader missing
 - [ ] Feign death / retreat
 
 ## 5. Deception: smoke & mirrors

@@ -392,7 +392,14 @@ func (g *GameInstance) GetLOSState(playerID uint64) (map[uint64]map[uint64]bool,
 		if !unit.IsActive() {
 			continue
 		}
-		whoCanSeeWho[unit.UnitID()] = g.losMatrix[unit.UnitID()]
+		// only the visible entries: listing the hidden ones would reveal the enemy's unit IDs and count
+		visible := make(map[uint64]bool)
+		for otherID, canSee := range g.losMatrix[unit.UnitID()] {
+			if canSee {
+				visible[otherID] = true
+			}
+		}
+		whoCanSeeWho[unit.UnitID()] = visible
 	}
 	return whoCanSeeWho, toList(g.GetAllVisibleEnemies(playerID))
 }
