@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"math"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/go-gl/mathgl/mgl64"
@@ -38,10 +39,12 @@ func (m *CompoundMesh) UpdateAnimations(deltaTime float64) bool {
 	animationFinished := m.animationTimer > duration
 	if animationFinished {
 		if m.loopAnimation {
-			//loopDelta := math.Floor(m.animationTimer / duration)
-			m.RootNode.UpdateAnimation(m.animationTimer)
-			m.animationTimer -= duration //* loopDelta
+			// wrap first, so the frame after the last keyframe continues smoothly at the start
+			if duration > 0 {
+				m.animationTimer = math.Mod(m.animationTimer, duration)
+			}
 			m.ResetAnimations()
+			m.RootNode.UpdateAnimation(m.animationTimer)
 			return animationFinished
 		} else {
 			m.holdAnimation = true
@@ -352,32 +355,21 @@ func KeyframeAnimation[T any](currentTime float64, currentFrame *int, frames []T
 		return
 	}
 
-	nextFrameIndex := ((*currentFrame) + 1) % frameCount
-	nextFrameTime := frameTimes[nextFrameIndex]
-
-	if currentTime >= float64(nextFrameTime) { // new keyframe
-		*currentFrame = nextFrameIndex
-		setter(frames[(*currentFrame)])
-		return
+	// find the keyframe segment containing currentTime; a single update may skip several keyframes
+	index := *currentFrame
+	if index < 0 || index >= frameCount-1 || float64(frameTimes[index]) > currentTime {
+		index = 0
 	}
-	// between keyframes
-	if nextFrameIndex == 0 {
-		println("nextFrameIndex == 0")
+	for index < frameCount-2 && float64(frameTimes[index+1]) <= currentTime {
+		index++
 	}
-	{
-		currentFrameTime := frameTimes[(*currentFrame)]
-		deltaTimeBetweenFrames := nextFrameTime - currentFrameTime
-		timeSinceCurrentKeyframe := currentTime - float64(currentFrameTime)
-		percentageBetweenFrames := mgl64.Clamp(timeSinceCurrentKeyframe/float64(deltaTimeBetweenFrames), 0, 1)
-
-		currentKeyFrame := frames[(*currentFrame)]
-		nextKeyFrame := frames[nextFrameIndex]
-
-		lerpedValue := lerp(currentKeyFrame, nextKeyFrame, percentageBetweenFrames)
-		//println(fmt.Sprintf("lerpedValue: %v", lerpedValue))
-		setter(lerpedValue)
-		return
+	*currentFrame = index
+	segmentStart, segmentEnd := float64(frameTimes[index]), float64(frameTimes[index+1])
+	factor := 1.0
+	if segmentEnd > segmentStart {
+		factor = mgl64.Clamp((currentTime-segmentStart)/(segmentEnd-segmentStart), 0, 1)
 	}
+	setter(lerp(frames[index], frames[index+1], factor))
 }
 
 func (m *MeshNode) UpdateAnimation(animationTime float64) {

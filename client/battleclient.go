@@ -84,6 +84,7 @@ type BattleClient struct {
 	hud                        *HUD
 	animatingProjectileImpact  bool
 	autoPlayer                 *autoPlayer
+	blastCenter                mgl32.Vec3 // origin of the effect currently being applied, for hit directions
 	audio                      *Audio
 	ui                         *UI
 	overlay                    overlayKind
@@ -984,6 +985,7 @@ func (a *BattleClient) OnThrow(msg game.VisualThrow) {
 	}
 	for _, flyer := range msg.Flyers {
 		a.SpawnThrownObject(flyer.Trajectory, func() {
+			a.blastCenter = flyer.Consequence.Position.ToBlockCenterVec3()
 			a.ApplyTargetedEffectFromMessage(flyer.Consequence)
 			for _, damage := range flyer.Consequence.UnitDamages {
 				if braced, known := a.GetClientUnit(damage.UnitID); known && damage.Braced {
@@ -1121,12 +1123,14 @@ func (a *BattleClient) handleProjectileArrival(attackerUnit *game.UnitInstance, 
 	}
 
 	if projectile.InsteadOfDamage.Effect != game.TargetedEffectNone {
+		a.blastCenter = projectile.InsteadOfDamage.Position.ToBlockCenterVec3()
 		a.GameInstance.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage)
 	}
 
 	for _, damagedBlock := range projectile.BlocksHit {
 		blockDef := a.GetBlockDefAt(damagedBlock)
 		blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
+		a.blastCenter = damagedBlock.ToBlockCenterVec3()
 	}
 	a.ApplyUnitDamages(projectile.EffectDamages)
 	return
@@ -1688,7 +1692,12 @@ func (a *BattleClient) onUnitDamaged(unitInstance *game.UnitInstance, damage int
 	if a.animatingProjectileImpact {
 		return // the projectile code plays the matching hit/death animation with the bullet's direction
 	}
-	force := mgl32.Vec3{0, 1, 0}
+	// explosions push the unit away from the blast; the animation only uses the horizontal part
+	force := unit.GetPosition().Sub(a.blastCenter)
+	force = mgl32.Vec3{force.X(), 0, force.Z()}
+	if force.Len() < 0.01 {
+		force = unit.GetForward().Mul(-1)
+	}
 	if lethal {
 		unit.PlayDeathAnimation(force, bodyPart)
 	} else {

@@ -47,21 +47,36 @@ func Lerp3f(one, two [3]float32, factor float64) [3]float32 {
 	return [3]float32{Mix64(one[0], two[0], factor), Mix64(one[1], two[1], factor), Mix64(one[2], two[2], factor)}
 }
 
+// LerpQuat spherically interpolates between two rotations (x, y, z, w), taking the shorter path.
+// Nearly identical rotations fall back to a normalized linear interpolation, because the slerp
+// formula divides by sin(angle) and produces NaN or huge values there.
 func LerpQuat(one, two [4]float32, factor float64) [4]float32 {
-	if one[0] == two[0] && one[1] == two[1] && one[2] == two[2] && one[3] == two[3] {
-		return one
+	dot := float64(one[0]*two[0] + one[1]*two[1] + one[2]*two[2] + one[3]*two[3])
+	sign := 1.0
+	if dot < 0 {
+		dot, sign = -dot, -1
 	}
-	dotProduct := float64(one[0]*two[0] + one[1]*two[1] + one[2]*two[2] + one[3]*two[3])
-	if dotProduct == 1 {
-		return one
+	var weightOne, weightTwo float64
+	if dot > 0.9995 {
+		weightOne, weightTwo = 1-factor, factor*sign
+	} else {
+		angle := math.Acos(math.Min(dot, 1))
+		sinAngle := math.Sin(angle)
+		weightOne = math.Sin(angle*(1-factor)) / sinAngle
+		weightTwo = sign * math.Sin(angle*factor) / sinAngle
 	}
-	a := math.Acos(math.Abs(dotProduct))
-	s := dotProduct / math.Abs(dotProduct)
-	result := [4]float32{}
-	result[0] = one[0]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[0]*float32(s*math.Sin(a*factor)/math.Sin(a))
-	result[1] = one[1]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[1]*float32(s*math.Sin(a*factor)/math.Sin(a))
-	result[2] = one[2]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[2]*float32(s*math.Sin(a*factor)/math.Sin(a))
-	result[3] = one[3]*float32(math.Sin(a*(1.0-factor))/math.Sin(a)) + two[3]*float32(s*math.Sin(a*factor)/math.Sin(a))
+	var result [4]float32
+	length := 0.0
+	for i := range result {
+		value := float64(one[i])*weightOne + float64(two[i])*weightTwo
+		result[i] = float32(value)
+		length += value * value
+	}
+	if length = math.Sqrt(length); length > 0 {
+		for i := range result {
+			result[i] = float32(float64(result[i]) / length)
+		}
+	}
 	return result
 }
 
@@ -107,10 +122,8 @@ func SunflowerSeeds(n int, alpha float64) []mgl32.Vec2 {
 }
 
 func LerpQuatMgl(one, two mgl32.Quat, factor float64) mgl32.Quat {
-	dotProduct := float64(one.Dot(two))
-	a := math.Acos(math.Abs(dotProduct))
-	s := dotProduct / math.Abs(dotProduct)
-	return one.Scale(float32(math.Sin(a*(1-factor)) / math.Sin(a))).Add(two.Scale(float32(s * math.Sin(a*factor) / math.Sin(a))))
+	result := LerpQuat([4]float32{one.V[0], one.V[1], one.V[2], one.W}, [4]float32{two.V[0], two.V[1], two.V[2], two.W}, factor)
+	return mgl32.Quat{V: mgl32.Vec3{result[0], result[1], result[2]}, W: result[3]}
 }
 
 func AngleToVector(angle float64) mgl32.Vec2 {

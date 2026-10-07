@@ -186,6 +186,9 @@ func (p *Unit) TurnTowardsWaypoint() {
 func (p *Unit) turnToDirectionForAnimation(direction mgl32.Vec3) {
 	currentForwards := p.GetForward()
 	direction = mgl32.Vec3{direction.X(), 0, direction.Z()}
+	if direction.Len() < 0.0001 || currentForwards.Len() < 0.0001 {
+		return // no horizontal direction: a rotation towards it would be NaN and make the model vanish
+	}
 	p.clientOnlyRotation = mgl32.QuatBetweenVectors(currentForwards, direction)
 }
 
