@@ -319,7 +319,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.grenadeModel.RootNode.SetUniformScale(2.4)
 	myApp.grenadeModel.UploadVertexData(myApp.defaultShader)
 
-	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact", "poi"})
+	guiAtlas, guiIconIndices := util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"walk", "ranged", "reticule", "next-turn", "reload", "grenade", "overwatch", "shield", "melee", "interact", "poi", "crouch"})
 	myApp.guiIcons = guiIconIndices
 	myApp.actionbar = gui.NewActionBar(myApp.guiShader, guiAtlas, glApp.WindowWidth, glApp.WindowHeight, 64, 64)
 
@@ -898,6 +898,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnReload(msg)
 		}
+	case "StanceChange":
+		var msg game.VisualStanceChange
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnStanceChange(msg)
+		}
 	case "Heal":
 		var msg game.VisualHeal
 		if util.FromJson(messageAsJson, &msg) {
@@ -959,6 +964,11 @@ func (a *BattleClient) notifyAutoPlayer(msgType, messageAsJson string) {
 		}
 	case "OwnUnitMoved", "Reload":
 		a.autoPlayer.onOwnActionFinished()
+	case "StanceChange":
+		var msg game.VisualStanceChange
+		if util.FromJson(messageAsJson, &msg) && a.IsMyUnit(msg.UnitID()) {
+			a.autoPlayer.onOwnActionFinished()
+		}
 	case "RangedAttack":
 		var msg game.VisualRangedAttack
 		if util.FromJson(messageAsJson, &msg) && a.IsMyUnit(msg.Attacker) {
@@ -1001,6 +1011,23 @@ func (a *BattleClient) OnReaction(msg game.VisualReaction) {
 	a.hud.AddFloatingText(string(msg.Reaction), unit.GetPosition().Add(mgl32.Vec3{0, 2.9, 0}), game.ColorTechTeal.Vec3())
 	if a.selectedUnit == unit {
 		a.SwitchToNextUnit(unit)
+	}
+}
+
+func (a *BattleClient) OnStanceChange(msg game.VisualStanceChange) {
+	a.GameClient.OnStanceChange(msg)
+	unit, known := a.GetClientUnit(msg.UnitID())
+	if !known || !a.IsMyUnit(msg.UnitID()) {
+		return
+	}
+	a.audio.PlayAt(SoundReload, unit.GetPosition())
+	if msg.Crouched {
+		a.Print(fmt.Sprintf("%s crouches.", unit.GetName()))
+	} else {
+		a.Print(fmt.Sprintf("%s stands up.", unit.GetName()))
+	}
+	if a.selectedUnit == unit {
+		a.UpdateActionbarFor(unit)
 	}
 }
 

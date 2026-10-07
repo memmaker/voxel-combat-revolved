@@ -23,6 +23,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -68,6 +69,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -98,6 +100,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -127,6 +130,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -157,6 +161,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -196,6 +201,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -241,6 +247,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -271,6 +278,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -300,6 +308,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",
@@ -330,6 +339,7 @@
         "ModelFile": "soldier",
         "AnimationMap": {
           "climb": "animation.climb",
+          "crouch_twohand": "animation.crouch",
           "death_twohand": "animation.death",
           "drop": "animation.drop",
           "fire": "animation.weapon_fire",

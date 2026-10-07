@@ -107,6 +107,10 @@ func (p *autoPlayer) React(unitID uint64, reaction game.Reaction) {
 	util.MustSend(p.engine.server.TargetedUnitAction(unitID, string(reaction), nil))
 }
 
+func (p *autoPlayer) Crouch(unitID uint64) {
+	util.MustSend(p.engine.server.TargetedUnitAction(unitID, "Crouch", nil))
+}
+
 func (p *autoPlayer) Reload(unitID uint64) {
 	util.MustSend(p.engine.server.ReloadAction(unitID))
 }

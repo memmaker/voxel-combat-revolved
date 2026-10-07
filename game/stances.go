@@ -24,6 +24,7 @@ const (
 	AnimationHit        HumanoidAnimation = "animation.hit"
 	AnimationWeaponFire HumanoidAnimation = "animation.weapon_fire"
 	AnimationDebug      HumanoidAnimation = "animation.debug"
+	AnimationCrouch     HumanoidAnimation = "animation.crouch"
 )
 
 type Stance int
@@ -32,6 +33,7 @@ const (
 	StanceLeanWallLeft  Stance = iota
 	StanceLeanWallRight Stance = iota
 	StanceWeaponReady
+	StanceCrouch
 )
 
 func HumanStanceFromID(id Stance) HumanoidStance {
@@ -42,6 +44,8 @@ func HumanStanceFromID(id Stance) HumanoidStance {
 		return LeanWallRight{}
 	case StanceWeaponReady:
 		return WeaponReady{}
+	case StanceCrouch:
+		return Crouch{}
 	}
 	println(fmt.Sprintf("[HumanStanceFromID] ERROR: Unknown stance %d", id))
 	return nil
@@ -103,5 +107,25 @@ func (s WeaponReady) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
 		{0, 0, 0},                     // legs
 		{Y: 1},                        // torso
 		forward.Add(voxel.Int3{Y: 1}), // arms & weapon
+	}
+}
+
+// Crouch is a kneeling stance the player chooses (see UnitInstance.Crouched).
+// The head stays above the first block, so a crouching unit still occupies two blocks,
+// but less of its body sticks out over low cover.
+type Crouch struct{}
+
+func (s Crouch) GetName() string {
+	return "crouching"
+}
+
+func (s Crouch) GetAnimation() HumanoidAnimation {
+	return AnimationCrouch
+}
+
+func (s Crouch) GetOccupiedBlockOffsets(forward voxel.Int3) []voxel.Int3 {
+	return []voxel.Int3{
+		{Y: 0}, // legs
+		{Y: 1}, // torso & head
 	}
 }

@@ -124,7 +124,11 @@ func (r *Ruleset) GetShotAccuracy(action ShotAction) float64 {
 		pressureModifier = 1.0 - pressureOnUnit
 	}
 
-	return unitAndWeaponAccuracy * actionModifier * pressureModifier
+	accuracy := unitAndWeaponAccuracy * actionModifier * pressureModifier
+	if unit.Crouched { // a steadier aim: less spread
+		accuracy = 1 - (1-accuracy)*CrouchSpreadFactor
+	}
+	return accuracy
 }
 
 // GameInstance is the core game state. This data structure is shared by server and client albeit with different states.

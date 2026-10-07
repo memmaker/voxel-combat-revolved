@@ -114,6 +114,21 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 			})
 		}
 	}
+	if unit.CanCrouch() {
+		name := fmt.Sprintf("Crouch: kneel for %d AP. Smaller target, steadier aim, lower eyes. Moving stands you up", game.CrouchAPCost)
+		if unit.Crouched {
+			name = fmt.Sprintf("Stand up (%d AP)", game.CrouchAPCost)
+		}
+		actions = append(actions, gui.ActionItem{
+			Name:         name,
+			TextureIndex: a.guiIcons["crouch"],
+			Execute: func() {
+				if unit.CanCrouch() {
+					util.MustSend(a.server.TargetedUnitAction(unit.UnitID(), "Crouch", nil))
+				}
+			},
+		})
+	}
 	if unit.CanFreeAim() {
 		actions = append(actions, freeAim)
 		actions = append(actions, overwatch)

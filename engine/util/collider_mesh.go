@@ -87,7 +87,7 @@ func (m *MeshCollider) FindFurthestPoint(direction mgl32.Vec3) mgl32.Vec3 {
 	isSweep := m.velocity.Len() > 0
 	var maxDistance = -math.MaxFloat64
 	transformMatrix := m.TransformFunc()
-	for i := 0; i < len(m.VertexData); i += 8 {
+	for i := 0; i < len(m.VertexData); i += int(m.VertexFormatComponents) {
 		vertex := mgl32.Vec3{float32(m.VertexData[i]), float32(m.VertexData[i+1]), float32(m.VertexData[i+2])}
 		vertex = transformMatrix.Mul4x1(vertex.Vec4(1)).Vec3()
 		distance := float64(vertex.Dot(direction))

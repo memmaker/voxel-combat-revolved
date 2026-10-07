@@ -21,6 +21,7 @@ type AICommander interface {
 	Overwatch(unitID uint64, targets []voxel.Int3)
 	Reload(unitID uint64)
 	React(unitID uint64, reaction Reaction)
+	Crouch(unitID uint64)
 	Melee(unitID uint64, target voxel.Int3)
 	Heal(unitID uint64, target voxel.Int3)
 	EndTurn()
@@ -64,6 +65,8 @@ type AIBrain struct {
 	// never settles into an endless overwatch standoff.
 	quietTurns int
 	sawEnemy   bool
+	// crouched holds the units that ducked behind cover this turn; they stay put instead of wandering off
+	crouched map[uint64]bool
 }
 
 const maxActionsPerUnitAndTurn = 5
@@ -97,6 +100,7 @@ func (b *AIBrain) StartTurn() {
 	b.unitDone = make(map[uint64]bool)
 	b.actionsThisTurn = make(map[uint64]int)
 	b.rejectedTargets = make(map[uint64]map[voxel.Int3]bool)
+	b.crouched = make(map[uint64]bool)
 	b.sawEnemy = false
 	b.updateMemory()
 	if b.sawEnemy {
@@ -394,7 +398,13 @@ func (b *AIBrain) decide(unit *UnitInstance, cmd AICommander) bool {
 		return true
 	}
 
-	// 6. nothing to shoot and nowhere better to go: watch the approaches or take a defensive stance
+	// 6. nothing to shoot and nowhere better to go: duck behind low cover, then watch the approaches or take a defensive stance
+	if b.difficulty != AIEasy && b.shouldCrouch(unit) {
+		b.log(fmt.Sprintf("[AI] %s crouches behind low cover", unit.GetName()))
+		b.crouched[unit.UnitID()] = true
+		cmd.Crouch(unit.UnitID())
+		return true
+	}
 	if b.difficulty != AIEasy && b.chooseDefense(unit, visibleEnemies, cmd) {
 		return true
 	}
@@ -711,7 +721,7 @@ func (b *AIBrain) bestPosition(unit *UnitInstance, apBudget float64, wantsToShoo
 }
 
 func (b *AIBrain) tryMove(unit *UnitInstance, cmd AICommander, keepAPForShot bool) bool {
-	if !unit.CanMove() {
+	if !unit.CanMove() || b.crouched[unit.UnitID()] {
 		return false
 	}
 	budget := unit.GetExactAP()
@@ -853,4 +863,37 @@ func (b *AIBrain) chooseDefense(unit *UnitInstance, visibleEnemies []*UnitInstan
 		}
 	}
 	return false
+}
+
+// shouldCrouch is true when a wall in front of the unit is only one block high towards the nearest
+// threat: kneeling then hides most of the body. It keeps enough AP to take a defensive stance afterwards.
+func (b *AIBrain) shouldCrouch(unit *UnitInstance) bool {
+	if unit.Crouched || !unit.CanCrouch() || unit.GetIntegerAP() < CrouchAPCost+ReactionAPCost {
+		return false
+	}
+	pos := unit.GetBlockPosition()
+	nearest, found := threat{}, false
+	for _, t := range b.knownThreats() {
+		if !found || blockDistance(pos, t.position) < blockDistance(pos, nearest.position) {
+			nearest, found = t, true
+		}
+	}
+	if !found {
+		return false
+	}
+	dir := nearest.position.Sub(pos)
+	step := voxel.Int3{X: sign(dir.X)}
+	if abs32(dir.Z) > abs32(dir.X) {
+		step = voxel.Int3{Z: sign(dir.Z)}
+	}
+	front := pos.Add(step)
+	voxelMap := b.g.GetVoxelMap()
+	return voxelMap.IsSolidBlockAt(front.X, front.Y, front.Z) && !voxelMap.IsSolidBlockAt(front.X, front.Y+1, front.Z)
+}
+
+func abs32(v int32) int32 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }

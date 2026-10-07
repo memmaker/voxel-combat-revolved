@@ -63,6 +63,8 @@ type UnitInstance struct {
     Inventory       []*Item
     // Reaction is secret: it is never serialized, so opponents only learn about it when it triggers
     Reaction        Reaction `json:"-"`
+    // Crouched units kneel: lower eyes and a smaller target, better aim. Moving stands them up.
+    Crouched        bool
     HealsUsed       int
 }
 
@@ -234,6 +236,9 @@ func (u *UnitInstance) SetVoxelMap(voxelMap *voxel.Map) {
 }
 
 func (u *UnitInstance) GetEyeOffset() mgl32.Vec3 {
+    if u.Crouched {
+        return mgl32.Vec3{0, CrouchEyeHeight, 0}
+    }
     return mgl32.Vec3{0, 1.75, 0}
 }
 
@@ -278,13 +283,20 @@ func (u *UnitInstance) GetVoxelMap() *voxel.Map {
     return u.voxelMap
 }
 
+func (u *UnitInstance) centerOfMassOffset() mgl32.Vec3 {
+    if u.Crouched {
+        return mgl32.Vec3{0, 0.95, 0}
+    }
+    return mgl32.Vec3{0, 1.25, 0}
+}
+
 func (u *UnitInstance) GetCenterOfMassPosition() mgl32.Vec3 {
     if u.model == nil || !u.model.HasBone("Torso") {
-        return u.GetPosition().Add(mgl32.Vec3{0, 1.25, 0})
+        return u.GetPosition().Add(u.centerOfMassOffset())
     }
     torso, exists := u.GetModel().GetNodeByName("Torso")
     if !exists {
-        return u.GetPosition().Add(mgl32.Vec3{0, 1.25, 0})
+        return u.GetPosition().Add(u.centerOfMassOffset())
     }
     return torso.GetWorldPosition()
 }
@@ -429,6 +441,9 @@ func (u *UnitInstance) SetForward(forward2d voxel.Int3) {
 func (u *UnitInstance) UpdateStanceAndForward(stance Stance, forward2d voxel.Int3) {
     currentForward := u.Transform.GetForward2DDiagonal()
 
+    if u.Crouched {
+        stance = StanceCrouch
+    }
     if u.CurrentStance == stance && forward2d == currentForward {
         return
     }

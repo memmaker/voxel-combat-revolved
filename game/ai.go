@@ -193,6 +193,14 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 			c.OnReaction(msg)
 			c.continueTurn()
 		}
+	case "StanceChange":
+		var msg VisualStanceChange
+		if util.FromJson(messageAsJson, &msg) {
+			c.OnStanceChange(msg)
+			if c.IsMyUnit(msg.UnitID()) {
+				c.continueTurn()
+			}
+		}
 	case "Reload":
 		var msg UnitMessage
 		if util.FromJson(messageAsJson, &msg) {
@@ -279,6 +287,10 @@ func (c *DummyClient) Melee(unitID uint64, target voxel.Int3) {
 
 func (c *DummyClient) React(unitID uint64, reaction Reaction) {
 	c.send(c.connection.TargetedUnitAction(unitID, string(reaction), nil))
+}
+
+func (c *DummyClient) Crouch(unitID uint64) {
+	c.send(c.connection.TargetedUnitAction(unitID, "Crouch", nil))
 }
 
 func (c *DummyClient) Reload(unitID uint64) {

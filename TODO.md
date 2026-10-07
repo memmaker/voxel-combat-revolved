@@ -29,7 +29,7 @@ Design goals live in `readme.md` and `notes.txt`.
 - [~] Hidden reactions: Dodge (50% evasion vs bullets, not explosions) and Brace (-1 per bullet, half explosion damage), secret until triggered; AI picks overwatch/dodge/brace with weighted randomness (`game/reactions.go`). Parry/Deflect need melee and special attacks first
 - [x] Melee attacks (2 AP, 85% for 4) with the Parry reaction as counter
 - [ ] Shields & armor (localized, toggleable)
-- [ ] Stances: crouch, prone, dodge stances
+- [~] Stances: Crouch (1 AP, lower hitbox and eyes, 25% less spread, moving stands up; AI ducks behind low cover, `game/crouch.go`); prone still missing
 - [ ] Hidden information: fog of war hides enemies client-side; designated leader
 - [ ] Feign death / retreat
 

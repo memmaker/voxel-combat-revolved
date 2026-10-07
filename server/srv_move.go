@@ -50,6 +50,7 @@ func NewServerActionMove(engine *game.GameInstance, unit *game.UnitInstance, tar
 	}
 }
 func (a ServerActionMove) Execute(mb *game.MessageBuffer) {
+	a.unit.Crouched = false // moving stands a unit up
 	currentPos := a.unit.GetBlockPosition()
 	moveTarget := a.targets[0]
 	distance := a.gameAction.GetCost(moveTarget)

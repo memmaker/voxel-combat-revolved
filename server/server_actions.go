@@ -64,6 +64,8 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 		return NewServerActionReaction(unit, game.ReactionBrace)
 	case string(game.ReactionParry):
 		return NewServerActionReaction(unit, game.ReactionParry)
+	case "Crouch":
+		return NewServerActionCrouch(g, unit)
 	case "Heal":
 		return NewServerActionHeal(g, unit, targetAction.Targets)
 	case "Melee":
