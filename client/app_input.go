@@ -54,6 +54,12 @@ func (a *BattleClient) handleMouseButtonEvents(button glfw.MouseButton, action g
 	if !a.isMouseInWindow() {
 		return
 	}
+	if _, isEditing := a.state().(*GameStateEditMap); isEditing && a.isOverEditorUI(a.lastMousePosX, a.lastMousePosY) {
+		if button == glfw.MouseButtonLeft && action == glfw.Release {
+			a.uiClicked = true
+		}
+		return
+	}
 	if a.actionbar.IsMouseOver(a.lastMousePosX, a.lastMousePosY) {
 		if button == glfw.MouseButtonLeft && action == glfw.Press {
 			a.actionbar.OnMouseClicked(a.lastMousePosX, a.lastMousePosY)
@@ -153,6 +159,20 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 
 	if key == glfw.KeyF12 && action == glfw.Press {
 		a.Window.SetShouldClose(true)
+		return
+	}
+	if editor, isEditing := a.state().(*GameStateEditMap); isEditing {
+		if action == glfw.Press || action == glfw.Repeat {
+			if (mods&glfw.ModControl != 0 || mods&glfw.ModSuper != 0) && key == glfw.KeyZ {
+				editor.Undo()
+				return
+			}
+			if (mods&glfw.ModControl != 0 || mods&glfw.ModSuper != 0) && key == glfw.KeyS {
+				editor.Save()
+				return
+			}
+			editor.OnKeyPressed(key)
+		}
 		return
 	}
 	if key == glfw.KeyF1 && action == glfw.Press {

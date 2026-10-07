@@ -9,7 +9,11 @@ import (
 	"syscall/js"
 )
 
-const ModShift ModifierKey = 1
+const (
+	ModShift   ModifierKey = 1
+	ModControl ModifierKey = 2
+	ModSuper   ModifierKey = 8
+)
 
 type (
 	Key         int
@@ -47,47 +51,50 @@ const (
 )
 
 const (
-	KeySpace     Key = 32
-	KeyComma     Key = 44
-	KeyMinus     Key = 45
-	KeyPeriod    Key = 46
-	Key0         Key = 48
-	Key1         Key = 49
-	Key2         Key = 50
-	Key3         Key = 51
-	Key9         Key = 57
-	KeySemicolon Key = 59
-	KeyA         Key = 65
-	KeyC         Key = 67
-	KeyD         Key = 68
-	KeyE         Key = 69
-	KeyF         Key = 70
-	KeyJ         Key = 74
-	KeyM         Key = 77
-	KeyN         Key = 78
-	KeyQ         Key = 81
-	KeyR         Key = 82
-	KeyS         Key = 83
-	KeyT         Key = 84
-	KeyW         Key = 87
-	KeyZ         Key = 90
-	KeyEscape    Key = 256
-	KeyEnter     Key = 257
-	KeyTab       Key = 258
-	KeyBackspace Key = 259
-	KeyDelete    Key = 261
-	KeyF1        Key = 290
-	KeyF2        Key = 291
-	KeyF3        Key = 292
-	KeyF4        Key = 293
-	KeyF5        Key = 294
-	KeyF6        Key = 295
-	KeyF7        Key = 296
-	KeyF8        Key = 297
-	KeyF9        Key = 298
-	KeyF10       Key = 299
-	KeyF11       Key = 300
-	KeyF12       Key = 301
+	KeySpace        Key = 32
+	KeyComma        Key = 44
+	KeyMinus        Key = 45
+	KeyPeriod       Key = 46
+	Key0            Key = 48
+	Key1            Key = 49
+	Key2            Key = 50
+	Key3            Key = 51
+	Key9            Key = 57
+	KeySemicolon    Key = 59
+	KeyA            Key = 65
+	KeyC            Key = 67
+	KeyD            Key = 68
+	KeyE            Key = 69
+	KeyF            Key = 70
+	KeyJ            Key = 74
+	KeyM            Key = 77
+	KeyN            Key = 78
+	KeyQ            Key = 81
+	KeyR            Key = 82
+	KeyS            Key = 83
+	KeyT            Key = 84
+	KeyW            Key = 87
+	KeyZ            Key = 90
+	KeyU            Key = 85
+	KeyLeftBracket  Key = 91
+	KeyRightBracket Key = 93
+	KeyEscape       Key = 256
+	KeyEnter        Key = 257
+	KeyTab          Key = 258
+	KeyBackspace    Key = 259
+	KeyDelete       Key = 261
+	KeyF1           Key = 290
+	KeyF2           Key = 291
+	KeyF3           Key = 292
+	KeyF4           Key = 293
+	KeyF5           Key = 294
+	KeyF6           Key = 295
+	KeyF7           Key = 296
+	KeyF8           Key = 297
+	KeyF9           Key = 298
+	KeyF10          Key = 299
+	KeyF11          Key = 300
+	KeyF12          Key = 301
 )
 
 // keyFromCode maps KeyboardEvent.code to GLFW key codes.
@@ -123,6 +130,10 @@ func keyFromCode(code string) Key {
 		return KeyPeriod
 	case "Minus":
 		return KeyMinus
+	case "BracketLeft":
+		return KeyLeftBracket
+	case "BracketRight":
+		return KeyRightBracket
 	case "Semicolon":
 		return KeySemicolon
 	}

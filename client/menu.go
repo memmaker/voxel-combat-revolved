@@ -24,6 +24,7 @@ const (
 	ModeHost
 	ModeJoin
 	ModeQuit
+	ModeEditor
 )
 
 // MatchConfig is everything the player chose in the menu before a match starts.
@@ -40,6 +41,7 @@ type MatchConfig struct {
 	Squad           []game.UnitChoice
 	OpponentFaction string
 	Difficulty      game.AIDifficulty
+	EditorMap       string // ModeEditor: map to open
 }
 
 // Mission builds the mission details for the chosen scenario and deployment mode.
@@ -61,6 +63,7 @@ const (
 	screenSetup
 	screenJoin
 	screenSettings
+	screenEditor
 )
 
 type squadSlot struct {
@@ -242,6 +245,8 @@ func (m *Menu) frame() {
 		m.joinScreen()
 	case screenSettings:
 		m.settingsScreen()
+	case screenEditor:
+		m.editorScreen()
 	}
 	if m.status != "" {
 		m.ui.CenteredLabel(float32(m.width)/2, float32(m.height)-30, m.status, 1, game.ColorNegativeRed.Vec3())
@@ -278,6 +283,10 @@ func (m *Menu) mainScreen() {
 	y += buttonHeight + 12
 	if m.ui.Button(x, y, buttonWidth, buttonHeight, "Join a multiplayer game", networkAvailable) {
 		m.mode, m.screen, m.status = ModeJoin, screenJoin, ""
+	}
+	y += buttonHeight + 12
+	if m.ui.Button(x, y, buttonWidth, buttonHeight, "Map editor", runtime.GOOS != "js") {
+		m.screen, m.status = screenEditor, ""
 	}
 	y += buttonHeight + 12
 	if m.ui.Button(x, y, buttonWidth, buttonHeight, "Settings", true) {
@@ -759,5 +768,52 @@ func (l *lobbyConnection) detach() {
 func (l *lobbyConnection) close() {
 	if l.connection != nil && !l.detached {
 		_ = l.connection.Close()
+	}
+}
+
+func (m *Menu) editorScreen() {
+	left := float32(m.width)/2 - 260
+	y := float32(140)
+	m.ui.Label(left, y, "Map editor", 2, uiTextHighlight)
+	y += 50
+	open := func(mapName string) {
+		m.result = &MatchConfig{Mode: ModeEditor, EditorMap: mapName}
+	}
+	m.ui.Label(left, y, "Start a new map", 1, uiTextDim)
+	y += 22
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for _, start := range []struct{ label, name string }{
+		{"Empty field", "gen:empty:0"},
+		{"Generated city", "gen:urban:random"},
+		{"Generated ruins", "gen:ruins:random"},
+		{"Generated outpost", "gen:outpost:random"},
+	} {
+		if m.ui.Button(left, y, 520, 30, start.label, true) {
+			open(game.WithRandomSeed(start.name, rng))
+		}
+		y += 36
+	}
+	y += 12
+	m.ui.Label(left, y, "Edit a saved map", 1, uiTextDim)
+	y += 22
+	for _, entry := range m.content.Maps {
+		if game.IsGeneratedMap(entry.File) {
+			continue
+		}
+		if m.ui.Button(left, y, 520, 30, entry.Name, true) {
+			open(entry.File)
+		}
+		y += 36
+	}
+	if m.ui.Button(left, float32(m.height)-80, 160, 36, "Back", true) {
+		m.screen = screenMain
+	}
+}
+
+// SetContent replaces the content shown in the menus, e.g. after the editor saved a new map.
+func (m *Menu) SetContent(content game.Content) {
+	m.content = content
+	if m.mapIndex >= len(content.Maps) {
+		m.mapIndex = 0
 	}
 }

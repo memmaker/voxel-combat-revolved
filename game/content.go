@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/memmaker/battleground/engine/afs"
@@ -60,4 +61,28 @@ func (c Content) Validate() error {
 		return fmt.Errorf("no maps defined")
 	}
 	return nil
+}
+
+// RegisterMapInContent adds a saved map to assets/content/maps.json if it is not listed yet.
+func RegisterMapInContent(mapFile string) error {
+	filename := path.Join(contentDirectory, "maps.json")
+	var maps []MapEntry
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(data, &maps); err != nil {
+		return err
+	}
+	for _, entry := range maps {
+		if entry.File == mapFile {
+			return nil
+		}
+	}
+	maps = append(maps, MapEntry{Name: mapFile, File: mapFile})
+	data, err = json.MarshalIndent(maps, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, append(data, '\n'), 0o644)
 }

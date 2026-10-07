@@ -14,6 +14,12 @@ func (m *Map) EnableLighting(lamps []Int3) {
 	m.RecomputeLighting()
 }
 
+// SetLamps replaces the lamp positions; lighting is recomputed on the next update.
+func (m *Map) SetLamps(lamps []Int3) {
+	m.lamps = lamps
+	m.lightingDirty = m.lightingEnabled
+}
+
 // RecomputeLighting recalculates sun and lamp light for the whole map and re-meshes the chunks
 // whose lighting changed. It runs after the terrain changes, e.g. when an explosion opens a roof.
 func (m *Map) RecomputeLighting() {

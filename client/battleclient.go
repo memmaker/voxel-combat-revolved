@@ -86,6 +86,7 @@ type BattleClient struct {
 	autoPlayer                 *autoPlayer
 	blastCenter                mgl32.Vec3 // origin of the effect currently being applied, for hit directions
 	unitLightColor             mgl32.Vec3
+	editorResult               EditorResult
 	audio                      *Audio
 	ui                         *UI
 	overlay                    overlayKind
@@ -604,6 +605,9 @@ func (a *BattleClient) drawGUI() {
 	}
 
 	a.drawOverlay()
+	if editor, isEditing := a.state().(*GameStateEditMap); isEditing {
+		a.drawEditorUI(editor)
+	}
 
 	a.guiShader.End()
 }

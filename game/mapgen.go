@@ -62,6 +62,7 @@ var mapStyles = map[string]mapStyle{
 		wallMaterials: []string{"bricks", "cracked_nether_bricks", "sandstone", "granite"},
 		floorPatches:  []string{"gravel", "sandstone", "granite"},
 	},
+	"empty": {wallMaterials: []string{"bricks"}},
 	"outpost": {
 		buildings: 12, twoStoreys: 0.3, wallDamage: 0.0, roofChance: 1.0, coverObjects: 44, explosives: 6,
 		wallMaterials: []string{"iron_block", "weathered_copper", "copper_block", "exposed_copper"},
@@ -118,7 +119,10 @@ func GenerateBattlefield(styleName string, seed int64, library *BlockLibrary) (*
 	g.ground()
 	g.placeBuildings()
 	g.scatterCover()
-	objectives := g.placeObjectives(objectiveArea)
+	var objectives []voxel.Int3
+	if styleName != "empty" {
+		objectives = g.placeObjectives(objectiveArea)
+	}
 
 	meta := MapMetadata{
 		Name:           fmt.Sprintf("%s %d", strings.ToUpper(styleName[:1])+styleName[1:], seed),
@@ -156,7 +160,7 @@ func (g *battlefieldGenerator) ground() {
 		}
 	}
 	// a few patches of different ground make the battlefield easier to read
-	for i := 0; i < 14; i++ {
+	for i := 0; i < 14 && len(g.style.floorPatches) > 0; i++ {
 		material := g.pick(g.style.floorPatches)
 		px, pz := g.rng.Int31n(genSizeX), g.rng.Int31n(genSizeZ)
 		w, d := 3+g.rng.Int31n(7), 3+g.rng.Int31n(7)

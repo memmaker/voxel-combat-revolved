@@ -48,7 +48,7 @@ func TestGeneratedMapsArePlayable(t *testing.T) {
 			if len(meta.SpawnPositions) != 2 || len(meta.SpawnPositions[0]) < 20 || len(meta.SpawnPositions[1]) < 20 {
 				t.Fatalf("%s/%d: spawn zones too small", style, seed)
 			}
-			if len(meta.PoIPlacements) != 2 {
+			if style != "empty" && len(meta.PoIPlacements) != 2 {
 				t.Fatalf("%s/%d: expected 2 objectives", style, seed)
 			}
 			reachable := walkableFrom(voxelMap, meta.SpawnPositions[0][0])
@@ -101,5 +101,32 @@ func TestGeneratedMapLighting(t *testing.T) {
 	t.Logf("%d of %d rooms are dimmer than daylight but lit", darker, len(meta.Lamps))
 	if darker == 0 {
 		t.Error("no room is darker than outdoors")
+	}
+}
+
+func TestSaveAndReloadEditedMap(t *testing.T) {
+	assets := NewAssets()
+	instance := NewGameInstanceWithDetails("editor-test", "gen:ruins:3", NewRandomDeathmatch())
+	instance.voxelMap.SetBlock(5, 3, 5, instance.blockLibrary.NewBlockFromName("tnt"))
+	if err := instance.SaveMapAs("zz_editor_test"); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(assets.GetMapPath("zz_editor_test"))
+	defer os.Remove(assets.GetMapPath("zz_editor_test") + ".meta")
+
+	reloaded := assets.LoadMapWithDetails("zz_editor_test", NewRandomDeathmatch())
+	original := instance.voxelMap
+	for x := int32(0); x < genSizeX; x++ {
+		for y := int32(0); y < genChunksY*genChunkHeight; y++ {
+			for z := int32(0); z < genSizeZ; z++ {
+				if original.GetGlobalBlock(x, y, z).ID != reloaded.GetMap().GetGlobalBlock(x, y, z).ID {
+					t.Fatalf("block %d,%d,%d differs after reload", x, y, z)
+				}
+			}
+		}
+	}
+	meta := reloaded.GetMetaData()
+	if len(meta.SpawnPositions[0]) == 0 || len(meta.Lamps) != len(instance.mapMeta.Lamps) || meta.Blocks != generatedBlockSet {
+		t.Fatalf("metadata was not preserved: %+v", meta)
 	}
 }

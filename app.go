@@ -36,6 +36,11 @@ func runGame() {
 		}
 
 		menu := client.NewMenu(window, &settings, content)
+		if mapName := os.Getenv("BT_EDITOR"); mapName != "" { // development aid: open the editor directly
+			if !runEditor(window, menu, settings, &content, mapName) {
+				return
+			}
+		}
 		for {
 			var config client.MatchConfig
 			if os.Getenv("BT_QUICKSTART") != "" {
@@ -45,6 +50,12 @@ func runGame() {
 			}
 			if config.Mode == client.ModeQuit {
 				return
+			}
+			if config.Mode == client.ModeEditor {
+				if !runEditor(window, menu, settings, &content, config.EditorMap) {
+					return
+				}
+				continue
 			}
 			for {
 				outcome := playMatch(window, menu, settings, content, config)
@@ -337,4 +348,28 @@ func runCommandLineMatch(window *glfw.Window, settings client.ClientSettings, co
 		return
 	}
 	runBattle(window, connection, info, settings, false)
+}
+
+// runEditor alternates between the editor and test matches on the edited map.
+// It returns false when the game should quit.
+func runEditor(window *glfw.Window, menu *client.Menu, settings client.ClientSettings, content *game.Content, mapName string) bool {
+	for {
+		result, open := client.RunEditor(window, settings, mapName)
+		if !open {
+			return false
+		}
+		if reloaded, err := game.LoadContent(); err == nil {
+			*content = reloaded
+			menu.SetContent(reloaded)
+		}
+		if result.PlayMap == "" {
+			return true
+		}
+		mapName = result.PlayMap
+		config := quickstartConfig(*content, 0)
+		config.MapFile = mapName
+		if playAgainstAI(window, menu, settings, *content, config) == client.OutcomeQuit {
+			return false
+		}
+	}
 }

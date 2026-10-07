@@ -461,6 +461,23 @@ func (g *GameInstance) SetVoxelMap(loadedMap *voxel.Map) {
 	g.voxelMap = loadedMap
 }
 
+// SaveMapAs writes the map and its metadata to assets/maps/<name>.bin(.meta) and makes it the current map.
+func (g *GameInstance) SaveMapAs(name string) error {
+	if g.mapMeta.Blocks == "" {
+		g.mapMeta.Blocks = generatedBlockSet
+	}
+	g.mapMeta.Name = name
+	mapFileName := g.assets.GetMapPath(name)
+	if err := g.voxelMap.SaveToDisk(mapFileName); err != nil {
+		return err
+	}
+	if err := g.mapMeta.SaveToDisk(mapFileName); err != nil {
+		return err
+	}
+	g.mapFile = name
+	return nil
+}
+
 func (g *GameInstance) SaveMapToDisk() {
 	mapFileName := g.assets.GetMapPath(g.mapFile)
 	errMap := g.voxelMap.SaveToDisk(mapFileName)

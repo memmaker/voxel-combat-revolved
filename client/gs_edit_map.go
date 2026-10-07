@@ -2,244 +2,478 @@ package client
 
 import (
 	"fmt"
+	"regexp"
+	"sort"
+
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
-	"github.com/memmaker/battleground/engine/glhf"
-	"github.com/memmaker/battleground/engine/gui"
-	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
 	"github.com/memmaker/battleground/game"
-	"math"
 )
 
+type editorTool int
+
+const (
+	toolBlock editorTool = iota
+	toolWall
+	toolFill
+	toolErase
+	toolSpawnA
+	toolSpawnB
+	toolObjective
+	toolLamp
+)
+
+var editorToolNames = []string{"Block", "Wall", "Floor", "Erase", "Spawn A", "Spawn B", "Objective", "Lamp"}
+
+var editorToolHints = []string{
+	"Click a face to put a block next to it.",
+	"Drag a rectangle: builds walls of the chosen height ( [ / ] ).",
+	"Drag a rectangle: fills a floor or roof on that level.",
+	"Click a block to remove it, drag to clear an area.",
+	"Drag over the ground to mark where team A deploys.",
+	"Drag over the ground to mark where team B deploys.",
+	"Click the ground: places a destructible target for Defend.",
+	"Click to place a ceiling lamp that lights the room.",
+}
+
+// blockChange records a single block edit for undo.
+type blockChange struct {
+	pos voxel.Int3
+	old byte
+}
+
+type editorSnapshot struct {
+	blocks []blockChange
+	meta   game.MapMetadata
+}
+
+// GameStateEditMap is the map editor: tools, block palette, undo and saving.
 type GameStateEditMap struct {
 	IsoMovementState
-	blockTypeToPlace byte
-	pencil           BlockPlacer
-	blockPage        int
-	objectMenu       *gui.ActionBar
-	blockMenu        *gui.ActionBar
-	placeRange       func(selection []voxel.Int3)
+	tool        editorTool
+	blockType   byte
+	wallHeight  int32
+	dragging    bool
+	dragStart   voxel.Int3
+	dragCurrent voxel.Int3
+	undo        []editorSnapshot
+	current     *editorSnapshot
+	mapName     string
+	nameFocused bool
+	status      string
 }
 
 func NewEditorState(a *BattleClient) *GameStateEditMap {
-	g := &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}, blockTypeToPlace: 1}
-	g.placeRange = g.placeBlocksAtRange
+	g := &GameStateEditMap{IsoMovementState: IsoMovementState{engine: a}, wallHeight: 3, mapName: "my_map"}
+	g.blockType = a.GetBlockLibrary().GetBlockDefinitionByName("bricks").BlockID
 	return g
-}
-func (g *GameStateEditMap) OnServerMessage(msgType string, json string) {
-
-}
-
-func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
-	if key == glfw.KeyF {
-		g.PlaceBlockAtCurrentSelection()
-	} else if key == glfw.KeyR {
-		g.engine.RemoveBlockAndRemesh()
-	} else if key == glfw.KeyF5 {
-		g.engine.SaveMapToDisk()
-	} else if key == glfw.KeyF9 {
-		g.engine.GetVoxelMap().LoadFromSource(g.engine.GetAssets().LoadMap("map"))
-	} else if key == glfw.KeyF1 {
-		g.switchToBlocks()
-	} else if key == glfw.KeyF2 {
-		g.switchToObjects()
-	} else if key == glfw.Key1 {
-		// previous page
-		if g.blockPage > 0 {
-			g.blockPage--
-			g.setBlockPage(g.blockPage)
-		}
-	} else if key == glfw.Key2 {
-		// next page
-		itemsPerPage := 10
-		lastPage := g.lastPage(itemsPerPage)
-		g.blockPage = g.blockPage + 1
-		if g.blockPage > lastPage {
-			g.blockPage = lastPage
-		}
-		g.setBlockPage(g.blockPage)
-	} else if key == glfw.KeyComma {
-		fill := !g.pencil.GetFill()
-		g.pencil.SetFill(fill)
-		g.engine.Print(fmt.Sprintf("Fill: %v", fill))
-	} else if key == glfw.KeyDelete {
-		g.ClearMap()
-	} else {
-		g.IsoMovementState.OnKeyPressed(key)
-	}
-}
-
-func (g *GameStateEditMap) lastPage(itemsPerPage int) int {
-	return int(math.Floor(float64(g.engine.GetBlockLibrary().LastBlockID()-1) / float64(itemsPerPage)))
-}
-func (g *GameStateEditMap) PlaceBlockAtCurrentSelection() {
-	if g.engine.lastHitInfo == nil {
-		return
-	}
-	previousGridPosition := g.engine.lastHitInfo.PreviousGridPosition
-	g.engine.PlaceBlock(previousGridPosition, voxel.NewBlock(g.blockTypeToPlace))
-}
-
-func (g *GameStateEditMap) placeBlocksAtRange(selection []voxel.Int3) {
-	for _, pos := range selection {
-		g.engine.PlaceBlock(pos, voxel.NewBlock(g.blockTypeToPlace))
-	}
-}
-
-func (g *GameStateEditMap) placeSpawnPointsAtRange(teamIndex int) func(selection []voxel.Int3) {
-	mapMeta := g.engine.GetMapMetadata()
-	for len(mapMeta.SpawnPositions) <= teamIndex {
-		mapMeta.SpawnPositions = append(mapMeta.SpawnPositions, make([]voxel.Int3, 0))
-	}
-	return func(selection []voxel.Int3) {
-		mapMeta.SpawnPositions[teamIndex] = append(mapMeta.SpawnPositions[teamIndex], selection...)
-		g.updateMetaHighlights(mapMeta)
-	}
-}
-func (g *GameStateEditMap) placePOIPointsAtRange(selection []voxel.Int3) {
-	mapMeta := g.engine.GetMapMetadata()
-	mapMeta.PoIPlacements = append(mapMeta.PoIPlacements, selection...)
-	g.updateMetaHighlights(mapMeta)
-}
-
-func (g *GameStateEditMap) updateMetaHighlights(mapMeta *game.MapMetadata) {
-	g.engine.highlights.ClearFlat(voxel.HighlightEditor)
-	if len(mapMeta.SpawnPositions) == 0 {
-		return
-	}
-	if len(mapMeta.SpawnPositions[0]) > 0 {
-		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.SpawnPositions[0], mgl32.Vec3{1.0, 0.0, 0.0})
-	}
-	if len(mapMeta.SpawnPositions) > 1 && len(mapMeta.SpawnPositions[1]) > 0 {
-		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.SpawnPositions[1], mgl32.Vec3{0.0, 0.0, 1.0})
-	}
-	if len(mapMeta.PoIPlacements) > 0 {
-		yellow := mgl32.Vec3{1.0, 1.0, 0.0}
-		g.engine.highlights.AddFlat(voxel.HighlightEditor, mapMeta.PoIPlacements, yellow)
-	}
-	g.engine.highlights.ShowAsFlat(voxel.HighlightEditor)
 }
 
 func (g *GameStateEditMap) Init(bool) {
 	g.engine.SwitchToBlockSelector()
 	g.engine.highlights.ClearAll()
 	g.engine.lines.Clear()
-
-	g.objectMenu = g.createObjectMenu(util.CreateFixed256PxAtlasFromDirectory("./assets/gui", []string{"spawn", "poi"}))
-	g.blockMenu = gui.NewActionBar(g.engine.guiShader, g.engine.GetVoxelMap().GetTerrainTexture(), g.engine.WindowWidth, g.engine.WindowHeight, 16, 16)
-
-	g.switchToBlocks()
-	g.pencil = NewRectanglePlacer()
-	util.LogGameInfo(fmt.Sprintf("[GameStateEditMap] Entered"))
+	g.engine.actionbar.SetActions(nil)
+	g.engine.hud.SetHidden(true)
+	if name := g.engine.GetMapFile(); name != "" && !game.IsGeneratedMap(name) {
+		g.mapName = name
+	}
+	g.updateMarkers()
+	// look at the middle of the map
+	size := g.engine.GetVoxelMap().GetSize()
+	voxelMap := g.engine.GetVoxelMap()
+	g.engine.isoCamera.SetLookTarget(mgl32.Vec3{float32(size.X*voxelMap.ChunkSizeHorizontal) / 2, 1, float32(size.Z*voxelMap.ChunkSizeHorizontal) / 2})
+	g.engine.isoCamera.ZoomOut(1, 40) // overview of the whole map
 }
 
-func (g *GameStateEditMap) setBlockPage(page int) {
-	itemsPerPage := 10
-	lastPage := g.lastPage(itemsPerPage)
-	if page > lastPage {
-		page = lastPage
-	} else if page < 0 {
-		page = 0
+func (g *GameStateEditMap) OnServerMessage(string, string) {}
+
+func (g *GameStateEditMap) meta() *game.MapMetadata {
+	meta := g.engine.GetMapMetadata()
+	for len(meta.SpawnPositions) < 2 {
+		meta.SpawnPositions = append(meta.SpawnPositions, []voxel.Int3{})
 	}
-	firstItem := (page * itemsPerPage) + 1
-	lastItem := firstItem + itemsPerPage
-	if lastItem > int(g.engine.GetBlockLibrary().LastBlockID()) {
-		lastItem = int(g.engine.GetBlockLibrary().LastBlockID())
-	}
-	blockLib := g.engine.GetBlockLibrary()
-	actions := make([]gui.ActionItem, 0)
-	for i := firstItem; i < lastItem; i++ {
-		index := i
-		blockdef := blockLib.GetBlockDefinition(byte(i))
-		actions = append(actions, gui.ActionItem{
-			Name:         blockdef.UniqueName,
-			TextureIndex: blockdef.TextureIndicesForFaces[voxel.South],
-			Execute:      func() { g.changeBlockTypeToPlace(byte(index)) },
-			Hotkey:       glfw.Key(int(glfw.Key0) + (i - firstItem)),
-		})
-	}
-	g.engine.actionbar.SetActions(actions)
+	return meta
 }
 
-func (g *GameStateEditMap) changeBlockTypeToPlace(blockType byte) {
-	g.blockTypeToPlace = blockType
-	blockDef := g.engine.GetBlockLibrary().GetBlockDefinition(g.blockTypeToPlace)
-	g.engine.Print(fmt.Sprintf("Block: %s", blockDef.UniqueName))
+// ---- undo ----
+
+func (g *GameStateEditMap) beginChange() {
+	meta := *g.meta()
+	meta.SpawnPositions = [][]voxel.Int3{append([]voxel.Int3{}, meta.SpawnPositions[0]...), append([]voxel.Int3{}, meta.SpawnPositions[1]...)}
+	meta.PoIPlacements = append([]voxel.Int3{}, meta.PoIPlacements...)
+	meta.Lamps = append([]voxel.Int3{}, meta.Lamps...)
+	g.current = &editorSnapshot{meta: meta}
+}
+
+func (g *GameStateEditMap) endChange() {
+	if g.current != nil {
+		g.undo = append(g.undo, *g.current)
+		if len(g.undo) > 100 {
+			g.undo = g.undo[1:]
+		}
+		g.current = nil
+	}
+	g.updateMarkers()
+}
+
+func (g *GameStateEditMap) setBlock(pos voxel.Int3, id byte) {
+	voxelMap := g.engine.GetVoxelMap()
+	if !voxelMap.ContainsGrid(pos) || pos.Y < 0 {
+		return
+	}
+	old := voxelMap.GetBlockFromVec(pos)
+	if old.ID == id {
+		return
+	}
+	if g.current != nil {
+		g.current.blocks = append(g.current.blocks, blockChange{pos: pos, old: old.ID})
+	}
+	if id == 0 {
+		voxelMap.SetAir(pos)
+	} else {
+		voxelMap.SetBlock(pos.X, pos.Y, pos.Z, voxel.NewBlock(id))
+	}
+}
+
+func (g *GameStateEditMap) Undo() {
+	if len(g.undo) == 0 {
+		g.status = "Nothing to undo"
+		return
+	}
+	last := g.undo[len(g.undo)-1]
+	g.undo = g.undo[:len(g.undo)-1]
+	for i := len(last.blocks) - 1; i >= 0; i-- {
+		change := last.blocks[i]
+		if change.old == 0 {
+			g.engine.GetVoxelMap().SetAir(change.pos)
+		} else {
+			g.engine.GetVoxelMap().SetBlock(change.pos.X, change.pos.Y, change.pos.Z, voxel.NewBlock(change.old))
+		}
+	}
+	*g.engine.GetMapMetadata() = last.meta
+	g.updateMarkers()
+	g.status = "Undone"
+}
+
+// ---- tools ----
+
+// targets returns the block under the cursor and the empty block in front of the face under the cursor.
+func (g *GameStateEditMap) targets() (hit voxel.Int3, front voxel.Int3, ok bool) {
+	info := g.engine.lastHitInfo
+	if info == nil || !info.Hit {
+		return voxel.Int3{}, voxel.Int3{}, false
+	}
+	return info.CollisionGridPosition, info.PreviousGridPosition, true
 }
 
 func (g *GameStateEditMap) OnMouseClicked(x float64, y float64) {
-	pos := g.engine.blockSelector.GetBlockPosition()
-	g.pencil.StartDragAt(pos)
+	hit, front, ok := g.targets()
+	if !ok {
+		return
+	}
+	switch g.tool {
+	case toolBlock:
+		g.beginChange()
+		g.setBlock(front, g.blockType)
+		g.endChange()
+	case toolObjective:
+		g.beginChange()
+		target := g.engine.GetBlockLibrary().GetBlockDefinitionByName("target").BlockID
+		g.setBlock(front, target)
+		meta := g.meta()
+		meta.PoIPlacements = append(meta.PoIPlacements, front.Add(voxel.Int3{Y: 1})) // objectives sit below their marker
+		g.endChange()
+	case toolLamp:
+		g.beginChange()
+		meta := g.meta()
+		meta.Lamps = append(meta.Lamps, front)
+		g.engine.GetVoxelMap().SetLamps(meta.Lamps)
+		g.endChange()
+	default:
+		g.dragging = true
+		if g.tool == toolErase {
+			g.dragStart = hit
+		} else {
+			g.dragStart = front
+		}
+		g.dragCurrent = g.dragStart
+	}
 }
 
 func (g *GameStateEditMap) OnMouseMoved(oldX float64, oldY float64, newX float64, newY float64) {
 	g.IsoMovementState.OnMouseMoved(oldX, oldY, newX, newY)
-	if !g.pencil.IsDragging() {
+	if !g.dragging {
 		return
 	}
-	pos := g.engine.blockSelector.GetBlockPosition()
-	selection := g.pencil.DraggedOver(pos)
-	g.engine.SetSelectedBlocks(selection)
+	hit, front, ok := g.targets()
+	if !ok {
+		return
+	}
+	if g.tool == toolErase {
+		g.dragCurrent = hit
+	} else {
+		g.dragCurrent = front
+	}
+	g.engine.SetSelectedBlocks(g.dragArea())
 }
+
+func (g *GameStateEditMap) dragArea() []voxel.Int3 {
+	start, end := g.dragStart, g.dragCurrent
+	var result []voxel.Int3
+	for x := min(start.X, end.X); x <= max(start.X, end.X); x++ {
+		for z := min(start.Z, end.Z); z <= max(start.Z, end.Z); z++ {
+			onEdge := x == start.X || x == end.X || z == start.Z || z == end.Z
+			if g.tool == toolWall && !onEdge {
+				continue
+			}
+			result = append(result, voxel.Int3{X: x, Y: start.Y, Z: z})
+		}
+	}
+	return result
+}
+
 func (g *GameStateEditMap) OnMouseReleased(x float64, y float64) {
-	pos := g.engine.blockSelector.GetBlockPosition()
-	selection := g.pencil.StopDragAt(pos)
-	g.placeRange(selection)
+	if !g.dragging {
+		return
+	}
+	g.dragging = false
+	area := g.dragArea()
 	g.engine.SetSelectedBlocks(nil)
-}
-func (g *GameStateEditMap) ClearMap() {
-	g.engine.LoadEmptyWorld(voxel.Int3{X: 2, Y: 4, Z: 2}, 32, 4)
-	/*
-		loadedMap := g.engine.GetVoxelMap()
-		loadedMap.ClearAllChunks()
-		loadedMap.SetFloorAtHeight(0, g.engine.GetBlockLibrary().NewBlockFromName("bricks"))
-		loadedMap.GenerateAllMeshes()
-	*/
+	g.beginChange()
+	meta := g.meta()
+	switch g.tool {
+	case toolWall:
+		for _, pos := range area {
+			for h := int32(0); h < g.wallHeight; h++ {
+				g.setBlock(pos.Add(voxel.Int3{Y: h}), g.blockType)
+			}
+		}
+	case toolFill:
+		for _, pos := range area {
+			g.setBlock(pos, g.blockType)
+		}
+	case toolErase:
+		for _, pos := range area {
+			if pos.Y > 0 { // keep the indestructible ground layer
+				g.setBlock(pos, 0)
+			}
+		}
+	case toolSpawnA, toolSpawnB:
+		team := 0
+		if g.tool == toolSpawnB {
+			team = 1
+		}
+		meta.SpawnPositions[team] = mergePositions(meta.SpawnPositions[team], area)
+	}
+	g.endChange()
 }
 
-func (g *GameStateEditMap) switchToBlocks() {
-	g.engine.actionbar = g.blockMenu
-	g.blockPage = 0
-	g.setBlockPage(g.blockPage)
-	g.engine.Print("Block menu")
-	g.placeRange = g.placeBlocksAtRange
-	g.engine.highlights.ClearAll()
-}
-func (g *GameStateEditMap) switchToObjects() {
-	g.engine.actionbar = g.objectMenu
-	g.engine.Print("Object menu")
-	mapMeta := g.engine.GetMapMetadata()
-	g.updateMetaHighlights(mapMeta)
+func mergePositions(existing, added []voxel.Int3) []voxel.Int3 {
+	seen := make(map[voxel.Int3]bool)
+	for _, pos := range existing {
+		seen[pos] = true
+	}
+	for _, pos := range added {
+		if !seen[pos] {
+			existing = append(existing, pos)
+			seen[pos] = true
+		}
+	}
+	return existing
 }
 
-func (g *GameStateEditMap) createObjectMenu(textureAtlas *glhf.Texture, textureIndex map[string]byte) *gui.ActionBar {
-	objectMenu := gui.NewActionBar(g.engine.guiShader, textureAtlas, g.engine.WindowWidth, g.engine.WindowHeight, 64, 64)
-	objectMenu.SetActions([]gui.ActionItem{
-		gui.ActionItem{
-			Name:         "Spawns Team 1",
-			TextureIndex: textureIndex["spawn"],
-			Execute: func() {
-				g.placeRange = g.placeSpawnPointsAtRange(0)
-			},
-			Hotkey: glfw.Key1,
-		},
-		gui.ActionItem{
-			Name:         "Spawns Team 2",
-			TextureIndex: textureIndex["spawn"],
-			Execute: func() {
-				g.placeRange = g.placeSpawnPointsAtRange(1)
-			},
-			Hotkey: glfw.Key2,
-		},
-		gui.ActionItem{
-			Name:         "POI",
-			TextureIndex: textureIndex["poi"],
-			Execute: func() {
-				g.placeRange = g.placePOIPointsAtRange
-			},
-			Hotkey: glfw.Key3,
-		},
-	})
-	return objectMenu
+func (g *GameStateEditMap) updateMarkers() {
+	meta := g.meta()
+	highlights := g.engine.highlights
+	highlights.ClearFlat(voxel.HighlightEditor)
+	highlights.AddFlat(voxel.HighlightEditor, meta.SpawnPositions[0], game.ColorTechTeal.Vec3())
+	highlights.AddFlat(voxel.HighlightEditor, meta.SpawnPositions[1], game.ColorNegativeRed.Vec3())
+	highlights.AddFlat(voxel.HighlightEditor, meta.PoIPlacements, mgl32.Vec3{1, 0.6, 0})
+	highlights.AddFlat(voxel.HighlightEditor, meta.Lamps, mgl32.Vec3{1, 1, 0.4})
+	highlights.ShowAsFlat(voxel.HighlightEditor)
+}
+
+// ---- keys ----
+
+var mapNamePattern = regexp.MustCompile(`^[a-z0-9_\-]{1,32}$`)
+
+func (g *GameStateEditMap) OnKeyPressed(key glfw.Key) {
+	if g.nameFocused {
+		g.typeName(key)
+		return
+	}
+	switch {
+	case key >= glfw.Key1 && key <= glfw.Key8:
+		g.tool = editorTool(key - glfw.Key1)
+	case key == glfw.KeyU:
+		g.Undo()
+	case key == glfw.KeyLeftBracket && g.wallHeight > 1:
+		g.wallHeight--
+	case key == glfw.KeyRightBracket && g.wallHeight < 12:
+		g.wallHeight++
+	default:
+		g.IsoMovementState.OnKeyPressed(key)
+	}
+}
+
+func (g *GameStateEditMap) typeName(key glfw.Key) {
+	switch {
+	case key == glfw.KeyBackspace || key == glfw.KeyDelete:
+		if len(g.mapName) > 0 {
+			g.mapName = g.mapName[:len(g.mapName)-1]
+		}
+	case key == glfw.KeyEnter || key == glfw.KeyEscape:
+		g.nameFocused = false
+	case key >= glfw.KeyA && key <= glfw.KeyZ && len(g.mapName) < 32:
+		g.mapName += string(rune('a' + key - glfw.KeyA))
+	case key >= glfw.Key0 && key <= glfw.Key9 && len(g.mapName) < 32:
+		g.mapName += string(rune('0' + key - glfw.Key0))
+	case key == glfw.KeyMinus && len(g.mapName) < 32:
+		g.mapName += "_"
+	}
+}
+
+// Save writes the map and registers it in the map list.
+func (g *GameStateEditMap) Save() bool {
+	if !mapNamePattern.MatchString(g.mapName) {
+		g.status = "Name: use lowercase letters, digits, - and _"
+		return false
+	}
+	meta := g.meta()
+	if len(meta.SpawnPositions[0]) == 0 || len(meta.SpawnPositions[1]) == 0 {
+		g.status = "Mark spawn zones for both teams before saving (tools 5 and 6)"
+		return false
+	}
+	if err := g.engine.SaveMapAs(g.mapName); err != nil {
+		g.status = "Saving failed: " + err.Error()
+		return false
+	}
+	if err := game.RegisterMapInContent(g.mapName); err != nil {
+		g.status = "Saved, but not added to the map list: " + err.Error()
+		return true
+	}
+	g.status = fmt.Sprintf("Saved as assets/maps/%s.bin", g.mapName)
+	return true
+}
+
+// ---- UI ----
+
+// editorPanelBounds are the screen areas that belong to the editor UI instead of the map.
+func (a *BattleClient) isOverEditorUI(x, y float64) bool {
+	return y < 46 || x < 200 || y > float64(a.WindowHeight)-28
+}
+
+func (a *BattleClient) drawEditorUI(g *GameStateEditMap) {
+	ui := a.ui
+	ui.Begin(a.WindowWidth, a.WindowHeight, a.lastMousePosX, a.lastMousePosY, a.uiClicked)
+	a.uiClicked = false
+	width := float32(a.WindowWidth)
+
+	// top toolbar
+	ui.Fill(0, 0, width, 46, uiPanel)
+	x := float32(206)
+	for i, name := range editorToolNames {
+		label := fmt.Sprintf("%d %s", i+1, name)
+		buttonWidth := float32(len(label)*8 + 16)
+		if g.tool == editorTool(i) {
+			ui.Fill(x-2, 6, buttonWidth+4, 34, uiAccent)
+		}
+		if ui.Button(x, 8, buttonWidth, 30, label, true) {
+			g.tool = editorTool(i)
+		}
+		x += buttonWidth + 6
+	}
+	right := width - 8
+	for _, action := range []struct {
+		label string
+		do    func()
+	}{
+		{"Exit", func() { a.finishEditor(EditorResult{}) }},
+		{"Play", func() {
+			if g.Save() {
+				a.finishEditor(EditorResult{PlayMap: g.mapName})
+			}
+		}},
+		{"Save", func() { g.Save() }},
+		{"Undo (U)", g.Undo},
+	} {
+		buttonWidth := float32(len(action.label)*8 + 20)
+		right -= buttonWidth
+		if ui.Button(right, 8, buttonWidth, 30, action.label, true) {
+			action.do()
+		}
+		right -= 6
+	}
+
+	// block palette
+	ui.Fill(0, 46, 200, float32(a.WindowHeight)-46, uiPanel)
+	ui.Label(10, 54, "Map name (click to edit)", 1, uiTextDim)
+	nameText := g.mapName
+	if g.nameFocused {
+		nameText += "_"
+	}
+	ui.Fill(6, 72, 188, 24, uiBackground)
+	if g.nameFocused {
+		ui.Fill(6, 94, 188, 2, uiAccent)
+	}
+	ui.Label(12, 77, nameText, 1, uiTextColor)
+	if a.lastMousePosX < 194 && a.lastMousePosY > 72 && a.lastMousePosY < 96 && ui.clicked && !ui.ConsumedClick() {
+		g.nameFocused = true
+	}
+	ui.Label(10, 106, "Blocks", 1, uiTextHighlight)
+	library := a.GetBlockLibrary()
+	var names []string
+	ids := make(map[string]byte)
+	for id := byte(1); id <= library.LastBlockID(); id++ {
+		definition := library.GetBlockDefinition(id)
+		if definition == nil || definition.UniqueName == "debug2" || definition.UniqueName == "selection" {
+			continue
+		}
+		names = append(names, definition.UniqueName)
+		ids[definition.UniqueName] = id
+	}
+	sort.Strings(names)
+	rowHeight := float32(min(20, (a.WindowHeight-160)/max(1, (len(names)+1)/2)))
+	for i, name := range names {
+		bx := float32(6 + (i%2)*96)
+		by := 126 + float32(i/2)*rowHeight
+		if ids[name] == g.blockType {
+			ui.Fill(bx-2, by-1, 94, rowHeight, uiAccent)
+		}
+		short := name
+		if len(short) > 11 {
+			short = short[:11]
+		}
+		if ui.Button(bx, by, 90, rowHeight-2, short, true) {
+			g.blockType = ids[name]
+			if g.tool == toolErase || g.tool >= toolSpawnA {
+				g.tool = toolBlock
+			}
+		}
+	}
+
+	// status line
+	ui.Fill(0, float32(a.WindowHeight)-28, width, 28, uiPanel)
+	hint := editorToolHints[g.tool]
+	if g.tool == toolWall {
+		hint += fmt.Sprintf(" Height: %d", g.wallHeight)
+	}
+	status := hint + "   Z / C: levels, WASD / Q / E: camera"
+	if g.status != "" {
+		status = g.status + "   |   " + hint
+	}
+	ui.Label(206, float32(a.WindowHeight)-21, status, 1, uiTextColor)
+	ui.Draw()
+}
+
+// EditorResult tells the caller what to do after the editor closes.
+type EditorResult struct {
+	PlayMap string // non-empty: start a test match on this map
+}
+
+func (a *BattleClient) finishEditor(result EditorResult) {
+	a.editorResult = result
+	a.StopRequested = true
 }
