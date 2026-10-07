@@ -268,8 +268,15 @@ func (h *HUD) queuePanel() {
 		}
 		lines = append(lines, "ITEMS "+strings.Join(names, ", "))
 	}
-	if unit.MovementPenalty > 0 || unit.AimPenalty > 0 {
-		lines = append(lines, fmt.Sprintf("WOUNDS move +%.1f AP  aim -%d%%", unit.MovementPenalty, int(math.Round(unit.AimPenalty*100))))
+	var wounds []string
+	if unit.MovementPenalty > 0 {
+		wounds = append(wounds, fmt.Sprintf("move +%.1f AP", unit.MovementPenalty))
+	}
+	if aim := int(math.Round(unit.AimPenalty * 100)); aim > 0 {
+		wounds = append(wounds, fmt.Sprintf("aim -%d%%", aim))
+	}
+	if len(wounds) > 0 {
+		lines = append(lines, "WOUNDS "+strings.Join(wounds, "  "))
 	}
 
 	text := strings.Join(lines, "\n")

@@ -48,6 +48,7 @@ type Audio struct {
 
 	lock    sync.Mutex
 	playing []*oto.Player
+	music   *oto.Player
 }
 
 var (

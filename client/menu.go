@@ -169,6 +169,7 @@ func (m *Menu) installCallbacks() {
 // Run shows the menu until the player starts a match or quits.
 func (m *Menu) Run() MatchConfig {
 	m.installCallbacks()
+	GetAudio().PlayMusic(m.settings.MusicVolume)
 	m.result = nil
 	m.screen = screenMain
 	switch os.Getenv("BT_MENU_SCREEN") { // development aid for screenshots
@@ -671,6 +672,12 @@ func (m *Menu) settingsScreen() {
 	s.AutoSwitchToIsoCameraAfterFiring = m.ui.Toggle(left, y, width, rowHeight, "Leave aim view after firing", s.AutoSwitchToIsoCameraAfterFiring)
 	y += rowHeight + 8
 	s.SoundVolume = float32(m.ui.Selector(left, y, width, rowHeight, "Sound volume", []string{"Off", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"}, int(s.SoundVolume*10+0.5))) / 10
+	y += rowHeight + 8
+	previousMusic := s.MusicVolume
+	s.MusicVolume = float32(m.ui.Selector(left, y, width, rowHeight, "Music volume", []string{"Off", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"}, int(s.MusicVolume*10+0.5))) / 10
+	if s.MusicVolume != previousMusic {
+		GetAudio().PlayMusic(s.MusicVolume)
+	}
 	y += rowHeight + 8
 
 	if m.ui.Button(left, float32(m.height)-80, 160, 36, "Back", true) {

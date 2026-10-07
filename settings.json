@@ -10,5 +10,6 @@
   "EnableCameraAnimations": true,
   "FullScreen": false,
   "AutoSwitchToIsoCameraAfterFiring": true,
-  "SoundVolume": 0.7
+  "SoundVolume": 0.7,
+  "MusicVolume": 0.5
 }

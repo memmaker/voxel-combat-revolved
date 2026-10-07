@@ -128,6 +128,7 @@ type ClientSettings struct {
 	EnableActionCam                  bool
 	AutoSwitchToIsoCameraAfterFiring bool
 	SoundVolume                      float32
+	MusicVolume                      float32
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
@@ -152,6 +153,7 @@ func DefaultClientSettings() ClientSettings {
 		EnableCameraAnimations:           true,
 		AutoSwitchToIsoCameraAfterFiring: true,
 		SoundVolume:                      0.7,
+		MusicVolume:                      0.5,
 	}
 }
 
@@ -293,6 +295,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.audio = GetAudio()
 	myApp.audio.SetVolume(settings.SoundVolume)
 	myApp.audio.SetListener(myApp.listenerPosition)
+	myApp.audio.PlayMusic(settings.MusicVolume)
 
 	myApp.unitSelector = NewGroundSelector(assetLoader.LoadMesh("flatselector"), myApp.defaultShader)
 

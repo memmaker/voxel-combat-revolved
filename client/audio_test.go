@@ -55,3 +55,14 @@ func writeWav(t *testing.T, filename string, pcm []byte) {
 	}
 	_, _ = file.Write(pcm)
 }
+
+func TestMusicSynthesizes(t *testing.T) {
+	pcm := synthesizeMusic()
+	seconds := float64(len(pcm)/2) / sampleRate
+	if seconds < 30 {
+		t.Fatalf("music loop too short: %.1fs", seconds)
+	}
+	if dumpDir := os.Getenv("BT_DUMP_SOUNDS"); dumpDir != "" {
+		writeWav(t, filepath.Join(dumpDir, "music.wav"), pcm)
+	}
+}
