@@ -8,8 +8,8 @@ Design goals live in `readme.md` and `notes.txt`.
 - [~] Squad & loadout picker: 1-4 soldiers, unit type, weapon, item per soldier — no draft/point budget yet
 - [x] End-of-match screen (victory/defeat, kills, losses, damage, hit rate; rematch / main menu / quit) and Esc pause menu with surrender (`client/overlay.go`)
 - [x] Turn banner, turn counter, turn limit display (`client/hud.go`)
-- [~] HUD: health bars, AP pips, selected-unit panel (HP/AP/ammo/items/wounds), floating damage numbers — unit list still missing
-- [~] Sound: 17 synthesized effects (each weapon, impacts, explosions, footsteps, throw, reload, overwatch, death, UI, turn start, victory/defeat) with distance attenuation and a volume setting (`client/audio.go`); no music yet
+- [x] HUD: health bars, AP pips, selected-unit panel, floating damage numbers, clickable unit list
+- [x] Sound: 17 synthesized effects plus a generated looping soundtrack, separate volume settings (`client/audio.go`, `client/music.go`)
 - [~] Onboarding: F1 help overlay explaining controls, shooting, wounds, pressure, overwatch; no interactive tutorial
 
 ## 2. Singleplayer opponent
@@ -19,7 +19,7 @@ Design goals live in `readme.md` and `notes.txt`.
 
 ## 3. Multiplayer
 - [x] Lobby: host on port 9999 (shows LAN IPs), join by address with a list of open games (`ListGames`)
-- [~] Disconnect handling: leaving or disconnecting hands the win to the opponent; no reconnect, no turn timer yet
+- [x] Disconnects: seat held 60 s, rejoin from the lobby (state + terrain replayed); optional turn timer (host setting)
 - [~] Server-side validation: actions now rejected outside your turn, reload checks ownership, match ends as soon as a side is wiped out; still open: snap-shot target LOS check, free-aim angle sanity checks
 - [ ] Chat / quick signals, activity during the enemy turn
 - [ ] Async multiplayer (optional)
@@ -27,7 +27,7 @@ Design goals live in `readme.md` and `notes.txt`.
 ## 4. Yomi: every move has a counter
 - [~] Overwatch (exists; designed rules not implemented: chosen blocks, escalating AP cost, once per encounter)
 - [~] Hidden reactions: Dodge (50% evasion vs bullets, not explosions) and Brace (-1 per bullet, half explosion damage), secret until triggered; AI picks overwatch/dodge/brace with weighted randomness (`game/reactions.go`). Parry/Deflect need melee and special attacks first
-- [ ] Melee attacks
+- [x] Melee attacks (2 AP, 85% for 4) with the Parry reaction as counter
 - [ ] Shields & armor (localized, toggleable)
 - [ ] Stances: crouch, prone, dodge stances
 - [ ] Hidden information: fog of war hides enemies client-side; designated leader
@@ -40,7 +40,7 @@ Design goals live in `readme.md` and `notes.txt`.
 
 ## 6. Combat depth & balance
 - [~] Per-body-part damage: model part names now map to zones (headshots x2, weapon hits 0 HP, arm/leg wounds apply penalties); explosion damage still flat; no weapon destruction
-- [ ] Unit classes, skills, ability design
+- [~] Classes: Scout, Marksman (ignores pressure), Heavy (cheap grenades), Medic (Heal skill); more skills open
 - [ ] Distinct stat blocks; animations for 3x3 walker/monster units
 - [ ] Distinct faction identities
 - [ ] Ammo variants, more items, loadout crates
@@ -56,7 +56,7 @@ Design goals live in `readme.md` and `notes.txt`.
 - [ ] Start in contact / speed up early movement
 
 ## 8. Camera, visibility & UX
-- [~] Ceiling removal: block-level cutaway with Z / C (shader discard, picking and units respect it); units are not yet visible through walls
+- [x] Ceiling removal (Z / C cutaway) and team-colored silhouettes of units behind walls
 - [ ] Unit & body-part outlines when targeting
 - [x] Fast-forward: Space toggles 3x speed
 - [ ] Undo / confirm before committing a move
@@ -64,6 +64,9 @@ Design goals live in `readme.md` and `notes.txt`.
 - [~] Hotkeys fixed: action bar uses number keys 1-9 (shown on the bar), Enter ends turn; Reload/Fire no longer share R; keys not yet rebindable
 
 ## 9. Known bugs
+- [x] Faction skins scrambled (Minecraft-layout skin on an atlas-UV model)
+- [x] Walk cycle stutter (keyframe sampler skipped keys; slerp NaN on near-identical rotations)
+- [x] Units vanished near explosions (NaN rotation from vertical hit force)
 - [x] Server never applied grenade effects (no damage/destruction/smoke server-side → units dead on screen but alive on server)
 - [x] Explosions hit a unit once per occupied block (5 dmg grenade did 10-15)
 - [x] Explosion damage resolved independently per client → desyncs; now server-authoritative (`UnitDamages` in messages)
@@ -72,7 +75,7 @@ Design goals live in `readme.md` and `notes.txt`.
 - [x] Standalone mode raced the local TCP listener on startup (now in-memory)
 - [x] Units could keep drifting with a leftover velocity / block the client's event queue forever
 - [x] Multiline text in the bitmap font was offset by the label position
-- [ ] Own unit doesn't visually die when hit during FPS view
+- [ ] Own unit doesn't visually die when hit during FPS view — could not reproduce (code paths reviewed, autoplay with action cam saw no death)
 - [x] Block removal at a chunk edge doesn't re-mesh the neighbor chunk
 - [ ] Choppy diagonal climb/drop animations
 - [ ] Hard-coded -1 Y offset for Defend objectives (`missions.go`)
@@ -80,10 +83,10 @@ Design goals live in `readme.md` and `notes.txt`.
 
 ## 10. Polish
 - [ ] Better shots, explosions, blood decals on units
-- [~] Lighting (baked lights PoC); emissive / bloom
+- [x] Lighting: sunlight + lamp propagation, face shading, lit units, updates on destruction; no bloom
 - [~] Action cam & bullet cam (exist, disabled by default)
 - [x] Data-driven content: maps, factions, units, weapons, items in `assets/content/*.json`, validated at startup
-- [ ] Player-facing map editor and map sharing
+- [x] Map editor (main menu): tools, palette, undo, save/register, test-play; no online sharing
 
 ## 11. Meta & progression
 - [ ] Campaign layer: base, roster, parallel-universe structure, unlocks, levelling
