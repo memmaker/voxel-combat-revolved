@@ -73,6 +73,27 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 	if unit.CanSnapshot() {
 		actions = append(actions, snapshot)
 	}
+	if unit.CanReact() {
+		for _, reaction := range []struct {
+			kind game.Reaction
+			icon string
+			name string
+		}{
+			{game.ReactionDodge, "walk", "Dodge: until your next turn, every bullet that would hit misses with 50% (not explosions)"},
+			{game.ReactionBrace, "shield", "Brace: until your next turn, -1 damage per bullet and half damage from explosions"},
+		} {
+			kind := reaction.kind
+			actions = append(actions, gui.ActionItem{
+				Name:         reaction.name,
+				TextureIndex: a.guiIcons[reaction.icon],
+				Execute: func() {
+					if unit.CanReact() {
+						util.MustSend(a.server.TargetedUnitAction(unit.UnitID(), string(kind), nil))
+					}
+				},
+			})
+		}
+	}
 	if unit.CanFreeAim() {
 		actions = append(actions, freeAim)
 		actions = append(actions, overwatch)
@@ -86,5 +107,11 @@ func (a *BattleClient) UpdateActionbarFor(unit *Unit) {
 		},
 	}
 	actions = append(actions, always...)
+	// number keys select actions by their position on the bar; the HUD shows the numbers
+	for i := range actions {
+		if i < 9 && actions[i].Name != "End Turn" {
+			actions[i].Hotkey = glfw.Key1 + glfw.Key(i)
+		}
+	}
 	a.actionbar.SetActions(actions)
 }

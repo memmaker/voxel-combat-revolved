@@ -28,6 +28,10 @@ func (a *BattleClient) handleMousePosEvents(xpos float64, ypos float64) {
 	if a.lastMousePosX == xpos && a.lastMousePosY == ypos {
 		return
 	}
+	if a.overlay != overlayNone {
+		a.lastMousePosX, a.lastMousePosY = xpos, ypos
+		return
+	}
 	overActionBar := a.actionbar.IsMouseOver(xpos, ypos)
 	if !overActionBar {
 		a.state().OnMouseMoved(a.lastMousePosX, a.lastMousePosY, xpos, ypos)
@@ -41,6 +45,12 @@ func (a *BattleClient) handleMousePosEvents(xpos float64, ypos float64) {
 	a.lastMousePosY = ypos
 }
 func (a *BattleClient) handleMouseButtonEvents(button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+	if a.overlay != overlayNone { // menus on top of the battle take all clicks
+		if button == glfw.MouseButtonLeft && action == glfw.Release {
+			a.uiClicked = true
+		}
+		return
+	}
 	if !a.isMouseInWindow() {
 		return
 	}
@@ -143,6 +153,36 @@ func (a *BattleClient) handleKeyEvents(key glfw.Key, scancode int, action glfw.A
 
 	if key == glfw.KeyF12 && action == glfw.Press {
 		a.Window.SetShouldClose(true)
+		return
+	}
+	if key == glfw.KeyF1 && action == glfw.Press {
+		if a.overlay == overlayHelp {
+			a.closeOverlay()
+		} else if a.overlay == overlayNone {
+			a.overlay = overlayHelp
+			a.freeMouse()
+		}
+		return
+	}
+	if key == glfw.KeySpace && action == glfw.Press && a.overlay == overlayNone {
+		a.toggleFastForward()
+		return
+	}
+	if key == glfw.KeyEscape && action == glfw.Press {
+		if a.overlay == overlayHelp {
+			a.closeOverlay()
+			return
+		}
+		if a.overlay == overlayPause {
+			a.closeOverlay()
+			return
+		}
+		if a.overlay == overlayNone && !a.cameraIsFirstPerson {
+			a.openPauseMenu()
+			return
+		}
+	}
+	if a.overlay != overlayNone {
 		return
 	}
 	if action == glfw.Press {

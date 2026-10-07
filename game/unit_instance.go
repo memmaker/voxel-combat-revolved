@@ -55,6 +55,8 @@ type UnitInstance struct {
     AimPenalty      float64
     CurrentStance   Stance
     Inventory       []*Item
+    // Reaction is secret: it is never serialized, so opponents only learn about it when it triggers
+    Reaction        Reaction `json:"-"`
 }
 
 func (u *UnitInstance) ControlledBy() uint64 {
@@ -132,6 +134,7 @@ func (u *UnitInstance) EndTurn() {
 }
 
 func (u *UnitInstance) NextTurn() {
+    u.Reaction = ReactionNone
     //println(fmt.Sprintf("[UnitInstance] %s(%d) next turn. AP=%0.2f", u.GetName(), u.Attacker(), u.Definition.CoreStats.MaxActionPoints))
     u.ActionPoints = u.Definition.CoreStats.MaxActionPoints
 }

@@ -76,3 +76,24 @@ type JoinGameMessage struct {
 
 type DebugGetServerStateMessage struct {
 }
+
+type ListGamesMessage struct {
+}
+
+// GameListing describes an open game in the lobby.
+type GameListing struct {
+	GameID        string
+	HostName      string
+	MapFile       string
+	Scenario      MissionScenario
+	Players       int
+	PlayersNeeded int
+}
+
+type GameListMessage struct {
+	Games []GameListing
+}
+
+func (m GameListMessage) MessageType() string {
+	return "GameList"
+}

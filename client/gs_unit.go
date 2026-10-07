@@ -51,7 +51,11 @@ func (g *GameStateUnit) OnKeyPressed(key glfw.Key) {
 		g.nextUnit()
 		return
 	}
-	if key == glfw.KeyF1 {
+	if key == glfw.KeyEnter {
+		g.engine.EndTurn()
+		return
+	}
+	if key == glfw.KeyF3 {
 		g.engine.showDebugInfo = !g.engine.showDebugInfo
 		if !g.engine.showDebugInfo {
 			g.engine.textLabel.Clear()

@@ -6,7 +6,7 @@ OUT=${1:-/Users/felix/Projects/fx-games/site/voxel-combat/play}
 
 # Stage assets for go:embed. star_odyssey/*.png are only stat'ed (block texture names), so empty placeholders suffice.
 rm -rf web/assets && mkdir -p web/assets
-cp -R assets/fonts assets/gui assets/maps assets/models web/assets/
+cp -R assets/content assets/fonts assets/gui assets/maps assets/models web/assets/
 mkdir -p web/assets/textures/blocks/star_odyssey
 cp -R assets/textures/skins assets/textures/decals web/assets/textures/
 cp assets/textures/blocks/*.* web/assets/textures/blocks/

@@ -143,6 +143,11 @@ func loadParticleShader(vertexFormat glhf.AttrFormat) *glhf.Shader {
 }
 
 func (a *BattleClient) loadGuiShader() *glhf.Shader {
+	return newGuiShader(a.WindowWidth, a.WindowHeight)
+}
+
+// newGuiShader creates the shader for screen-space quads in pixel coordinates (origin top-left).
+func newGuiShader(windowWidth, windowHeight int) *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "position", Type: glhf.Vec2},
@@ -154,17 +159,13 @@ func (a *BattleClient) loadGuiShader() *glhf.Shader {
 			glhf.Attr{Name: "appliedTintColor", Type: glhf.Vec4}, // 2
 			glhf.Attr{Name: "discardedColor", Type: glhf.Vec4},   // 3
 		}
-		shader *glhf.Shader
 	)
-	var err error
-	shader, err = glhf.NewBasicShader(vertexFormat, uniformFormat, guiVertexShaderSource, guiFragmentShaderSource)
-
+	shader, err := glhf.NewBasicShader(vertexFormat, uniformFormat, guiVertexShaderSource, guiFragmentShaderSource)
 	if err != nil {
 		panic(err)
 	}
-
 	shader.Begin()
-	shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(a.WindowWidth, a.WindowHeight))
+	shader.SetUniformAttr(0, util.Get2DPixelCoordOrthographicProjectionMatrix(windowWidth, windowHeight))
 	shader.End()
 	return shader
 }
@@ -281,6 +282,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 			glhf.Attr{Name: "modelTransform", Type: glhf.Mat4},
 			glhf.Attr{Name: "light_position", Type: glhf.Vec3},
 			glhf.Attr{Name: "light_color", Type: glhf.Vec3},
+			glhf.Attr{Name: "cutawayHeight", Type: glhf.Float},
 		}
 		shader *glhf.Shader
 	)
@@ -303,6 +305,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 
 	lightColor := mgl32.Vec3{0.4, 0.4, 0.4}
 	shader.SetUniformAttr(3, lightColor)
+	shader.SetUniformAttr(4, float32(-1))
 
 	shader.End()
 	return shader

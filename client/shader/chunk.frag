@@ -3,6 +3,7 @@
 
 flat in vec3 VertNormal;
 in vec3 VertPos;
+in float VertWorldY;
 in float VertLightLevel;
 flat in uint VertTexIndex;
 
@@ -15,6 +16,8 @@ uniform vec3 light_position;
 uniform vec3 light_color;
 
 uniform mat4 modelTransform;
+// everything above this height is cut away, so players can look into buildings (< 0: off)
+uniform float cutawayHeight;
 
 out vec4 color;
 
@@ -57,6 +60,9 @@ float diffuseBrightnessFromPointLight(vec3 worldNormal) {
     return brightness;
 }
 void main() {
+    if (cutawayHeight >= 0.0 && VertWorldY > cutawayHeight + 0.001) {
+        discard;
+    }
     //calculate normal in world coordinates
     //mat3 normalMatrix = transpose(inverse(mat3(modelTransform)));
     //vec3 worldNormal = normalize(normalMatrix * VertNormal);

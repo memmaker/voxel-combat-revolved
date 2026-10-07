@@ -33,13 +33,19 @@ func (i *IsoMovementState) OnUpperLeftAction(deltaTime float64) {
 	i.engine.isoCamera.RotateLeft(deltaTime)
 }
 func (i *IsoMovementState) OnRaiseLevel() {
-	changedTo := i.engine.GetVoxelMap().ChangeMaxChunkHeightForDraw(1)
-	i.engine.Print(fmt.Sprintf("Max Height changed to %d", changedTo))
+	i.printCutaway(i.engine.GetVoxelMap().ChangeCutawayHeight(1))
 }
 
 func (i *IsoMovementState) OnLowerLevel() {
-	changedTo := i.engine.GetVoxelMap().ChangeMaxChunkHeightForDraw(-1)
-	i.engine.Print(fmt.Sprintf("Max Height changed to %d", changedTo))
+	i.printCutaway(i.engine.GetVoxelMap().ChangeCutawayHeight(-1))
+}
+
+func (i *IsoMovementState) printCutaway(level int32) {
+	if level < 0 {
+		i.engine.Print("Showing all levels")
+	} else {
+		i.engine.Print(fmt.Sprintf("Showing levels up to %d (Z / C)", level))
+	}
 }
 func (i *IsoMovementState) OnDirectionKeys(elapsed float64, movementVector [2]int) {
 	i.engine.isoCamera.MoveInDirection(float32(elapsed), movementVector)

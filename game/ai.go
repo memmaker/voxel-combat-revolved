@@ -2,9 +2,11 @@ package game
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
 	"github.com/memmaker/battleground/engine/voxel"
-	"math/rand"
 )
 
 type DummyClientUnit struct {
@@ -36,16 +38,32 @@ func (d *DummyClientUnit) UpdateFromServerInstance(instance *UnitInstance) {
 
 type DummyClient struct {
 	*GameClient[*DummyClientUnit]
-	connection     *ServerConnection
-	movedUnits     map[uint64]bool
-	waitingForUnit uint64
-	turnCounter    int
+	connection *ServerConnection
+	brain      *AIBrain
+	difficulty AIDifficulty
+	isMyTurn   bool
+	onGameOver func(msg GameOverMessage)
 }
 
 func NewDummyClient(endpoint string) *DummyClient {
-	d := &DummyClient{connection: nil, movedUnits: make(map[uint64]bool), turnCounter: 0}
+	d := &DummyClient{connection: nil, difficulty: AIDifficultyFromEnv()}
 	d.connection = NewTCPConnectionWithHandler(endpoint, d.OnServerMessage)
 	return d
+}
+
+// AIDifficultyFromEnv reads BT_AI_DIFFICULTY (easy, normal, hard); normal is the default.
+func AIDifficultyFromEnv() AIDifficulty {
+	switch os.Getenv("BT_AI_DIFFICULTY") {
+	case "easy":
+		return AIEasy
+	case "hard":
+		return AIHard
+	}
+	return AINormal
+}
+
+func (c *DummyClient) SetDifficulty(difficulty AIDifficulty) {
+	c.difficulty = difficulty
 }
 
 func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
@@ -57,7 +75,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		c.GameClient = NewGameClient[*DummyClientUnit](gameInfo, c.createDummyUnit)
 		c.GameClient.SetEnvironment("AI-Client")
 		println("Game started!")
-		loadedMap := voxel.NewMapFromSource(c.GetAssets().LoadMap(gameInfo.MapFile), nil, nil)
+		loadedMap := c.GetAssets().LoadVoxelMap(gameInfo.MapFile)
 		c.GameClient.SetVoxelMap(loadedMap)
 		blockList := GetDebugBlockNames()
 		indexMap := util.CreateIndexMapFromDirectory("assets/textures/blocks/star_odyssey", blockList)
@@ -79,18 +97,16 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		}
 
 		c.SetLOSAndPressure(gameInfo.LOSMatrix, gameInfo.PressureMatrix)
+		c.brain = NewAIBrain(c.GameInstance, c.GetControllingUserID(), int(c.GetSpawnIndex()), c.difficulty)
 
 		util.MustSend(c.connection.MapLoaded())
 	case "StartDeployment":
-		// TODO: Let the ai decide where to place units
 		c.OnDeploy()
 	case "OwnUnitMoved":
 		var msg VisualOwnUnitMoved
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnOwnUnitMoved(msg)
-			//println(fmt.Sprintf("[DummyClient] Unit %d moved to %s", msg.Attacker, msg.EndPosition.ToString()))
-			c.movedUnits[msg.UnitID] = true
-			c.makeMove()
+			c.continueTurn()
 		}
 	case "EnemyUnitMoved":
 		var msg VisualEnemyUnitMoved
@@ -102,9 +118,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnRangedAttack(msg)
 			if c.IsMyUnit(msg.Attacker) {
-				println(fmt.Sprintf("[DummyClient] Unit %d shot", msg.Attacker))
-				c.movedUnits[msg.Attacker] = true
-				c.makeMove()
+				c.continueTurn()
 			}
 		}
 	case "Throw":
@@ -112,10 +126,30 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnThrow(msg)
 			if c.IsMyUnit(msg.Attacker) {
-				println(fmt.Sprintf("[DummyClient] Unit %d threw", msg.Attacker))
-				c.movedUnits[msg.Attacker] = true
-				c.makeMove()
+				c.continueTurn()
 			}
+		}
+	case "BeginOverwatch":
+		var msg VisualBeginOverwatch
+		if util.FromJson(messageAsJson, &msg) {
+			if c.IsMyUnit(msg.Watcher) {
+				c.OnBeginOverwatch(msg)
+				c.continueTurn()
+			}
+		}
+	case "Reaction":
+		var msg VisualReaction
+		if util.FromJson(messageAsJson, &msg) {
+			c.OnReaction(msg)
+			c.continueTurn()
+		}
+	case "Reload":
+		var msg UnitMessage
+		if util.FromJson(messageAsJson, &msg) {
+			if unit, known := c.GetUnit(msg.UnitID()); known {
+				unit.Reload()
+			}
+			c.continueTurn()
 		}
 	case "ActionResponse":
 		var msg ActionResponse
@@ -126,188 +160,143 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		var msg NextPlayerMessage
 		if util.FromJson(messageAsJson, &msg) {
 			c.OnNextPlayer(msg)
+			c.isMyTurn = msg.YourTurn
 			if msg.YourTurn {
-				util.MustSend(c.connection.EndTurn())
-				/*
-					c.resetTurn()
-					c.makeMove()
-					c.turnCounter++
-
-				*/
+				c.brain.StartTurn()
+				c.continueTurn()
 			}
 		}
 	case "GameOver":
 		var msg GameOverMessage
 		if util.FromJson(messageAsJson, &msg) {
+			c.isMyTurn = false
 			c.OnGameOver(msg)
+			if c.onGameOver != nil {
+				c.onGameOver(msg)
+			}
 		}
 	}
-
 }
+
+func (c *DummyClient) continueTurn() {
+	if c.isMyTurn {
+		c.brain.Step(c)
+	}
+}
+
 func (c *DummyClient) OnTargetedUnitActionResponse(msg ActionResponse) {
 	if !msg.Success {
 		println(fmt.Sprintf("[DummyClient] Action failed: %s", msg.Message))
-		c.movedUnits[c.waitingForUnit] = true
-	}
-	c.makeMove()
-}
-
-func (c *DummyClient) makeMove() {
-	unit, unitLeft := c.getNextUnit()
-
-	if !unitLeft {
-		// JUST END TURN FOR NOW
-		//println(fmt.Sprintf("[DummyClient] Ending turn..."))
-		util.MustSend(c.connection.EndTurn())
-		return
-	}
-	enemy, available := c.GetNearestEnemy(unit)
-	if available {
-		c.attackUnit(unit, enemy)
-	} else {
-		c.moveUnit(unit)
-	}
-}
-
-func (c *DummyClient) attackUnit(attacker, target *DummyClientUnit) {
-	shotAction := NewActionShot(c.GameInstance, attacker.UnitInstance)
-	util.MustSend(c.connection.TargetedUnitAction(attacker.UnitID(), shotAction.GetName(), []voxel.Int3{target.GetBlockPosition()}))
-	c.waitingForUnit = attacker.UnitID()
-}
-
-func (c *DummyClient) moveUnit(unit *DummyClientUnit) bool {
-	moveAction := NewActionMove(c.voxelMap, unit.UnitInstance)
-	validMoves := moveAction.GetValidTargets()
-	if len(validMoves) > 0 {
-		chosenDest := choseRandom(validMoves)
-		moves := int32(4)
-		if c.turnCounter%2 == 1 {
-			moves *= -1
+		if c.brain != nil {
+			c.brain.OnActionFailed()
 		}
-		chosenDest = unit.GetBlockPosition().Add(voxel.Int3{Z: moves})
-		util.LogGameInfo(fmt.Sprintf("[DummyClient] Moving unit %s(%d) to %s", unit.Name, unit.UnitID(), chosenDest.ToString()))
-		util.MustSend(c.connection.TargetedUnitAction(unit.UnitID(), moveAction.GetName(), []voxel.Int3{chosenDest}))
-		// HACK: assume this works
-		unit.SetBlockPositionAndUpdateStance(chosenDest)
-		c.waitingForUnit = unit.UnitID()
-		return true
-	} else {
-		return false
+		c.continueTurn()
 	}
 }
 
-func choseRandom(moves []voxel.Int3) voxel.Int3 {
-	randIndex := rand.Intn(len(moves))
-	return moves[randIndex]
+// AICommander implementation
+
+func (c *DummyClient) Move(unitID uint64, target voxel.Int3) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, "Move", []voxel.Int3{target}))
+}
+
+func (c *DummyClient) Shoot(unitID uint64, target voxel.Int3) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, "Shot", []voxel.Int3{target}))
+}
+
+func (c *DummyClient) Throw(unitID uint64, itemName string, target mgl32.Vec3) {
+	util.MustSend(c.connection.ThrownUnitAction(unitID, "Throw", itemName, []mgl32.Vec3{target}))
+}
+
+func (c *DummyClient) Overwatch(unitID uint64, targets []voxel.Int3) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, "Overwatch", targets))
+}
+
+func (c *DummyClient) React(unitID uint64, reaction Reaction) {
+	util.MustSend(c.connection.TargetedUnitAction(unitID, string(reaction), nil))
+}
+
+func (c *DummyClient) Reload(unitID uint64) {
+	util.MustSend(c.connection.ReloadAction(unitID))
+}
+
+func (c *DummyClient) EndTurn() {
+	c.isMyTurn = false
+	util.MustSend(c.connection.EndTurn())
+}
+
+// AIGameSetup describes how an AI client enters a game: it either creates it or joins an existing one.
+type AIGameSetup struct {
+	Username    string
+	GameID      string
+	CreateGame  bool
+	MapFile     string
+	Mission     *MissionDetails
+	FactionName string
+	Units       []UnitChoice
+}
+
+// DefaultAISetup is the opponent used by the standalone singleplayer mode.
+func DefaultAISetup() AIGameSetup {
+	return AIGameSetup{
+		Username:    "creator",
+		GameID:      "fx's test game",
+		CreateGame:  true,
+		MapFile:     "map",
+		Mission:     NewRandomDeathmatch(),
+		FactionName: "X-Com",
+		Units: []UnitChoice{
+			{UnitTypeID: 0, Name: "Jimmy", Weapon: "Mossberg 500", Items: []string{"Smoke Grenade"}},
+			{UnitTypeID: 0, Name: "Bimmy", Weapon: "Steyr SSG 69", Items: []string{"Frag Grenade"}},
+			{UnitTypeID: 0, Name: "Timmy", Weapon: "M16 Rifle", Items: []string{"Frag Grenade"}},
+		},
+	}
 }
 
 func (c *DummyClient) CreateGameSequence() {
+	c.RunSetupSequence(DefaultAISetup())
+}
+
+// SetOnGameOver registers a callback for the end of the match (used by automated matches).
+func (c *DummyClient) SetOnGameOver(onGameOver func(msg GameOverMessage)) {
+	c.onGameOver = onGameOver
+}
+
+// RunSetupSequence logs in, creates or joins the game, picks faction and units and then
+// hands control to the AI once the game starts. It blocks until the units are selected.
+func (c *DummyClient) RunSetupSequence(setup AIGameSetup) {
 	con := c.connection
-	loginSuccess := false
-	createSuccess := false
-	factionSuccess := false
-	unitSelectionSuccess := false
+	responses := make(chan ActionResponse, 4)
 	con.SetEventHandler(func(msgReceived StringMessage) {
-		if msgReceived.MessageType == "LoginResponse" {
+		switch msgReceived.MessageType {
+		case "LoginResponse", "CreateGameResponse", "JoinGameResponse", "SelectFactionResponse", "SelectUnitsResponse":
 			var msg ActionResponse
 			if util.FromJson(msgReceived.Message, &msg) {
-				if msg.Success {
-					loginSuccess = true
-				}
-				println(fmt.Sprintf("[DummyClient] Login response: %s", msg.Message))
+				println(fmt.Sprintf("[DummyClient] %s: %s", msgReceived.MessageType, msg.Message))
+				responses <- msg
 			}
-		} else if msgReceived.MessageType == "CreateGameResponse" {
-			var msg ActionResponse
-			if util.FromJson(msgReceived.Message, &msg) {
-				if msg.Success {
-					createSuccess = true
-				}
-				println(fmt.Sprintf("[DummyClient] Create game response: %s", msg.Message))
-			}
-		} else if msgReceived.MessageType == "SelectFactionResponse" {
-			var msg ActionResponse
-			if util.FromJson(msgReceived.Message, &msg) {
-				if msg.Success {
-					factionSuccess = true
-				}
-				println(fmt.Sprintf("[DummyClient] Select faction response: %s", msg.Message))
-			}
-		} else if msgReceived.MessageType == "SelectUnitsResponse" {
-			var msg ActionResponse
-			if util.FromJson(msgReceived.Message, &msg) {
-				if msg.Success {
-					unitSelectionSuccess = true
-				}
-				println(fmt.Sprintf("[DummyClient] Select units response: %s", msg.Message))
-			}
-		} else {
-			println(fmt.Sprintf("[DummyClient] Unhandled message type: %s", msgReceived.MessageType))
+		default:
+			// the game may start as soon as the last player picked a faction
+			c.OnServerMessage(msgReceived)
 		}
 	})
-	println("[DummyClient] Starting create game sequence...")
-	util.MustSend(con.Login("creator"))
-	util.WaitForTrue(&loginSuccess)
-	util.MustSend(con.CreateGame("map", "fx's test game", NewRandomDeathmatch(), true))
-	util.WaitForTrue(&createSuccess)
-	util.MustSend(con.SelectFaction("X-Com"))
-	util.WaitForTrue(&factionSuccess)
-	util.MustSend(con.SelectUnits([]UnitChoice{
-		{
-			UnitTypeID: 0,
-			Name:       "Jimmy",
-			Weapon:     "Mossberg 500",
-			Items:      []string{"Smoke Grenade"},
-		},
-
-		{
-			UnitTypeID: 0,
-			Name:       "Bimmy",
-			Weapon:     "Steyr SSG 69",
-			Items:      []string{"Smoke Grenade"},
-		},
-		/*
-			{
-				UnitTypeID: 0,
-				name:       "Timmy",
-				Weapon:     "M16 Rifle",
-			},
-		*/
-		/*
-			{
-				UnitTypeID: 1,
-				name:       "Walker",
-				//Weapon:     "Sniper",
-			},
-
-		*/
-	}))
-	util.WaitForTrue(&unitSelectionSuccess)
-
-	println("[DummyClient] Waiting for game to start...")
-	c.connection.SetEventHandler(c.OnServerMessage)
-}
-
-func (c *DummyClient) resetTurn() {
-	for _, unit := range c.GetMyUnits() {
-		unit.NextTurn()
-	}
-	c.movedUnits = make(map[uint64]bool)
-}
-
-func (c *DummyClient) getNextUnit() (*DummyClientUnit, bool) {
-	for _, unit := range c.GetMyUnits() {
-		if _, ok := c.movedUnits[unit.UnitID()]; !ok {
-			clientUnit, available := c.GetClientUnit(unit.UnitID())
-			if !available {
-				continue
-			}
-			if !clientUnit.IsActive() {
-				continue
-			}
-			return clientUnit, available
+	expectSuccess := func(step string, err error) {
+		util.MustSend(err)
+		if response := <-responses; !response.Success {
+			panic(fmt.Sprintf("[DummyClient] %s failed: %s", step, response.Message))
 		}
 	}
-	return nil, false
+	println("[DummyClient] Starting setup sequence...")
+	expectSuccess("login", con.Login(setup.Username))
+	if setup.CreateGame {
+		expectSuccess("create game", con.CreateGame(setup.MapFile, setup.GameID, setup.Mission, true))
+	} else {
+		expectSuccess("join game", con.JoinGame(setup.GameID))
+	}
+	expectSuccess("select faction", con.SelectFaction(setup.FactionName))
+	expectSuccess("select units", con.SelectUnits(setup.Units))
+	println("[DummyClient] Waiting for game to start...")
+	c.connection.SetEventHandler(c.OnServerMessage)
 }
 
 func (c *DummyClient) createDummyUnit(instance *UnitInstance) *DummyClientUnit {

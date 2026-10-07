@@ -29,6 +29,8 @@ type Map struct {
 	spawnCounter          int
 	textureCallback       func(block *Block, side FaceType) byte
 	maxChunkHeightForDraw int32
+	// cutawayHeight hides all blocks above this Y level (so players can look into buildings); -1 = off
+	cutawayHeight int32
 }
 
 func NewDefaultMap(width, height, depth int32) *Map {
@@ -45,6 +47,7 @@ func NewMap(width, height, depth, chunkSizeHorizontal, chunkSizeHeight int32) *M
 		depth:                 depth,
 		knownUnitPositions:    make(map[uint64][]Int3),
 		maxChunkHeightForDraw: height - 1,
+		cutawayHeight:         -1,
 	}
 	m.ChunkSizeCube = m.ChunkSizeHorizontal * m.ChunkSizeHeight * m.ChunkSizeHorizontal
 	//m.culler = occlusion.NewOcclusionCuller(512, m)
@@ -237,10 +240,52 @@ func (m *Map) ChangeMaxChunkHeightForDraw(change int32) int32 {
 	m.maxChunkHeightForDraw = newValue
 	return newValue
 }
+// ChangeCutawayHeight moves the cutaway level by delta blocks. Going above the map turns it off.
+// It returns the new level (-1 = off).
+func (m *Map) ChangeCutawayHeight(delta int32) int32 {
+	top := m.height*m.ChunkSizeHeight - 1
+	current := m.cutawayHeight
+	if current < 0 {
+		current = m.highestSolidLevel() + 1
+	}
+	current += delta
+	if current >= top || current > m.highestSolidLevel() {
+		m.cutawayHeight = -1
+	} else {
+		m.cutawayHeight = max(current, 1)
+	}
+	return m.cutawayHeight
+}
+
+// CutawayHeight returns the highest visible block level, or -1 when everything is visible.
+func (m *Map) CutawayHeight() int32 {
+	return m.cutawayHeight
+}
+
+func (m *Map) highestSolidLevel() int32 {
+	highest := int32(0)
+	for _, chunk := range m.chunks {
+		if chunk == nil {
+			continue
+		}
+		for i, block := range chunk.data {
+			if block == nil || block.IsAir() {
+				continue
+			}
+			localY := (int32(i) / m.ChunkSizeHorizontal) % m.ChunkSizeHeight
+			highest = max(highest, chunk.chunkPosY*m.ChunkSizeHeight+localY)
+		}
+	}
+	return highest
+}
+
 func (m *Map) Draw(modelUniformIndex int, frustum []mgl32.Vec4) {
 	m.terrainTexture.Begin()
 	for _, chunk := range m.chunks {
 		if chunk == nil || !m.isChunkVisibleInFrustum(frustum, chunk.Position()) || chunk.chunkPosY > m.maxChunkHeightForDraw {
+			continue
+		}
+		if m.cutawayHeight >= 0 && chunk.chunkPosY*m.ChunkSizeHeight > m.cutawayHeight {
 			continue
 		}
 		chunk.Draw(m.chunkShader, modelUniformIndex)
@@ -315,7 +360,37 @@ func (m *Map) SetBlock(x int32, y int32, z int32, block *Block) {
 	chunkZ := z / m.ChunkSizeHorizontal
 	chunk := m.GetChunk(chunkX, chunkY, chunkZ)
 	if chunk != nil {
-		chunk.SetBlock(x%m.ChunkSizeHorizontal, y%m.ChunkSizeHeight, z%m.ChunkSizeHorizontal, block)
+		localX, localY, localZ := x%m.ChunkSizeHorizontal, y%m.ChunkSizeHeight, z%m.ChunkSizeHorizontal
+		chunk.SetBlock(localX, localY, localZ, block)
+		m.dirtyNeighborsAtChunkEdge(chunkX, chunkY, chunkZ, localX, localY, localZ)
+	}
+}
+
+// dirtyNeighborsAtChunkEdge marks adjacent chunks for re-meshing when a block on a chunk border changes,
+// since their faces bordering this block may have become visible or hidden.
+func (m *Map) dirtyNeighborsAtChunkEdge(chunkX, chunkY, chunkZ, localX, localY, localZ int32) {
+	markDirty := func(cx, cy, cz int32) {
+		if cx < 0 || cy < 0 || cz < 0 || cx >= m.width || cy >= m.height || cz >= m.depth {
+			return
+		}
+		if neighbor := m.GetChunk(cx, cy, cz); neighbor != nil {
+			neighbor.SetDirty()
+		}
+	}
+	if localX == 0 {
+		markDirty(chunkX-1, chunkY, chunkZ)
+	} else if localX == m.ChunkSizeHorizontal-1 {
+		markDirty(chunkX+1, chunkY, chunkZ)
+	}
+	if localY == 0 {
+		markDirty(chunkX, chunkY-1, chunkZ)
+	} else if localY == m.ChunkSizeHeight-1 {
+		markDirty(chunkX, chunkY+1, chunkZ)
+	}
+	if localZ == 0 {
+		markDirty(chunkX, chunkY, chunkZ-1)
+	} else if localZ == m.ChunkSizeHorizontal-1 {
+		markDirty(chunkX, chunkY, chunkZ+1)
 	}
 }
 
@@ -759,6 +834,9 @@ func (m *Map) GetSize() Int3 {
 }
 
 func (m *Map) CurrentlyDraws(x int32, y int32, z int32) bool {
+	if m.cutawayHeight >= 0 && y > m.cutawayHeight {
+		return false
+	}
 	chunk := m.GetChunkFromBlock(x, y, z)
 	return chunk != nil && chunk.chunkPosY <= m.maxChunkHeightForDraw
 }

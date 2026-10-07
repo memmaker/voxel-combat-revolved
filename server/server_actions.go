@@ -58,6 +58,10 @@ func GetTargetedAction(g *game.GameInstance, targetAction game.TargetedUnitActio
 		return NewServerActionSnapShot(g, unit, targetAction.Targets)
 	case "Overwatch":
 		return NewServerActionOverwatch(g, unit, targetAction.Targets)
+	case string(game.ReactionDodge):
+		return NewServerActionReaction(unit, game.ReactionDodge)
+	case string(game.ReactionBrace):
+		return NewServerActionReaction(unit, game.ReactionBrace)
 	}
 	return NewInvalidServerAction(fmt.Sprintf("Unknown action %s", targetAction.Action))
 }

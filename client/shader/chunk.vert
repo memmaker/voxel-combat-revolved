@@ -42,6 +42,7 @@ in uint compressedValue;
 flat out vec3 VertNormal;
 out float VertLightLevel;
 out vec3 VertPos;
+out float VertWorldY;
 flat out uint VertTexIndex;
 // set uniform locations
 
@@ -106,5 +107,7 @@ void main() {
     // pass-through for fragment shader
     VertNormal = normalLookup[normalDir];
 
-    gl_Position = camProjectionView * modelTransform * vec4(VertPos, 1.0);
+    vec4 worldPosition = modelTransform * vec4(VertPos, 1.0);
+    VertWorldY = worldPosition.y;
+    gl_Position = camProjectionView * worldPosition;
 }

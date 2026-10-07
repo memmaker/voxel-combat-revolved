@@ -48,11 +48,13 @@ func (a *UnitGotoWaypointBehavior) GetUnitMovementScript(exe *gocoro.Execution) 
 		//util.LogGlobalUnitDebug(fmt.Sprintf("[UnitGotoWaypointBehavior] Reached waypoint %v", a.unit.GetWaypoint()))
 		// we reached a waypoint
 		if a.unit.IsLastWaypoint() {
+			GetAudio().PlayAt(SoundStep, a.unit.GetPosition())
 			a.unit.SetVelocity(mgl32.Vec3{0, 0, 0})
 			a.snapToLastPosition(a.unit.GetWaypoint())
 			a.runToCompletion = true
 			break // end loop
 		} else { // not last waypoint
+			GetAudio().PlayAt(SoundStep, a.unit.GetPosition())
 			a.snapToPosition(a.unit.GetWaypoint())
 			a.unit.NextWaypoint()
 		}

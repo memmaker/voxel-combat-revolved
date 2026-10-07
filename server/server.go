@@ -1,6 +1,7 @@
 package server
 
 import (
+	"sync"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -19,12 +20,16 @@ type BattleServer struct {
 	availableUnits    []*game.UnitDefinition
 	availableWeapons  map[string]*game.WeaponDefinition
 	availableItems    map[string]*game.ItemDefinition
+	content           game.Content
 
 	connectedClients map[uint64]*UserConnection
 
 	// game instances
 	runningGames map[string]*game.GameInstance
 	memClients   uint64
+	// mu serializes all message handling: every client is read on its own goroutine,
+	// but games, users and the maps holding them are shared.
+	mu sync.Mutex
 }
 
 func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string, message string) {
@@ -93,7 +98,62 @@ func (b *BattleServer) GenerateResponse(con net.Conn, id uint64, msgType string,
 		}
 	case "EndTurn":
 		b.EndTurn(id)
+	case "ListGames":
+		b.ListGames(id)
 	}
+}
+
+// ListGames answers with all games that are still waiting for players.
+func (b *BattleServer) ListGames(userID uint64) {
+	user, exists := b.connectedClients[userID]
+	if !exists {
+		return
+	}
+	listing := game.GameListMessage{Games: []game.GameListing{}}
+	for gameID, gameInstance := range b.runningGames {
+		players := gameInstance.GetPlayerIDs()
+		if len(players) >= gameInstance.GetPlayersNeeded() {
+			continue
+		}
+		hostName := ""
+		if len(players) > 0 {
+			if host, known := b.connectedClients[players[0]]; known {
+				hostName = host.name
+			}
+		}
+		listing.Games = append(listing.Games, game.GameListing{
+			GameID:        gameID,
+			HostName:      hostName,
+			MapFile:       gameInstance.GetMapFile(),
+			Scenario:      gameInstance.GetMissionDetails().Scenario,
+			Players:       len(players),
+			PlayersNeeded: gameInstance.GetPlayersNeeded(),
+		})
+	}
+	b.respondWithMessage(user, listing)
+}
+
+// onClientDisconnected ends a running match in favour of the remaining player.
+func (b *BattleServer) onClientDisconnected(userID uint64) {
+	user, exists := b.connectedClients[userID]
+	if !exists {
+		return
+	}
+	delete(b.connectedClients, userID)
+	gameInstance, inGame := b.runningGames[user.activeGame]
+	if !inGame {
+		return
+	}
+	for _, playerID := range gameInstance.GetPlayerIDs() {
+		if playerID != userID {
+			if _, stillConnected := b.connectedClients[playerID]; stillConnected {
+				util.LogGameInfo(fmt.Sprintf("[BattleServer] %s left game '%s'", user.name, gameInstance.GetID()))
+				b.SendGameOver(gameInstance, playerID)
+				return
+			}
+		}
+	}
+	delete(b.runningGames, gameInstance.GetID())
 }
 
 func (b *BattleServer) AddMap(name string, filename string) {
@@ -141,15 +201,20 @@ func (b *BattleServer) ListenTCP(endpoint string) {
 // DialMem connects a client over an in-memory pipe (browser build: no real network).
 func (b *BattleServer) DialMem(string) (net.Conn, error) {
 	clientEnd, serverEnd := game.MemPipe()
+	b.mu.Lock()
 	b.memClients++
-	go b.handleClientRequest(serverEnd, 1<<32+b.memClients)
+	clientID := 1<<32 + b.memClients
+	b.mu.Unlock()
+	go b.handleClientRequest(serverEnd, clientID)
 	return clientEnd, nil
 }
 
 func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 	connectionDropped := func() {
 		util.LogNetworkInfo(fmt.Sprintf("[BattleServer] Client(%d) disconnected!", id))
-		delete(b.connectedClients, id)
+		b.mu.Lock()
+		b.onClientDisconnected(id)
+		b.mu.Unlock()
 		con.Close()
 	}
 	defer connectionDropped()
@@ -171,7 +236,9 @@ func (b *BattleServer) handleClientRequest(con net.Conn, id uint64) {
 		//println(fmt.Sprintf("[BattleServer] Client(%d)->Server msg(%s): %s", id, messageType, message))
 		util.LogNetworkDebug(fmt.Sprintf("\n[Server] FROM Client(%d) msg(%s):\n%s\n", id, messageType, message))
 
+		b.mu.Lock()
 		b.GenerateResponse(con, id, messageType, message)
+		b.mu.Unlock()
 	}
 }
 
@@ -265,6 +332,7 @@ func (b *BattleServer) CreateGame(userId uint64, msg game.CreateGameMessage) {
 	battleGame := game.NewGameInstanceWithDetails(gameID, msg.Map, msg.MissionDetails)
 	//battleGame := game.NewGameInstanceWithBiome(gameID, game.NewBiomeDesert())
 	battleGame.SetEnvironment("Server")
+	battleGame.SetAuthoritative(true)
 	battleGame.AddPlayer(userId)
 
 	listOfBlocks := game.GetDebugBlockNames()
@@ -289,9 +357,13 @@ func (b *BattleServer) JoinGame(id uint64, msg game.JoinGameMessage) {
 		b.respond(user, "JoinGameResponse", game.ActionResponse{Success: false, Message: "Game does not exist"})
 		return
 	}
+	gameInstance := b.runningGames[gameID]
+	if len(gameInstance.GetPlayerIDs()) >= gameInstance.GetPlayersNeeded() {
+		b.respond(user, "JoinGameResponse", game.ActionResponse{Success: false, Message: "Game is full"})
+		return
+	}
 	user.isReady = false
 	user.activeGame = gameID
-	gameInstance := b.runningGames[gameID]
 	gameInstance.AddPlayer(id)
 
 	b.respond(user, "JoinGameResponse", game.ActionResponse{Success: true, Message: "Game joined"})
@@ -464,6 +536,11 @@ func (b *BattleServer) UnitAction(userID uint64, msg game.UnitActionMessage) {
 	}
 
 	mb.SendAll()
+
+	// the match ends as soon as the last opposing unit falls, not only when the turn is ended
+	if isGameOver, winner := gameInstance.IsGameOver(); isGameOver {
+		b.SendGameOver(gameInstance, winner)
+	}
 }
 
 func (b *BattleServer) getUnit(gameInstance *game.GameInstance, user *UserConnection, unitID uint64) (*game.UnitInstance, bool) {
@@ -482,8 +559,13 @@ func (b *BattleServer) getUnit(gameInstance *game.GameInstance, user *UserConnec
 		return nil, false
 	}
 
+	if !gameInstance.IsPlayerTurn(user.id) {
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "It is not your turn"})
+		return nil, false
+	}
+
 	if !unit.CanAct() {
-		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: "Unit cannot act"})
+		b.respondWithMessage(user, game.ActionResponse{Success: false, Message: fmt.Sprintf("Unit %s(%d) cannot act (dead: %t, AP: %.2f)", unit.GetName(), unit.UnitID(), unit.IsDead, unit.GetExactAP())})
 		return nil, false
 	}
 	return unit, true
@@ -522,7 +604,10 @@ func (b *BattleServer) EndTurn(userID uint64) {
 func (b *BattleServer) SendGameOver(instance *game.GameInstance, winner uint64) {
 	println(fmt.Sprintf("[BattleServer] Game '%s' is over, winner is %d", instance.GetID(), winner))
 	for _, playerID := range instance.GetPlayerIDs() {
-		connectedUser := b.connectedClients[playerID]
+		connectedUser, connected := b.connectedClients[playerID]
+		if !connected {
+			continue
+		}
 		connectedUser.activeGame = ""
 		connectedUser.isReady = false
 		b.respond(connectedUser, "GameOver", game.GameOverMessage{
@@ -622,14 +707,8 @@ func (b *BattleServer) Reload(userID uint64, unitID uint64) {
 		return
 	}
 
-	unit, unitExists := gameInstance.GetUnit(unitID)
-	if !unitExists {
-		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit does not exist"})
-		return
-	}
-
-	if !unit.CanAct() {
-		b.respond(user, "ActionResponse", game.ActionResponse{Success: false, Message: "Unit cannot act"})
+	unit, isValidUnit := b.getUnit(gameInstance, user, unitID)
+	if !isValidUnit {
 		return
 	}
 

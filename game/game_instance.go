@@ -89,6 +89,7 @@ type Ruleset struct {
 	IsRangedAttackTurnEnding  bool
 	IsGroundLayerDestructible bool
 	IsThrowTurnEnding         bool
+	ExplosionDamage           int
 }
 
 func NewDefaultRuleset(engine *GameInstance) *Ruleset {
@@ -100,6 +101,7 @@ func NewDefaultRuleset(engine *GameInstance) *Ruleset {
 		OverwatchDamageModifier:   1.1, // 10% bonus damage for overwatch shots
 		IsRangedAttackTurnEnding:  true,
 		IsGroundLayerDestructible: false,
+		ExplosionDamage:           5,
 	}
 }
 
@@ -161,6 +163,11 @@ type GameInstance struct {
 	onBlockEffectAdded   func(voxel.Int3, BlockEffect)
 	onBlockEffectRemoved func(voxel.Int3, BlockEffect)
 	onDebugPos           func(pos, color mgl32.Vec3)
+	onUnitDamaged        func(unit *UnitInstance, damage int, bodyPart util.DamageZone, lethal bool)
+	// isAuthoritative is true on the server. Only the server resolves effect damage;
+	// clients receive the results via UnitDamage lists, so all parties stay in sync.
+	isAuthoritative bool
+	effectDamageLog []UnitDamage
 
 	turnCounter        int
 	activeBlockEffects map[voxel.Int3]BlockStatusEffectInstance
@@ -172,6 +179,34 @@ func (g *GameInstance) SetEnvironment(environment string) {
 }
 func (g *GameInstance) SetOnTargetedEffect(onTargetedEffect func(voxel.Int3, TargetedEffect, float64, int)) {
 	g.onTargetedEffect = onTargetedEffect
+}
+func (g *GameInstance) SetAuthoritative(authoritative bool) {
+	g.isAuthoritative = authoritative
+}
+
+// TakeEffectDamageLog returns the effect damage resolved since the last call and clears the log.
+func (g *GameInstance) TakeEffectDamageLog() []UnitDamage {
+	log := g.effectDamageLog
+	g.effectDamageLog = nil
+	return log
+}
+
+// ApplyUnitDamages applies effect damage that was resolved by the server.
+func (g *GameInstance) ApplyUnitDamages(damages []UnitDamage) {
+	if g.isAuthoritative {
+		return
+	}
+	for _, damage := range damages {
+		unit, known := g.units[damage.UnitID]
+		if !known || !unit.IsActive() {
+			continue
+		}
+		g.ApplyDamage(nil, unit, damage.Damage, damage.BodyPart)
+	}
+}
+
+func (g *GameInstance) SetOnUnitDamaged(onUnitDamaged func(unit *UnitInstance, damage int, bodyPart util.DamageZone, lethal bool)) {
+	g.onUnitDamaged = onUnitDamaged
 }
 func (g *GameInstance) SetOnNotification(onNotification func(string)) {
 	g.onNotification = onNotification
@@ -386,6 +421,14 @@ func (g *GameInstance) GetVoxelMap() *voxel.Map {
 	return g.voxelMap
 }
 
+func (g *GameInstance) GetPlayersNeeded() int {
+	return g.playersNeeded
+}
+
+func (g *GameInstance) IsPublic() bool {
+	return g.public
+}
+
 func (g *GameInstance) GetPlayerIDs() []uint64 {
 	return g.players
 }
@@ -431,6 +474,9 @@ func (g *GameInstance) SaveMapToDisk() {
 }
 func (g *GameInstance) ApplyDamage(attacker, hitUnit *UnitInstance, damage int, bodyPart util.DamageZone) bool {
 	lethal := hitUnit.ApplyDamage(damage, bodyPart)
+	if g.onUnitDamaged != nil {
+		g.onUnitDamaged(hitUnit, damage, bodyPart, lethal)
+	}
 	if lethal {
 		g.Kill(attacker, hitUnit)
 		return true
@@ -448,6 +494,7 @@ func (g *GameInstance) ApplyTargetedEffectFromMessage(msg MessageTargetedEffect)
         g.AddFireAt(msg.Position, msg.TurnsToLive)
 	case TargetedEffectExplosion:
 		g.CreateExplodeEffect(msg.Position, msg.Radius)
+		g.ApplyUnitDamages(msg.UnitDamages)
 	}
 	if g.onTargetedEffect != nil {
 		g.onTargetedEffect(msg.Position, msg.Effect, msg.Radius, msg.TurnsToLive)
@@ -455,7 +502,33 @@ func (g *GameInstance) ApplyTargetedEffectFromMessage(msg MessageTargetedEffect)
 }
 func (g *GameInstance) CreateExplodeEffect(position voxel.Int3, radius float64) {
 	g.logGameInfo(fmt.Sprintf("[%s] Explosion at %s with radius %0.2f", g.environment, position.ToString(), radius))
-	g.voxelMap.ForBlockInSphere(position, radius, g.applyExplosionToSingleBlock)
+	// units span multiple blocks, so collect them first and damage each one only once
+	var affectedUnits []*UnitInstance
+	seen := make(map[uint64]bool)
+	g.voxelMap.ForBlockInSphere(position, radius, func(origin voxel.Int3, radius float64, x, y, z int32) {
+		block := g.voxelMap.GetGlobalBlock(x, y, z)
+		if block == nil || !block.IsOccupied() {
+			return
+		}
+		unit, isUnit := block.GetOccupant().(*UnitInstance)
+		if isUnit && !seen[unit.UnitID()] {
+			seen[unit.UnitID()] = true
+			affectedUnits = append(affectedUnits, unit)
+		}
+	})
+	if g.isAuthoritative {
+		for _, unit := range affectedUnits {
+			damage, braced := g.rules.ExplosionDamage, unit.Reaction == ReactionBrace
+			if braced {
+				damage = BracedExplosionDamage(damage)
+			}
+			g.ApplyDamage(nil, unit, damage, util.ZoneTorso)
+			g.effectDamageLog = append(g.effectDamageLog, UnitDamage{UnitID: unit.UnitID(), Damage: damage, BodyPart: util.ZoneTorso, Braced: braced})
+		}
+	}
+	g.voxelMap.ForBlockInSphere(position, radius, func(origin voxel.Int3, radius float64, x, y, z int32) {
+		g.DestroyBlock(voxel.Int3{X: x, Y: y, Z: z})
+	})
 }
 
 func (g *GameInstance) CreateSmokeCloudEffect(position voxel.Int3, radius float64, turns int) {
@@ -503,15 +576,6 @@ func (g *GameInstance) AddPoisonAt(location voxel.Int3, turns int) {
     println(fmt.Sprintf("[GameInstance] Adding poison at %s", location.ToString()))
     g.addBlockStatusEffect(location, BlockEffectPoison, turns)
 }
-func (g *GameInstance) applyExplosionToSingleBlock(origin voxel.Int3, radius float64, x, y, z int32) {
-	explodingBlock := g.voxelMap.GetGlobalBlock(x, y, z)
-	if explodingBlock.IsOccupied() {
-		affectedUnit := explodingBlock.GetOccupant().(*UnitInstance)
-		g.ApplyDamage(nil, affectedUnit, 5, util.ZoneTorso) // TODO: can we do better with the damage zone? and value..
-	}
-	g.DestroyBlock(voxel.Int3{X: x, Y: y, Z: z})
-}
-
 func (g *GameInstance) DestroyBlock(pos voxel.Int3) {
 	if !g.rules.IsGroundLayerDestructible && pos.Y == 0 { // don't allow in-game destruction of the last ground layer
 		return
@@ -542,6 +606,9 @@ func (g *GameInstance) HandleUnitHitWithProjectile(attacker *UnitInstance, damag
 	projectileBaseDamage = attacker.GetWeapon().AdjustDamageForDistance(float32(distance), projectileBaseDamage)
 
 	projectileBaseDamage = int(math.Ceil(float64(projectileBaseDamage) * damageModifier))
+	if hitUnit.Reaction == ReactionBrace {
+		projectileBaseDamage = BracedBulletDamage(projectileBaseDamage)
+	}
 
     // state changes here
 	// 1. apply damage

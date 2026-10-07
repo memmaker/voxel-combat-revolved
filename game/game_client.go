@@ -15,6 +15,7 @@ type ClientUnit interface {
 	UnitID() uint64
 	GetBlockPosition() voxel.Int3
 	SetBlockPosition(voxel.Int3)
+	SetBlockPositionAndUpdateStance(voxel.Int3)
 	SetForward(vec3 voxel.Int3)
 	UseMovement(cost float64)
 	ConsumeAP(cost int)
@@ -194,7 +195,8 @@ func (a *GameClient[U]) OnOwnUnitMoved(msg VisualOwnUnitMoved) {
 		a.AddOrUpdateUnit(acquiredLOSUnit)
 	}
 
-	unit.SetBlockPosition(destination)
+	// also moves the unit's occupied blocks on the map, which explosions and line of sight rely on
+	unit.SetBlockPositionAndUpdateStance(destination)
 }
 
 func (a *GameClient[U]) SetLOSLost(observer, unitID uint64) {
@@ -241,6 +243,16 @@ func (a *GameClient[U]) ResetUnitsForNextTurn() {
 	}
 }
 
+// OnReaction marks one of our units as dodging or bracing; this ends its turn.
+func (a *GameClient[U]) OnReaction(msg VisualReaction) {
+	unit, exists := a.GetUnit(msg.UnitID())
+	if !exists {
+		return
+	}
+	unit.Reaction = msg.Reaction
+	unit.EndTurn()
+}
+
 func (a *GameClient[U]) OnBeginOverwatch(msg VisualBeginOverwatch) {
 	unit, exists := a.GetClientUnit(msg.Watcher)
 	if !exists {
@@ -277,8 +289,7 @@ func (a *GameClient[U]) OnEnemyUnitMoved(msg VisualEnemyUnitMoved) {
 			movingUnit.SetForward(msg.UpdatedUnit.GetForward())
 		}
 		if hasPath && a.UnitIsVisibleToPlayer(a.GetControllingUserID(), movingUnit.UnitID()) { // if the unit has actually moved further, but we lost LOS, this will set a wrong position
-			// even worse: if we lost the LOS, the unit was removed from the map, but this will add it again.
-			movingUnit.SetBlockPosition(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
+			movingUnit.SetBlockPositionAndUpdateStance(msg.PathParts[len(msg.PathParts)-1][len(msg.PathParts[len(msg.PathParts)-1])-1])
 		}
 	}
 
@@ -332,18 +343,18 @@ func (a *GameClient[U]) OnRangedAttack(msg VisualRangedAttack) {
 		projectile := p
 		if projectile.UnitHit >= 0 {
 			victim, ok := a.GetUnit(uint64(projectile.UnitHit))
-			if !ok {
-				println(fmt.Sprintf("[%s] Projectile hit unknown unit %d, but unit not found", a.environment, projectile.UnitHit))
-				return
+			if ok {
+				a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
+			} else {
+				println(fmt.Sprintf("[%s] Projectile hit unknown unit %d", a.environment, projectile.UnitHit))
 			}
-			a.ApplyDamage(attackerUnit, victim, projectile.Damage, projectile.BodyPart)
-			println(fmt.Sprintf("[%s] Projectile hit unit %s(%d)", a.environment, victim.GetName(), victim.UnitID()))
 		}
 
 		for _, damagedBlock := range projectile.BlocksHit {
 			blockDef := a.GetBlockDefAt(damagedBlock)
 			blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
 		}
+		a.ApplyUnitDamages(projectile.EffectDamages)
 
 		if projectile.InsteadOfDamage.Effect != TargetedEffectNone {
 			a.GameInstance.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage)

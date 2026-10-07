@@ -1,12 +1,14 @@
 package client
 
 import (
+	"os"
 	"fmt"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/afs"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -79,6 +81,17 @@ type BattleClient struct {
 	selectedBlocks             []voxel.Int3
 	scriptedAnimation          gocoro.Coroutine
 	currentlyMovingUnits       bool
+	hud                        *HUD
+	animatingProjectileImpact  bool
+	autoPlayer                 *autoPlayer
+	audio                      *Audio
+	ui                         *UI
+	overlay                    overlayKind
+	uiClicked                  bool
+	stats                      MatchStats
+	outcome                    MatchOutcome
+	wonMatch                   bool
+	canRematch                 bool
 }
 
 func (a *BattleClient) state() GameState {
@@ -111,20 +124,31 @@ type ClientSettings struct {
 	EnableBulletCam                  bool
 	EnableActionCam                  bool
 	AutoSwitchToIsoCameraAfterFiring bool
+	SoundVolume                      float32
 }
 
 func NewClientSettingsFromFile(filename string) ClientSettings {
 	if util.DoesFileExist(filename) {
-		var settings ClientSettings
+		settings := DefaultClientSettings() // keys missing in the file keep their defaults
 		file, _ := afs.ReadFile(filename)
 		if util.FromJson(string(file), &settings) {
 			return settings
 		}
 	}
-	return ClientSettings{ // default settings
-		Width:                  800,
-		Height:                 600,
-		FPSCameraInvertedMouse: true,
+	return DefaultClientSettings()
+}
+
+func DefaultClientSettings() ClientSettings {
+	return ClientSettings{
+		Title:                            "Block Tactics",
+		Width:                            1280,
+		Height:                           720,
+		FPSCameraInvertedMouse:           true,
+		FPSCameraMouseSensitivity:        0.08,
+		ISOCameraScrollZoomSpeed:         4,
+		EnableCameraAnimations:           true,
+		AutoSwitchToIsoCameraAfterFiring: true,
+		SoundVolume:                      0.7,
 	}
 }
 
@@ -137,15 +161,14 @@ const (
 	ParticlesSmoke
 )
 
-func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage, settings ClientSettings) *BattleClient {
-	window, terminateFunc := util.InitOpenGLWindow(settings.Title, settings.Width, settings.Height, settings.FullScreen)
+// NewBattleGame creates the battle view in an existing window; the caller owns the window's lifetime.
+func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos game.GameStartedMessage, settings ClientSettings) *BattleClient {
 	usedWidth, usedHeight := window.GetSize()
 	glApp := &util.GlApplication{
-		WindowWidth:   usedWidth,
-		WindowHeight:  usedHeight,
-		Window:        window,
-		TerminateFunc: terminateFunc,
-		TimeFactor:    1.0,
+		WindowWidth:  usedWidth,
+		WindowHeight: usedHeight,
+		Window:       window,
+		TimeFactor:   1.0,
 	}
 	window.SetKeyCallback(glApp.KeyCallback)
 	window.SetCursorPosCallback(glApp.MousePosCallback)
@@ -253,6 +276,19 @@ func NewBattleGame(con *game.ServerConnection, initInfos game.GameStartedMessage
 	myApp.textLabel = util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
 	myApp.textLabel.SetScale(1)
 	myApp.textLabel.SetTintColor(game.ColorTechTeal.Vec3())
+
+	myApp.hud = NewHUD(myApp, myApp.guiShader, func() *util.BitmapFontMesh {
+		return util.NewBitmapFontMesh(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper())
+	}, 8, 14)
+	myApp.GameClient.SetOnUnitDamaged(myApp.onUnitDamaged)
+	myApp.ui = NewUI(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper(), 8, 14)
+	myApp.autoPlayer = newAutoPlayerFromEnv(myApp)
+	if os.Getenv("BT_OVERLAY") == "help" { // development aid for screenshots
+		myApp.overlay = overlayHelp
+	}
+	myApp.audio = GetAudio()
+	myApp.audio.SetVolume(settings.SoundVolume)
+	myApp.audio.SetListener(myApp.listenerPosition)
 
 	myApp.unitSelector = NewGroundSelector(assetLoader.LoadMesh("flatselector"), myApp.defaultShader)
 
@@ -383,8 +419,12 @@ func (a *BattleClient) Update(elapsed float64) {
 	a.updateProjectiles(elapsed)
 	a.updateUnits(elapsed)
 	a.smoker.Update(elapsed)
+	a.hud.Update(elapsed)
 
 	a.updateDebugInfo()
+	if a.autoPlayer != nil {
+		a.autoPlayer.update(elapsed)
+	}
 	stopUpdateTimer()
 
 }
@@ -450,6 +490,11 @@ func (a *BattleClient) drawWorld(cam util.Camera) {
 	a.chunkShader.Begin()
 
 	a.chunkShader.SetUniformAttr(0, cam.GetProjectionViewMatrix())
+	cutaway := float32(-1)
+	if level := a.GetVoxelMap().CutawayHeight(); level >= 0 && !a.cameraIsFirstPerson {
+		cutaway = float32(level + 1) // a block at level y spans y..y+1
+	}
+	a.chunkShader.SetUniformAttr(4, cutaway)
 
 	a.GetVoxelMap().Draw(1, cam.GetFrustumPlanes())
 
@@ -464,7 +509,7 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
 	for _, unit := range a.GetAllClientUnits() { // TODO: view frustum culling
-		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) {
+		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) && !a.isCutAway(unit.GetBlockPosition().Y) {
 			unit.Draw(a.defaultShader)
 
 		}
@@ -536,6 +581,7 @@ func (a *BattleClient) drawLines(cam util.Camera) {
 
 func (a *BattleClient) drawGUI() {
 	a.guiShader.Begin()
+	a.hud.Draw(a.camera(), a.cameraIsFirstPerson)
 	if a.textLabel != nil {
 		a.textLabel.Draw()
 	}
@@ -549,6 +595,8 @@ func (a *BattleClient) drawGUI() {
 		a.guiShader.SetUniformAttr(3, mgl32.Vec4{0, 0, 0, 0}) // discard
 		a.actionbar.Draw()
 	}
+
+	a.drawOverlay()
 
 	a.guiShader.End()
 }
@@ -827,6 +875,11 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		if util.FromJson(messageAsJson, &msg) {
 			a.OnReload(msg)
 		}
+	case "Reaction":
+		var msg game.VisualReaction
+		if util.FromJson(messageAsJson, &msg) {
+			a.OnReaction(msg)
+		}
 	case "DebugResponse":
 		var msg game.CompleteGameState
 		if util.FromJson(messageAsJson, &msg) {
@@ -834,11 +887,49 @@ func (a *BattleClient) OnServerMessage(msgType, messageAsJson string) {
 		}
 	}
 	a.state().OnServerMessage(msgType, messageAsJson)
+	if a.autoPlayer != nil {
+		a.notifyAutoPlayer(msgType, messageAsJson)
+	}
+}
+
+func (a *BattleClient) notifyAutoPlayer(msgType, messageAsJson string) {
+	switch msgType {
+	case "NextPlayer":
+		var msg game.NextPlayerMessage
+		if util.FromJson(messageAsJson, &msg) {
+			a.autoPlayer.onTurnStarted(msg.YourTurn)
+		}
+	case "GameOver":
+		a.autoPlayer.onGameOver()
+	case "ActionResponse":
+		var msg game.ActionResponse
+		if util.FromJson(messageAsJson, &msg) && !msg.Success {
+			a.autoPlayer.onActionFailed()
+		}
+	case "OwnUnitMoved", "Reload":
+		a.autoPlayer.onOwnActionFinished()
+	case "RangedAttack":
+		var msg game.VisualRangedAttack
+		if util.FromJson(messageAsJson, &msg) && a.IsMyUnit(msg.Attacker) {
+			a.autoPlayer.onOwnActionFinished()
+		}
+	case "Throw":
+		var msg game.VisualThrow
+		if util.FromJson(messageAsJson, &msg) && a.IsMyUnit(msg.Attacker) {
+			a.autoPlayer.onOwnActionFinished()
+		}
+	case "BeginOverwatch":
+		var msg game.VisualBeginOverwatch
+		if util.FromJson(messageAsJson, &msg) && a.IsMyUnit(msg.Watcher) {
+			a.autoPlayer.onOwnActionFinished()
+		}
+	}
 }
 
 func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
 	unit, known := a.GetClientUnit(msg.Watcher)
 	if known && a.IsMyUnit(msg.Watcher) {
+		a.audio.Play(SoundOverwatch)
 		a.highlights.ClearFlat(voxel.HighlightTarget)
 		a.highlights.ClearAndUpdateFlat(voxel.HighlightMove)
 		a.GameClient.OnBeginOverwatch(msg)
@@ -849,14 +940,31 @@ func (a *BattleClient) OnBeginOverwatch(msg game.VisualBeginOverwatch) {
 	}
 }
 
+func (a *BattleClient) OnReaction(msg game.VisualReaction) {
+	unit, known := a.GetClientUnit(msg.UnitID())
+	if !known {
+		return
+	}
+	a.GameClient.OnReaction(msg)
+	a.audio.Play(SoundOverwatch)
+	a.hud.AddFloatingText(string(msg.Reaction), unit.GetPosition().Add(mgl32.Vec3{0, 2.9, 0}), game.ColorTechTeal.Vec3())
+	if a.selectedUnit == unit {
+		a.SwitchToNextUnit(unit)
+	}
+}
+
 func (a *BattleClient) OnReload(msg game.UnitMessage) {
 	unit, _ := a.GetClientUnit(msg.UnitID())
+	a.audio.PlayAt(SoundReload, unit.GetPosition())
 	unit.Reload()
 	a.Print(fmt.Sprintf("%s reloaded the %s.", unit.GetName(), unit.GetWeapon().Definition.UniqueName))
 	a.UpdateActionbarFor(unit)
 }
 func (a *BattleClient) OnThrow(msg game.VisualThrow) {
 	attacker, knownAttacker := a.GetClientUnit(msg.Attacker)
+	if len(msg.Flyers) > 0 && len(msg.Flyers[0].Trajectory) > 0 {
+		a.audio.PlayAt(SoundThrow, msg.Flyers[0].Trajectory[0])
+	}
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
 		attackerUnit = attacker.UnitInstance
@@ -877,12 +985,17 @@ func (a *BattleClient) OnThrow(msg game.VisualThrow) {
 	for _, flyer := range msg.Flyers {
 		a.SpawnThrownObject(flyer.Trajectory, func() {
 			a.ApplyTargetedEffectFromMessage(flyer.Consequence)
+			for _, damage := range flyer.Consequence.UnitDamages {
+				if braced, known := a.GetClientUnit(damage.UnitID); known && damage.Braced {
+					a.hud.AddFloatingText("BRACED", braced.GetPosition().Add(mgl32.Vec3{0, 3.3, 0}), game.ColorTechTeal.Vec3())
+				}
+			}
 		})
 	}
 }
 
 func (a *BattleClient) OnRangedAttack(msg game.VisualRangedAttack) {
-	// TODO: animate unit firing
+	a.recordShots(msg)
 	attacker, knownAttacker := a.GetClientUnit(msg.Attacker)
 	var attackerUnit *game.UnitInstance
 	if knownAttacker {
@@ -931,6 +1044,9 @@ func (a *BattleClient) fireProjectiles(weaponType game.WeaponType, projectiles [
 		projectile := p
 		index := i
 		launchFunc := func() {
+			if index == 0 || weaponType != game.WeaponShotgun { // a shotgun fires all pellets with one bang
+				a.audio.PlayWeapon(weaponType, projectile.Origin)
+			}
 			newProjectile := a.SpawnProjectile(projectile.Origin, projectile.Velocity, projectile.Destination, func() {
 				if onProjectileArrived != nil {
 					onProjectileArrived(index, projectile)
@@ -969,13 +1085,26 @@ func (a *BattleClient) fireProjectiles(weaponType game.WeaponType, projectiles [
 }
 
 func (a *BattleClient) handleProjectileArrival(attackerUnit *game.UnitInstance, projectile game.VisualProjectile) {
+	if projectile.Dodged {
+		if dodger, known := a.GetClientUnit(projectile.DodgedUnit); known {
+			a.hud.AddFloatingText("DODGED", dodger.GetPosition().Add(mgl32.Vec3{0, 3.3, 0}), game.ColorTechTeal.Vec3())
+			a.audio.PlayAt(SoundThrow, dodger.GetPosition())
+		}
+	}
+	if projectile.Braced && projectile.UnitHit >= 0 {
+		if braced, known := a.GetClientUnit(uint64(projectile.UnitHit)); known {
+			a.hud.AddFloatingText("BRACED", braced.GetPosition().Add(mgl32.Vec3{0, 3.3, 0}), game.ColorTechTeal.Vec3())
+		}
+	}
 	if projectile.UnitHit >= 0 {
 		unit, ok := a.GetClientUnit(uint64(projectile.UnitHit))
 		if !ok {
 			println(fmt.Sprintf("[BattleClient] Projectile hit unit %d, but unit not found", projectile.UnitHit))
 			return
 		}
+		a.animatingProjectileImpact = true
 		isLethal := a.ApplyDamage(attackerUnit, unit.UnitInstance, projectile.Damage, projectile.BodyPart)
+		a.animatingProjectileImpact = false
 		if isLethal {
 			unit.PlayDeathAnimation(projectile.Velocity, projectile.BodyPart)
 		} else {
@@ -983,10 +1112,12 @@ func (a *BattleClient) handleProjectileArrival(attackerUnit *game.UnitInstance, 
 		}
 
 		a.AddBlood(unit, projectile.Destination, projectile.Velocity, projectile.BodyPart)
+		a.audio.PlayAt(SoundImpactFlesh, projectile.Destination)
 
 		println(fmt.Sprintf("[BattleClient] Projectile hit unit %s(%d)", unit.GetName(), unit.UnitID()))
 	} else {
 		a.AddBulletImpact(projectile.Destination, projectile.Velocity)
+		a.audio.PlayAt(SoundImpactWall, projectile.Destination)
 	}
 
 	if projectile.InsteadOfDamage.Effect != game.TargetedEffectNone {
@@ -997,6 +1128,7 @@ func (a *BattleClient) handleProjectileArrival(attackerUnit *game.UnitInstance, 
 		blockDef := a.GetBlockDefAt(damagedBlock)
 		blockDef.OnDamageReceived(damagedBlock, projectile.Damage)
 	}
+	a.ApplyUnitDamages(projectile.EffectDamages)
 	return
 }
 
@@ -1199,10 +1331,15 @@ func (a *BattleClient) OnEnemyUnitMoved(msg game.VisualEnemyUnitMoved) {
 		}
 	}
 	currentPathPart := 0
+	idleElsewhere := 0.0
 	observerPositionReached := func(deltaTime float64) bool { return false }
 	observerPositionReached = func(deltaTime float64) bool {
 		reachedLastWaypoint := voxel.PositionToGridInt3(movingUnit.GetPosition()) == movingUnit.GetLastWaypoint()
 		if !reachedLastWaypoint { // not yet at last waypoint
+			if movingUnit.IsIdle() { // safety net, see OnOwnUnitMoved
+				idleElsewhere += deltaTime
+				return idleElsewhere > 2
+			}
 			return false
 		}
 		// we reached the last waypoint of the current path part
@@ -1273,8 +1410,21 @@ func (a *BattleClient) OnOwnUnitMoved(msg game.VisualOwnUnitMoved) {
 			a.SwitchToUnit(unit)
 		}
 	}
-	destinationReached := func(deltaTime float64) bool { // problem: we are hanging here..
-		return unit.IsAtLocation(destination)
+	idleElsewhere := 0.0
+	destinationReached := func(deltaTime float64) bool {
+		if unit.IsAtLocation(destination) {
+			return true
+		}
+		// safety net: if the unit stopped somewhere else (an interrupted animation), snap it into place
+		// instead of waiting forever, which would also block all further updates of the line of sight
+		if unit.IsIdle() {
+			idleElsewhere += deltaTime
+			if idleElsewhere > 2 {
+				util.LogGraphicalClientGameError(fmt.Sprintf("[BattleClient] %s stopped at %v instead of %v, snapping", unit.GetName(), unit.GetBlockPosition(), destination))
+				return true
+			}
+		}
+		return false
 	}
 	a.scheduleWaitForCondition(destinationReached, changeLOS)
 
@@ -1300,7 +1450,9 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 
 	*/
 
+	a.hud.OnTurnStarted(msg.YourTurn)
 	if msg.YourTurn {
+		a.audio.Play(SoundTurnStart)
 		a.smoker.NextTurn()
 
 		a.ResetOverwatch()
@@ -1366,6 +1518,7 @@ func (a *BattleClient) pollNetwork() {
 func (a *BattleClient) OnGameOver(msg game.GameOverMessage) {
 	a.GameClient.OnGameOver(msg)
 	a.SwitchToWaitForEvents()
+	a.showGameOver(msg.YouWon)
 	var printedMessage string
 	if msg.YouWon {
 		printedMessage = "VICTORY!"
@@ -1516,7 +1669,35 @@ func (a *BattleClient) OnTargetedEffect(origin voxel.Int3, effect game.TargetedE
 	}
 }
 
+// onUnitDamaged is called for every point of damage applied on this client, from projectiles and explosions alike.
+func (a *BattleClient) onUnitDamaged(unitInstance *game.UnitInstance, damage int, bodyPart util.DamageZone, lethal bool) {
+	unit, known := a.GetClientUnit(unitInstance.UnitID())
+	if !known {
+		return
+	}
+	a.recordDamage(unitInstance, damage, lethal)
+	textPos := unit.GetPosition().Add(mgl32.Vec3{0, 2.9, 0})
+	if lethal {
+		a.audio.PlayAt(SoundDeath, textPos)
+		a.hud.AddFloatingText(fmt.Sprintf("-%d KILLED", damage), textPos, game.ColorNegativeRed.Vec3())
+	} else if bodyPart == util.ZoneWeapon {
+		a.hud.AddFloatingText("WEAPON HIT", textPos, mgl32.Vec3{0.95, 0.75, 0.1})
+	} else {
+		a.hud.AddFloatingText(fmt.Sprintf("-%d %s", damage, bodyPart), textPos, mgl32.Vec3{1, 0.85, 0.3})
+	}
+	if a.animatingProjectileImpact {
+		return // the projectile code plays the matching hit/death animation with the bullet's direction
+	}
+	force := mgl32.Vec3{0, 1, 0}
+	if lethal {
+		unit.PlayDeathAnimation(force, bodyPart)
+	} else {
+		unit.PlayHitAnimation(force, bodyPart)
+	}
+}
+
 func (a *BattleClient) createExplosion(origin voxel.Int3, radius float64) {
+	a.audio.PlayAt(SoundExplosion, origin.ToBlockCenterVec3())
 	// velocity is hardcoded to 20..
 	lifeTime := float32(radius / 20.0)
 	properties := a.particleProps[ParticlesExplosion].WithOrigin(origin.ToBlockCenterVec3()).WithLifeTime(lifeTime)
@@ -1549,4 +1730,19 @@ func (a *BattleClient) DebugPosHandler(pos, color mgl32.Vec3) {
 		a.trailParticles.Emit(props, 1)
 	}
 
+}
+
+// listenerPosition is where sounds are heard from: the camera in first person, the looked-at spot otherwise.
+func (a *BattleClient) listenerPosition() mgl32.Vec3 {
+	if a.cameraIsFirstPerson {
+		transform := a.fpsCamera.GetTransform()
+		return transform.GetPosition()
+	}
+	return a.isoCamera.GetLookTarget()
+}
+
+// isCutAway reports whether something standing at block level y is hidden by the cutaway view.
+func (a *BattleClient) isCutAway(y int32) bool {
+	level := a.GetVoxelMap().CutawayHeight()
+	return level >= 0 && !a.cameraIsFirstPerson && y > level
 }

@@ -1,0 +1,108 @@
+[
+  {
+    "Name": "X-Com",
+    "Color": [
+      0,
+      0,
+      1
+    ],
+    "Units": [
+      {
+        "ID": 0,
+        "ClientRepresentation": {
+          "TextureFile": "steve"
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        }
+      },
+      {
+        "ID": 1,
+        "ClientRepresentation": {
+          "TextureFile": ""
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "walker_3x3",
+        "AnimationMap": null
+      }
+    ]
+  },
+  {
+    "Name": "Deep Ones",
+    "Color": [
+      1,
+      0,
+      0
+    ],
+    "Units": [
+      {
+        "ID": 2,
+        "ClientRepresentation": {
+          "TextureFile": ""
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "soldier",
+        "AnimationMap": {
+          "climb": "animation.climb",
+          "death_twohand": "animation.death",
+          "drop": "animation.drop",
+          "fire": "animation.weapon_fire",
+          "hit": "animation.hit",
+          "idle_nogun": "animation.idle",
+          "idle_twohand": "animation.weapon_idle",
+          "run_twohand": "animation.weapon_walk",
+          "wall_idle_twohand_left": "animation.wall_idle_Left",
+          "wall_idle_twohand_right": "animation.wall_idle_right"
+        }
+      },
+      {
+        "ID": 3,
+        "ClientRepresentation": {
+          "TextureFile": ""
+        },
+        "CoreStats": {
+          "Health": 10,
+          "Accuracy": 0.9,
+          "MovementPerAP": 3,
+          "MaxActionPoints": 4,
+          "ThrowVelocity": 12,
+          "BaseAPForThrow": 2
+        },
+        "ModelFile": "deep_monster_3x3",
+        "AnimationMap": null
+      }
+    ]
+  }
+]

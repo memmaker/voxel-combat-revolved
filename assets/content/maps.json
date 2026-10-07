@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "Urban (random)",
+    "File": "gen:urban:random"
+  },
+  {
+    "Name": "Ruins (random)",
+    "File": "gen:ruins:random"
+  },
+  {
+    "Name": "Outpost (random)",
+    "File": "gen:outpost:random"
+  },
+  {
+    "Name": "Dev Map",
+    "File": "map"
+  }
+]

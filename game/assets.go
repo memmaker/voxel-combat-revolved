@@ -37,6 +37,9 @@ func NewAssets() *Assets {
 	}
 }
 func (a *Assets) LoadMapWithDetails(mapFile string, details *MissionDetails) *DefaultMapInfo {
+	if IsGeneratedMap(mapFile) {
+		return a.generateMapWithDetails(mapFile, details)
+	}
 	mapMetadata := a.LoadMapMetadata(mapFile)
 	details.SyncFromMap(mapMetadata)
 	library := a.LoadBlockLibrary(mapMetadata.Blocks)
@@ -47,6 +50,34 @@ func (a *Assets) LoadMapWithDetails(mapFile string, details *MissionDetails) *De
 		blockLibrary: library,
 		loadedMap:    voxel.NewMapFromSource(a.LoadMap(mapFile), nil, nil),
 	}
+}
+
+func (a *Assets) generateMapWithDetails(mapName string, details *MissionDetails) *DefaultMapInfo {
+	style, seed, err := ParseGeneratedMap(mapName)
+	if err != nil {
+		panic(err)
+	}
+	library := a.LoadBlockLibrary(generatedBlockSet)
+	generated, mapMetadata, err := GenerateBattlefield(style, seed, library)
+	if err != nil {
+		panic(err)
+	}
+	details.SyncFromMap(mapMetadata)
+	return &DefaultMapInfo{
+		mapFile:      mapName,
+		details:      details,
+		metaData:     &mapMetadata,
+		blockLibrary: library,
+		loadedMap:    generated,
+	}
+}
+
+// LoadVoxelMap returns a fresh copy of the named map, generated or loaded from disk.
+func (a *Assets) LoadVoxelMap(mapName string) *voxel.Map {
+	if IsGeneratedMap(mapName) {
+		return a.generateMapWithDetails(mapName, NewRandomDeathmatch()).GetMap()
+	}
+	return voxel.NewMapFromSource(a.LoadMap(mapName), nil, nil)
 }
 
 func (a *Assets) LoadBiomeWithDetails(biome Biome, details *MissionDetails) MapInfo {

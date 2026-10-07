@@ -28,6 +28,10 @@ type GlApplication struct {
 	FPSMin             float64
 	FPSMax             float64
 	TimeFactor         float64
+	// SpeedMultiplier is the player's fast-forward setting, applied on top of TimeFactor (0 means 1).
+	SpeedMultiplier float64
+	// StopRequested ends Run after the current frame, without terminating the window.
+	StopRequested bool
 }
 
 func (a *GlApplication) KeyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
@@ -72,13 +76,16 @@ func (a *GlApplication) MouseButtonCallback(w *glfw.Window, button glfw.MouseBut
 	}
 }
 func (a *GlApplication) Run() {
-	defer a.TerminateFunc()
+	if a.TerminateFunc != nil {
+		defer a.TerminateFunc()
+	}
 	previousTime := glfw.GetTime()
 	// Start Render Loop
 	shouldQuit := false
 	time := glfw.GetTime()
+	screenshots := NewAutoScreenshot()
 	for !shouldQuit {
-		if a.Window.ShouldClose() {
+		if a.Window.ShouldClose() || a.StopRequested {
 			shouldQuit = true
 		}
 
@@ -91,8 +98,16 @@ func (a *GlApplication) Run() {
 		elapsed := time - previousTime
 		previousTime = time
 
-		a.UpdateFunc(elapsed * a.TimeFactor)
-		a.DrawFunc(elapsed * a.TimeFactor)
+		speed := a.TimeFactor
+		if a.SpeedMultiplier > 0 {
+			speed *= a.SpeedMultiplier
+		}
+		a.UpdateFunc(elapsed * speed)
+		a.DrawFunc(elapsed * speed)
+		if screenshots != nil {
+			fbWidth, fbHeight := a.Window.GetFramebufferSize()
+			screenshots.Update(elapsed, fbWidth, fbHeight)
+		}
 
 		a.FramesPerSecond = 1.0 / elapsed
 		if a.Ticks%60 == 0 {

@@ -84,16 +84,20 @@ func (a *ServerActionThrow) Execute(mb *game.MessageBuffer) {
 
 		finalBlockPos := voxel.PositionToGridInt3(finalWorldPos)
 		a.lastAimDirection = finalWorldPos.Sub(a.unit.GetPosition()).Normalize()
+		consequence := game.MessageTargetedEffect{
+			Position:    finalBlockPos,
+			TurnsToLive: item.Definition.TurnsToLive,
+			Radius:      item.Definition.Radius,
+			Effect:      item.Definition.Effect,
+		}
+		// the server is authoritative: damage, destruction and clouds must happen here too, not only on the clients
+		a.engine.ApplyTargetedEffectFromMessage(consequence)
+		consequence.UnitDamages = a.engine.TakeEffectDamageLog()
 		flyers = append(flyers, game.VisualFlightWithImpact{
 			Trajectory:    trajectory,
 			VisitedBlocks: visitedBlocks,
 			FinalWorldPos: finalWorldPos,
-			Consequence: game.MessageTargetedEffect{
-				Position:    finalBlockPos,
-				TurnsToLive: item.Definition.TurnsToLive,
-				Radius:      item.Definition.Radius,
-				Effect:      item.Definition.Effect,
-			},
+			Consequence:   consequence,
 		})
 	}
 

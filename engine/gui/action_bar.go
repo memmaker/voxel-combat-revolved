@@ -168,3 +168,21 @@ func (a *ActionBar) HandleKeyEvent(key glfw.Key) bool {
 	}
 	return false
 }
+
+// ItemCount returns the number of actions currently shown.
+func (a *ActionBar) ItemCount() int {
+	if a.isHidden {
+		return 0
+	}
+	return len(a.actions)
+}
+
+// ItemBounds returns the screen rectangle of the action at index.
+func (a *ActionBar) ItemBounds(index int) Rectangle {
+	return a.actions[index].bounds
+}
+
+// IsHidden reports whether the bar is currently hidden.
+func (a *ActionBar) IsHidden() bool {
+	return a.isHidden
+}

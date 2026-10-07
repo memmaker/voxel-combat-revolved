@@ -103,6 +103,7 @@ func (t *BitmapFontMesh) SetMultilineText(text []string) {
 		curDrawPos = curDrawPos.Add(mgl32.Vec3{float32(-tWidth / 2), float32(-tHeight / 2), 0})
 	}
 
+	lineStartX := curDrawPos.X()
 	var rawVertices []glhf.GlFloat
 	for _, line := range text {
 		for _, character := range line {
@@ -133,7 +134,8 @@ func (t *BitmapFontMesh) SetMultilineText(text []string) {
 			curDrawPos = curDrawPos.Add(mgl32.Vec3{float32(charWidth + paddingBetweenCharacters), 0, 0})
 		}
 
-		curDrawPos = mgl32.Vec3{t.pos.X(), curDrawPos.Y() + float32(charHeight+paddingBetweenLines), t.pos.Z()}
+		// vertices are relative to the label; its position is applied by the model matrix
+		curDrawPos = mgl32.Vec3{lineStartX, curDrawPos.Y() + float32(charHeight+paddingBetweenLines), 0}
 	}
 	t.setVertices(rawVertices)
 }

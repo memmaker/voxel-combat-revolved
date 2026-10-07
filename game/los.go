@@ -349,7 +349,7 @@ func (g *GameInstance) RayCastFreeAim(rayStart, rayEnd mgl32.Vec3, sourceUnit *U
 		if colliderName == hitUnit.GetWeapon().Definition.Model {
 			partName = util.ZoneWeapon
 		} else {
-			partName = util.DamageZone(colliderName)
+			partName = util.ZoneFromPartName(colliderName)
 		}
 		//println(fmt.Sprintf("Checked ray %v -> %v against %s. Hit Zone: %s", rayStart, rayEnd, hitUnit.GetName(), partName))
 	}

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/glhf"
@@ -117,6 +118,9 @@ func (p *Unit) applyVelocity(deltaTime float64) {
 }
 
 func (p *Unit) SetState(nextState AnimationStateName, event TransitionEvent) {
+	if os.Getenv("BT_TRACE_STATES") != "" && p.state != nil && event != nil {
+		println(fmt.Sprintf("[TRACE] %s: %s -> %s (event %s, velocity %v, pos %v, path %v wp %d)", p.GetName(), p.state.GetName().ToString(), nextState.ToString(), event.Name().ToString(), p.velocity, p.GetPosition(), p.currentPath, p.currentWaypoint))
+	}
 	p.state = BehaviorFactory(nextState)
     p.state.Init(p, event)
 }

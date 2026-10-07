@@ -40,6 +40,16 @@ type MessageTargetedEffect struct {
 	Effect      TargetedEffect
 	TurnsToLive int
 	Radius      float64
+	// UnitDamages is decided by the server; clients apply exactly these instead of recomputing the blast
+	UnitDamages []UnitDamage `json:",omitempty"`
+}
+
+// UnitDamage is damage dealt to a unit by an effect (explosions), as resolved by the server.
+type UnitDamage struct {
+	UnitID   uint64
+	Damage   int
+	BodyPart util.DamageZone
+	Braced   bool `json:",omitempty"`
 }
 
 type VisualFlightWithImpact struct {
@@ -83,6 +93,13 @@ type VisualProjectile struct {
 	BlocksHit       []voxel.Int3 // BlocksHit will only contain blocks that have an OnDamageReceived effect
 	VisitedBlocks   []voxel.Int3 // VisitedBlocks will contain all blocks that the projectile passed through
 	InsteadOfDamage MessageTargetedEffect
+	// EffectDamages holds damage from chain reactions of this projectile, e.g. an exploding block it hit
+	EffectDamages []UnitDamage `json:",omitempty"`
+	// Dodged is set when the projectile would have hit DodgedUnit, which evaded it
+	Dodged     bool   `json:",omitempty"`
+	DodgedUnit uint64 `json:",omitempty"`
+	// Braced is set when the hit unit was bracing and took reduced damage
+	Braced bool `json:",omitempty"`
 }
 
 func (v VisualRangedAttack) MessageType() string {

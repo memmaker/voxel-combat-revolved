@@ -1,0 +1,26 @@
+[
+  {
+    "UniqueName": "Smoke Grenade",
+    "Model": "SmokeGrenade",
+    "ItemType": "grenade",
+    "Radius": 5,
+    "TurnsToLive": 3,
+    "Effect": "SmokeCloud"
+  },
+  {
+    "UniqueName": "Poison Grenade",
+    "Model": "PoisonGrenade",
+    "ItemType": "grenade",
+    "Radius": 5,
+    "TurnsToLive": 3,
+    "Effect": "PoisonCloud"
+  },
+  {
+    "UniqueName": "Frag Grenade",
+    "Model": "FragGrenade",
+    "ItemType": "grenade",
+    "Radius": 3,
+    "TurnsToLive": 1,
+    "Effect": "Explosion"
+  }
+]

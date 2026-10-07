@@ -1,6 +1,7 @@
 package server
 
 import (
+	"math/rand"
 	"fmt"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
@@ -172,9 +173,21 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 	rayHitInfo := a.engine.RayCastFreeAim(origin, endOfRay, a.unit)
 	unitHitID := int64(-1)
 	var hitBlocks []voxel.Int3
+	var chainDamages []game.UnitDamage
 	projectileDestination := rayHitInfo.HitInfo3D.CollisionWorldPosition
 
+	dodged, braced := false, false
+	var dodgedUnit uint64
 	if rayHitInfo.HitUnit() {
+		if target, isUnit := rayHitInfo.UnitHit.(*game.UnitInstance); isUnit && target.Reaction == game.ReactionDodge && rand.Float64() < game.DodgeChance {
+			// the target evades: the projectile flies past without effect
+			dodged, dodgedUnit = true, target.UnitID()
+			projectileDestination = projectileDestination.Add(direction.Mul(4))
+		} else if isUnit {
+			braced = target.Reaction == game.ReactionBrace
+		}
+	}
+	if rayHitInfo.HitUnit() && !dodged {
 		unitHitID = int64(rayHitInfo.UnitHit.UnitID())
 		util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] Unit was HIT %s(%d) -> %s", rayHitInfo.UnitHit.GetName(), unitHitID, rayHitInfo.BodyPart))
         if !effectInsteadOfDamage {
@@ -187,6 +200,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 			if blockDef.OnDamageReceived != nil {
 				blockDef.OnDamageReceived(blockPosHit, projectileBaseDamage)
 				hitBlocks = append(hitBlocks, blockPosHit)
+				chainDamages = a.engine.TakeEffectDamageLog()
 				util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] HIT -> Block with on damage effect %s at %s", blockDef.UniqueName, blockPosHit.ToString()))
 			} else {
 				util.LogServerUnitDebug(fmt.Sprintf("[ServerActionShot] MISS -> World Collision at %s hit %s", rayHitInfo.HitInfo3D.CollisionGridPosition.ToString(), blockDef.UniqueName))
@@ -207,6 +221,10 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
 		IsLethal:      lethal,
 		BlocksHit:     hitBlocks,
 		VisitedBlocks: rayHitInfo.VisitedBlocks,
+		EffectDamages: chainDamages,
+		Dodged:        dodged,
+		DodgedUnit:    dodgedUnit,
+		Braced:        braced,
 	}
     if effectInsteadOfDamage {
         projectile.Damage = 0
@@ -217,6 +235,7 @@ func (a *ServerActionShot) simulateOneProjectile() game.VisualProjectile {
             Effect:      a.unit.Weapon.Definition.InsteadOfDamage,
         }
         a.engine.ApplyTargetedEffectFromMessage(projectile.InsteadOfDamage) // apply effect immediately
+        projectile.InsteadOfDamage.UnitDamages = a.engine.TakeEffectDamageLog()
     }
 	return projectile
 }

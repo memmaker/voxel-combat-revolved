@@ -8,10 +8,12 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 )
 
 type ServerConnection struct {
 	connection        net.Conn
+	handlerLock       sync.Mutex
 	eventHandler      func(msg StringMessage)
 	mainthreadChannel chan StringMessage
 }
@@ -28,6 +30,14 @@ func NewTCPConnection(endpoint string) *ServerConnection {
 	}
 	println("Connected to server")
 	s := &ServerConnection{connection: con}
+	go s.readLoop(bufio.NewReader(con))
+	return s
+}
+
+// NewServerConnectionFromConn wraps an already established connection.
+func NewServerConnectionFromConn(con net.Conn, handler func(msg StringMessage)) *ServerConnection {
+	s := &ServerConnection{connection: con}
+	s.SetEventHandler(handler)
 	go s.readLoop(bufio.NewReader(con))
 	return s
 }
@@ -92,10 +102,13 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 		messageType = strings.TrimSpace(messageType)
 		//println(fmt.Sprintf("[ServerConnection] Received message: %s", messageType))
 		msg := StringMessage{MessageType: messageType, Message: message}
-		if c.eventHandler != nil {
-			c.eventHandler(msg)
-		} else if c.mainthreadChannel != nil {
-			c.mainthreadChannel <- msg
+		c.handlerLock.Lock()
+		eventHandler, mainthreadChannel := c.eventHandler, c.mainthreadChannel
+		c.handlerLock.Unlock()
+		if eventHandler != nil {
+			eventHandler(msg)
+		} else if mainthreadChannel != nil {
+			mainthreadChannel <- msg
 		} else {
 			log.Println("No event handler or mainthread channel set")
 		}
@@ -103,13 +116,25 @@ func (c *ServerConnection) readLoop(serverReader *bufio.Reader) {
 }
 
 func (c *ServerConnection) SetEventHandler(handler func(msg StringMessage)) {
+	c.handlerLock.Lock()
+	defer c.handlerLock.Unlock()
 	c.eventHandler = handler
 	c.mainthreadChannel = nil
 }
 
 func (c *ServerConnection) SetMainthreadChannel(channel chan StringMessage) {
+	c.handlerLock.Lock()
+	defer c.handlerLock.Unlock()
 	c.mainthreadChannel = channel
 	c.eventHandler = nil
+}
+
+func (c *ServerConnection) ListGames() error {
+	return c.send("ListGames", ListGamesMessage{})
+}
+
+func (c *ServerConnection) Close() error {
+	return c.connection.Close()
 }
 
 func (c *ServerConnection) SelectUnits(choices []UnitChoice) error {
