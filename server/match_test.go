@@ -77,6 +77,40 @@ func playAIMatch(t *testing.T, gameID string, mapName string, mission *game.Miss
 	return matchResult{}
 }
 
+func TestTurnTimerEndsIdleTurns(t *testing.T) {
+	battleServer, err := NewBattleServerFromAssets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	game.Dial = battleServer.DialMem
+	results := make(chan game.GameOverMessage, 2)
+
+	mission := game.NewRandomDeathmatch()
+	mission.TurnSeconds = 1
+	active := game.NewDummyClient("mem")
+	active.SetOnGameOver(func(msg game.GameOverMessage) { results <- msg })
+	setup := game.DefaultAISetup()
+	setup.GameID = "timer-test"
+	setup.Mission = mission
+	setup.MapFile = "gen:outpost:1"
+	active.RunSetupSequence(setup)
+
+	idle := game.NewDummyClient("mem")
+	idle.SetPassive(true)
+	idle.RunSetupSequence(game.AIGameSetup{
+		Username: "idle", GameID: "timer-test", FactionName: "Deep Ones",
+		Units: []game.UnitChoice{{UnitTypeID: 2, Name: "Sleepy", Weapon: "M1911 Pistol"}},
+	})
+	select {
+	case msg := <-results:
+		if msg.WinnerID == 0 {
+			t.Fatal("expected a winner")
+		}
+	case <-time.After(150 * time.Second):
+		t.Fatal("the idle player's turns were never ended by the timer")
+	}
+}
+
 func TestAIMatchFinishes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("plays full matches")

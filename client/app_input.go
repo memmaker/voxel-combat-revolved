@@ -60,6 +60,14 @@ func (a *BattleClient) handleMouseButtonEvents(button glfw.MouseButton, action g
 		}
 		return
 	}
+	if unitID, onList := a.hud.UnitAt(a.lastMousePosX, a.lastMousePosY); onList {
+		if button == glfw.MouseButtonLeft && action == glfw.Press {
+			if unit, known := a.GetClientUnit(unitID); known && a.hud.isMyTurn && unit.CanAct() {
+				a.SwitchToUnit(unit)
+			}
+		}
+		return
+	}
 	if a.actionbar.IsMouseOver(a.lastMousePosX, a.lastMousePosY) {
 		if button == glfw.MouseButtonLeft && action == glfw.Press {
 			a.actionbar.OnMouseClicked(a.lastMousePosX, a.lastMousePosY)

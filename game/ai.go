@@ -43,6 +43,7 @@ type DummyClient struct {
 	difficulty AIDifficulty
 	isMyTurn   bool
 	onGameOver func(msg GameOverMessage)
+	passive    bool
 }
 
 func NewDummyClient(endpoint string) *DummyClient {
@@ -178,8 +179,13 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 	}
 }
 
+// SetPassive makes the client never act or end its turn (used to test the turn timer).
+func (c *DummyClient) SetPassive(passive bool) {
+	c.passive = passive
+}
+
 func (c *DummyClient) continueTurn() {
-	if c.isMyTurn {
+	if c.isMyTurn && !c.passive {
 		c.brain.Step(c)
 	}
 }

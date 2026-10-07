@@ -42,6 +42,7 @@ type MatchConfig struct {
 	OpponentFaction string
 	Difficulty      game.AIDifficulty
 	EditorMap       string // ModeEditor: map to open
+	TurnSeconds     int
 }
 
 // Mission builds the mission details for the chosen scenario and deployment mode.
@@ -53,6 +54,7 @@ func (c MatchConfig) Mission() *game.MissionDetails {
 		details = game.NewRandomDeathmatch()
 	}
 	details.Placement = c.Placement
+	details.TurnSeconds = c.TurnSeconds
 	return details
 }
 
@@ -96,6 +98,7 @@ type Menu struct {
 	placement    int
 	faction      int
 	difficulty   int
+	turnTimer    int
 	squad        []squadSlot
 	address      string
 	addressFocus bool
@@ -384,6 +387,10 @@ func (m *Menu) setupScreen() {
 		}
 	}
 	optionsY += rowHeight + rowGap
+	if m.mode == ModeHost {
+		m.turnTimer = m.ui.Selector(left, optionsY, columnWidth, rowHeight, "Turn timer", []string{"Off", "60 s", "90 s", "120 s"}, m.turnTimer)
+		optionsY += rowHeight + rowGap
+	}
 	if m.mode == ModeVsAI {
 		m.difficulty = m.ui.Selector(left, optionsY, columnWidth, rowHeight, "AI difficulty", []string{"Easy", "Normal", "Hard"}, m.difficulty)
 		optionsY += rowHeight + rowGap
@@ -480,6 +487,7 @@ func (m *Menu) buildConfig() *MatchConfig {
 		FactionName: m.content.Factions[m.faction].Name,
 		Difficulty:  difficultyOptions[m.difficulty],
 		Address:     m.address,
+		TurnSeconds: []int{0, 60, 90, 120}[m.turnTimer],
 	}
 	if len(m.content.Maps) > 0 {
 		config.MapFile = game.WithRandomSeed(m.content.Maps[m.mapIndex].File, rand.New(rand.NewSource(time.Now().UnixNano())))

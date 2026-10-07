@@ -177,6 +177,7 @@ const (
 	ShaderDrawCircle             = int32(3)
 	ShaderDrawLine               = int32(4)
 	ShaderDrawBillboards         = int32(5)
+	ShaderDrawSilhouette         = int32(6)
 )
 const (
 	ShaderViewMatrix           = 0

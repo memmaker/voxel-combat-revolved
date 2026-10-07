@@ -23,6 +23,8 @@ type MissionDetails struct {
 	ObjectiveLife         int
 	damage                map[voxel.Int3]int
 	TurnLimit             int
+	// TurnSeconds limits how long a player may take per turn (0 = unlimited); the server ends late turns.
+	TurnSeconds int
 }
 
 func NewRandomDeathmatch() *MissionDetails {

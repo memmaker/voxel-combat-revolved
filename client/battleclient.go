@@ -512,6 +512,8 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 	a.defaultShader.SetUniformAttr(ShaderProjectionMatrix, cam.GetProjectionMatrix())
 	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 
+	// silhouettes first: the depth buffer holds only the terrain now, so a unit cannot hide itself
+	a.drawUnitSilhouettes()
 	for _, unit := range a.GetAllClientUnits() { // TODO: view frustum culling
 		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) && !a.isCutAway(unit.GetBlockPosition().Y) {
 			// units are darker in unlit rooms, just like the walls around them
@@ -1464,7 +1466,7 @@ func (a *BattleClient) OnNextPlayer(msg game.NextPlayerMessage) {
 
 	*/
 
-	a.hud.OnTurnStarted(msg.YourTurn)
+	a.hud.OnTurnStarted(msg.YourTurn, msg.TurnSeconds)
 	if msg.YourTurn {
 		a.audio.Play(SoundTurnStart)
 		a.smoker.NextTurn()
@@ -1764,4 +1766,29 @@ func (a *BattleClient) listenerPosition() mgl32.Vec3 {
 func (a *BattleClient) isCutAway(y int32) bool {
 	level := a.GetVoxelMap().CutawayHeight()
 	return level >= 0 && !a.cameraIsFirstPerson && y > level
+}
+
+// drawUnitSilhouettes draws the parts of units that are hidden behind walls as translucent
+// team-colored shapes, so soldiers inside buildings or behind cover are never lost.
+func (a *BattleClient) drawUnitSilhouettes() {
+	if a.cameraIsFirstPerson {
+		return
+	}
+	gl.DepthFunc(gl.GREATER) // only where something is in front of the unit
+	gl.DepthMask(false)
+	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawSilhouette)
+	for _, unit := range a.GetAllClientUnits() {
+		if !unit.IsActive() || !a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) || a.isCutAway(unit.GetBlockPosition().Y) {
+			continue
+		}
+		color := game.ColorNegativeRed
+		if a.IsMyUnit(unit.UnitID()) {
+			color = game.ColorTechTeal
+		}
+		a.defaultShader.SetUniformAttr(ShaderDrawColor, mgl32.Vec4{color.X(), color.Y(), color.Z(), 0.45})
+		unit.Draw(a.defaultShader)
+	}
+	gl.DepthMask(true)
+	gl.DepthFunc(gl.LESS)
+	a.defaultShader.SetUniformAttr(ShaderDrawMode, ShaderDrawTexturedQuads)
 }

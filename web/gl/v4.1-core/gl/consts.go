@@ -35,6 +35,7 @@ const (
 	INT                                           = 0x1404
 	INTERLEAVED_ATTRIBS                           = 0x8C8C
 	LESS                                          = 0x0201
+	GREATER                                       = 0x0204
 	LINE                                          = 0x1B01
 	LINEAR                                        = 0x2601
 	LINES                                         = 0x0001

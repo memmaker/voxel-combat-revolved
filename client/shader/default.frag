@@ -159,5 +159,11 @@ void main() {
         drawCircle();
     } else if (drawMode == 4) {
         drawLine();
+    } else if (drawMode == 6) {
+        // silhouette of a model hidden behind walls: flat translucent color, keeps the texture's cut-outs
+        if (texture(tex, vec2(VertUV.x, 1.0-VertUV.y)).a == 0.0) {
+            discard;
+        }
+        fragmentColor = color;
     }
 }

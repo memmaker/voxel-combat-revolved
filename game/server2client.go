@@ -32,6 +32,7 @@ type GameStartedMessage struct {
 type NextPlayerMessage struct {
 	CurrentPlayer uint64
 	YourTurn      bool
+	TurnSeconds   int `json:",omitempty"` // time limit for this turn, 0 = unlimited
 }
 
 func (n NextPlayerMessage) MessageType() string {

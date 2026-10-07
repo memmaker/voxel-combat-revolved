@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
@@ -66,6 +67,8 @@ type HUD struct {
 	hidden       bool
 	labelCache   map[string]*util.BitmapFontMesh
 	frameLabels  []*util.BitmapFontMesh
+	unitList     []unitListEntry
+	turnDeadline time.Time // zero: no time limit
 	charW, charH float32
 }
 
@@ -90,7 +93,11 @@ func (h *HUD) SetHidden(hidden bool) {
 }
 
 // OnTurnStarted is called whenever the active player changes.
-func (h *HUD) OnTurnStarted(isMyTurn bool) {
+func (h *HUD) OnTurnStarted(isMyTurn bool, turnSeconds int) {
+	h.turnDeadline = time.Time{}
+	if turnSeconds > 0 {
+		h.turnDeadline = time.Now().Add(time.Duration(turnSeconds) * time.Second)
+	}
 	if isMyTurn {
 		h.round++
 	}
@@ -155,6 +162,7 @@ func (h *HUD) Draw(cam util.Camera, firstPerson bool) {
 	}
 	h.queuePanel()
 	h.queueTurnBanner()
+	h.queueUnitList()
 
 	hotkeyLabels := append(h.queueHotkeys(), h.frameLabels...)
 	h.frameLabels = h.frameLabels[:0]
@@ -326,6 +334,10 @@ func (h *HUD) queueTurnBanner() {
 	if h.isMyTurn {
 		turnText = "YOUR TURN"
 	}
+	if !h.turnDeadline.IsZero() {
+		left := max(0, int(time.Until(h.turnDeadline).Seconds()))
+		turnText += fmt.Sprintf("  %d:%02d", left/60, left%60)
+	}
 	text := fmt.Sprintf("ROUND %d  -  %s", h.round, turnText)
 	details := h.engine.GetMissionDetails()
 	if details != nil && details.TurnLimit > 0 {
@@ -347,4 +359,52 @@ func (h *HUD) queueTurnBanner() {
 	}
 	h.rects.Add(x, y, width, height, hudPanel)
 	h.rects.AddFrame(x, y, width, height, 1, border)
+}
+
+type unitListEntry struct {
+	unitID uint64
+	x, y   float32
+	w, h   float32
+}
+
+// queueUnitList shows one card per own soldier at the right edge: name, health and AP.
+// Clicking a card selects the soldier (see UnitAt).
+func (h *HUD) queueUnitList() {
+	h.unitList = h.unitList[:0]
+	width, height := float32(150), float32(34)
+	x := float32(h.engine.WindowWidth) - width - 8
+	y := float32(48)
+	for _, unit := range h.engine.GetMyUnits() {
+		if !unit.IsActive() {
+			continue
+		}
+		border := hudDarkGrey
+		if h.engine.selectedUnit != nil && h.engine.selectedUnit.UnitID() == unit.UnitID() {
+			border = hudFriendly
+		}
+		h.rects.Add(x, y, width, height, hudPanel)
+		h.rects.AddFrame(x, y, width, height, 1, border)
+		color := game.ColorTechTeal.Vec3()
+		if !unit.CanAct() {
+			color = mgl32.Vec3{0.4, 0.5, 0.5} // done for this turn
+		}
+		label := h.cachedLabelKeyed(fmt.Sprintf("list#%d#%s#%t", unit.UnitID(), unit.GetName(), unit.CanAct()), unit.GetName(), mgl32.Vec2{x + 6, y + 4})
+		label.SetTintColor(color)
+		h.frameLabels = append(h.frameLabels, label)
+		fraction := float32(max(unit.Health, 0)) / float32(unit.Definition.CoreStats.Health)
+		h.rects.AddBar(x+6, y+21, width-60, 7, fraction, hudDarkGrey, healthColor(fraction))
+		h.queueAPPips(unit, x+width-28, y+22)
+		h.unitList = append(h.unitList, unitListEntry{unitID: unit.UnitID(), x: x, y: y, w: width, h: height})
+		y += height + 4
+	}
+}
+
+// UnitAt returns the soldier whose card is at a screen position.
+func (h *HUD) UnitAt(x, y float64) (uint64, bool) {
+	for _, entry := range h.unitList {
+		if float32(x) >= entry.x && float32(x) <= entry.x+entry.w && float32(y) >= entry.y && float32(y) <= entry.y+entry.h {
+			return entry.unitID, true
+		}
+	}
+	return 0, false
 }

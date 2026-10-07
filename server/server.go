@@ -1,6 +1,7 @@
 package server
 
 import (
+	"time"
 	"sync"
 	"bufio"
 	"encoding/json"
@@ -27,6 +28,7 @@ type BattleServer struct {
 	// game instances
 	runningGames map[string]*game.GameInstance
 	memClients   uint64
+	turnTokens   map[string]int // identifies the current turn of each game for the turn timer
 	// mu serializes all message handling: every client is read on its own goroutine,
 	// but games, users and the maps holding them are shared.
 	mu sync.Mutex
@@ -630,12 +632,20 @@ func (b *BattleServer) SendNextPlayer(gameInstance *game.GameInstance) {
 	util.LogNetworkInfo(fmt.Sprintf("[BattleServer] New turn for game %s", gameInstance.GetID()))
 
 	nextPlayer := gameInstance.NextPlayer()
+	turnSeconds := gameInstance.GetMissionDetails().TurnSeconds
 	for _, playerID := range gameInstance.GetPlayerIDs() {
-		connectedUser := b.connectedClients[playerID]
+		connectedUser, connected := b.connectedClients[playerID]
+		if !connected {
+			continue
+		}
 		b.respondWithMessage(connectedUser, game.NextPlayerMessage{
 			CurrentPlayer: nextPlayer,
 			YourTurn:      playerID == nextPlayer,
+			TurnSeconds:   turnSeconds,
 		})
+	}
+	if turnSeconds > 0 {
+		b.startTurnTimer(gameInstance, nextPlayer, turnSeconds)
 	}
 
 	// the server would now wait for messages from the next player
@@ -764,4 +774,28 @@ func NewBattleServer() *BattleServer {
 		availableWeapons:  make(map[string]*game.WeaponDefinition),
 		availableItems:    make(map[string]*game.ItemDefinition),
 	}
+}
+
+// startTurnTimer ends the player's turn when the time limit runs out (with a little slack for
+// network latency). A token makes sure an old timer never ends a later turn.
+func (b *BattleServer) startTurnTimer(gameInstance *game.GameInstance, player uint64, seconds int) {
+	if b.turnTokens == nil {
+		b.turnTokens = make(map[string]int)
+	}
+	gameID := gameInstance.GetID()
+	b.turnTokens[gameID]++
+	token := b.turnTokens[gameID]
+	time.AfterFunc(time.Duration(seconds)*time.Second+2*time.Second, func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		running, exists := b.runningGames[gameID]
+		if !exists || running != gameInstance || b.turnTokens[gameID] != token || !gameInstance.IsPlayerTurn(player) {
+			return
+		}
+		if _, connected := b.connectedClients[player]; !connected {
+			return
+		}
+		util.LogGameInfo(fmt.Sprintf("[BattleServer] Turn time is up for player %d in %s", player, gameID))
+		b.EndTurn(player)
+	})
 }
