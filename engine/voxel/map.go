@@ -31,6 +31,10 @@ type Map struct {
 	maxChunkHeightForDraw int32
 	// cutawayHeight hides all blocks above this Y level (so players can look into buildings); -1 = off
 	cutawayHeight int32
+
+	lightingEnabled bool
+	lightingDirty   bool
+	lamps           []Int3
 }
 
 func NewDefaultMap(width, height, depth int32) *Map {
@@ -85,6 +89,9 @@ func NewMapFromGenerator(biomeFunc func() *Map, shader *glhf.Shader, texture *gl
 }
 
 func (m *Map) Update(delta float64) {
+	if m.lightingDirty {
+		m.RecomputeLighting()
+	}
 	for _, chunk := range m.chunks {
 		if chunk != nil {
 			chunk.GenerateMesh()
@@ -363,6 +370,9 @@ func (m *Map) SetBlock(x int32, y int32, z int32, block *Block) {
 		localX, localY, localZ := x%m.ChunkSizeHorizontal, y%m.ChunkSizeHeight, z%m.ChunkSizeHorizontal
 		chunk.SetBlock(localX, localY, localZ, block)
 		m.dirtyNeighborsAtChunkEdge(chunkX, chunkY, chunkZ, localX, localY, localZ)
+		if m.lightingEnabled {
+			m.lightingDirty = true // recomputed once per frame in Update, however many blocks changed
+		}
 	}
 }
 

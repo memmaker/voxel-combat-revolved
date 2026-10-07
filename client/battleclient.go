@@ -85,6 +85,7 @@ type BattleClient struct {
 	animatingProjectileImpact  bool
 	autoPlayer                 *autoPlayer
 	blastCenter                mgl32.Vec3 // origin of the effect currently being applied, for hit directions
+	unitLightColor             mgl32.Vec3
 	audio                      *Audio
 	ui                         *UI
 	overlay                    overlayKind
@@ -284,6 +285,7 @@ func NewBattleGame(window *glfw.Window, con *game.ServerConnection, initInfos ga
 	myApp.GameClient.SetOnUnitDamaged(myApp.onUnitDamaged)
 	myApp.ui = NewUI(myApp.guiShader, fontTextureAtlas, atlasIndex.GetMapper(), 8, 14)
 	myApp.autoPlayer = newAutoPlayerFromEnv(myApp)
+	myApp.unitLightColor = mgl32.Vec3{0.4, 0.4, 0.4} // matches the default shader's light color
 	if os.Getenv("BT_OVERLAY") == "help" { // development aid for screenshots
 		myApp.overlay = overlayHelp
 	}
@@ -511,11 +513,15 @@ func (a *BattleClient) drawDefaultShader(cam util.Camera) {
 
 	for _, unit := range a.GetAllClientUnits() { // TODO: view frustum culling
 		if a.UnitIsVisibleToPlayer(a.GetControllingUserID(), unit.UnitID()) && !a.isCutAway(unit.GetBlockPosition().Y) {
+			// units are darker in unlit rooms, just like the walls around them
+			light := float32(a.GetVoxelMap().LightAt(unit.GetBlockPosition().Add(voxel.Int3{Y: 1}))) / 15
+			a.defaultShader.SetUniformAttr(ShaderLightColor, a.unitLightColor.Mul(0.3+0.7*light))
 			unit.Draw(a.defaultShader)
 
 		}
 	}
 
+	a.defaultShader.SetUniformAttr(ShaderLightColor, a.unitLightColor)
 	a.drawProjectiles()
 
 	if a.selector != nil && a.lastHitInfo != nil && !a.isBlockSelection {

@@ -199,10 +199,6 @@ func (m *MeshBuffer) Compress(position Int3, normalDirection FaceType, textureIn
 	// add the first four extra bits
 	attributes |= uint32(lightLevel) << 28
 
-	if lightLevel > 0 {
-		println("compressed light level: ", lightLevel)
-	}
-
 	compressedVertex := compressedPosition | attributes
 	// total: 32 bits
 	return compressedVertex

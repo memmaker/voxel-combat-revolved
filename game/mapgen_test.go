@@ -80,3 +80,26 @@ func TestGeneratedMapsAreDeterministic(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedMapLighting(t *testing.T) {
+	assets := NewAssets()
+	voxelMap, meta, _ := GenerateBattlefield("urban", 7, assets.LoadBlockLibrary(generatedBlockSet))
+	voxelMap.EnableLighting(meta.Lamps)
+	if light := voxelMap.LightAt(meta.SpawnPositions[0][0].Add(voxel.Int3{Y: 1})); light != 15 {
+		t.Errorf("spawn zone should be in full sunlight, got %d", light)
+	}
+	if len(meta.Lamps) == 0 {
+		t.Fatal("expected lamps inside buildings")
+	}
+	darker := 0
+	for _, lamp := range meta.Lamps {
+		floor := lamp.Sub(voxel.Int3{Y: 1})
+		if light := voxelMap.LightAt(floor); light < 15 && light > 0 {
+			darker++
+		}
+	}
+	t.Logf("%d of %d rooms are dimmer than daylight but lit", darker, len(meta.Lamps))
+	if darker == 0 {
+		t.Error("no room is darker than outdoors")
+	}
+}

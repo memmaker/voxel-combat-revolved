@@ -127,6 +127,12 @@ func (a *BattleClient) LoadMapBlocks() {
 	loadedMap.SetTextureIndexCallback(bl.GetTextureIndexForFaces)
 	loadedMap.SetShader(a.chunkShader)
 
+	var lamps []voxel.Int3
+	if meta := a.GetMapMetadata(); meta != nil {
+		lamps = meta.Lamps
+	}
+	loadedMap.EnableLighting(lamps)
+
 	a.SetVoxelMap(loadedMap)
 	a.SetBlockLibrary(bl)
 }

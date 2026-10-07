@@ -14,6 +14,8 @@ type MapMetadata struct {
 	SpawnPositions [][]voxel.Int3
 	PoIPlacements  []voxel.Int3
 	Blocks         string
+	// Lamps are invisible light sources, e.g. inside buildings
+	Lamps []voxel.Int3 `json:",omitempty"`
 }
 
 func (m *MapMetadata) SaveToDisk(mapfilename string) error {

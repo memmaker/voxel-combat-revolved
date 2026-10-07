@@ -333,7 +333,7 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		face.inVisible = true
 	}
 	if !solidNeighbor {
-		face.lightLevel = neighbor.GetTorchLight()
+		face.lightLevel = c.m.faceLight(neighbor)
 	}
 	return face
 }

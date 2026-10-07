@@ -95,6 +95,7 @@ type battlefieldGenerator struct {
 	voxelMap  *voxel.Map
 	buildings []rect
 	reserved  []rect // spawn zones and objective areas stay clear of buildings
+	lamps     []voxel.Int3
 }
 
 // GenerateBattlefield builds a map from a style and seed. The block library must be the generatedBlockSet.
@@ -124,6 +125,7 @@ func GenerateBattlefield(styleName string, seed int64, library *BlockLibrary) (*
 		SpawnPositions: [][]voxel.Int3{g.freePositions(spawnA), g.freePositions(spawnB)},
 		PoIPlacements:  objectives,
 		Blocks:         generatedBlockSet,
+		Lamps:          g.lamps,
 	}
 	return g.voxelMap, meta, nil
 }
@@ -214,6 +216,9 @@ func (g *battlefieldGenerator) building(r rect) {
 			}
 		}
 		g.windows(r, base)
+		if hasRoof || !isTop { // a ceiling lamp lights up covered rooms
+			g.lamps = append(g.lamps, voxel.Int3{X: r.x + r.w/2, Y: base + storeyHeight - 1, Z: r.z + r.d/2})
+		}
 	}
 	g.doors(r)
 	if storeys == 2 {

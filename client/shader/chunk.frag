@@ -108,10 +108,17 @@ void main() {
     vec4 surfaceColor = texture(tex, vec2(u, v));
     //vec4 surfaceColor = vec4(VertColor, 1.0);
 
-    // ambient floor: without it, blocks no torch reaches (i.e. all of them, nothing calls FillTorchlight by default) render black
-    vec3 floodLight = max(vec3(1.0), vec3(2.0, 2.0, 2.0) * (VertLightLevel/15.0));
+    // light: sun or lamp level of the air in front of the face (0..15), shaded by face direction
+    float light = VertLightLevel / 15.0;
+    float shade = 0.72;                            // north / south walls
+    if (VertNormal.y > 0.5) shade = 1.0;          // tops catch the sky
+    else if (VertNormal.y < -0.5) shade = 0.5;    // undersides
+    else if (abs(VertNormal.x) > 0.5) shade = 0.84; // east / west walls
+    float ambient = 0.16;
+    float brightness = shade * (ambient + (1.0 - ambient) * pow(light, 1.6));
+    vec3 tint = mix(vec3(0.75, 0.8, 1.0), vec3(1.05, 1.0, 0.94), light); // cool shade, warm light
 
-    vec3 litColor = floodLight * surfaceColor.rgb;
+    vec3 litColor = surfaceColor.rgb * brightness * tint * 1.15;
     vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);
     color = vec4(toneMappedColor, surfaceColor.a);
 }
