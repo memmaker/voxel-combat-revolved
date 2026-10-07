@@ -4,7 +4,7 @@ Branch `roadmap-progress`, 11 commits on top of `main`. Nothing pushed. The live
 
 ## State
 
-All tests pass: `go test ./...`. The desktop client (`-tags client`), the server (`-tags server`) and the WASM build all compile. The game starts at a main menu: play against the AI, host, join, map editor, settings.
+All tests pass: `go test ./...`. The desktop client (`-tags client`), the server (`-tags server`) and the WASM build (`build_web.sh`, which uses `go.web.mod`) all compile. Check the WASM build separately: `go.web.mod` and `web/glfw` (a stub of glfw for the browser) must keep up with new dependencies and keys. The game starts at a main menu: play against the AI, host, join, map editor, settings.
 
 ## What exists now (beyond the original PoC)
 
@@ -50,7 +50,6 @@ All tests pass: `go test ./...`. The desktop client (`-tags client`), the server
 ## Open issues
 
 - **Own unit not dying in first-person view:** not reproduced. Enemy shots are only shown in first person with the action camera, and an autoplay run with it enabled saw no deaths.
-- **One server test is flaky under `-race`:** it passed on rerun. The rejoin test's 40 ms timing is the likely cause.
 - **Not built yet:**
   - Deflect, the counter to special attacks (Brace covers explosives for now).
   - Feign death.

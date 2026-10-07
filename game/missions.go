@@ -55,11 +55,7 @@ func (d *MissionDetails) SyncFromMap(mapData MapMetadata) {
 	if d.Scenario != MissionScenarioDefend {
 		return
 	}
-	objectives := make([]voxel.Int3, len(mapData.PoIPlacements))
-	for i, pos := range mapData.PoIPlacements {
-		objectives[i] = pos.Sub(voxel.Int3{X: 0, Y: 1, Z: 0}) // HACKY TODO, because the POIs are on the ground level..
-	}
-	d.DestroyableObjectives = objectives
+	d.DestroyableObjectives = mapData.ObjectivePositions()
 }
 
 // TryDamageObjective returns true if the objective was destroyed

@@ -59,6 +59,11 @@ const (
 	Key1            Key = 49
 	Key2            Key = 50
 	Key3            Key = 51
+	Key4            Key = 52
+	Key5            Key = 53
+	Key6            Key = 54
+	Key7            Key = 55
+	Key8            Key = 56
 	Key9            Key = 57
 	KeySemicolon    Key = 59
 	KeyA            Key = 65

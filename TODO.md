@@ -78,7 +78,7 @@ Design goals live in `readme.md` and `notes.txt`.
 - [ ] Own unit doesn't visually die when hit during FPS view — could not reproduce (code paths reviewed, autoplay with action cam saw no death)
 - [x] Block removal at a chunk edge doesn't re-mesh the neighbor chunk
 - [ ] Choppy diagonal climb/drop animations
-- [ ] Hard-coded -1 Y offset for Defend objectives (`missions.go`)
+- [x] Hard-coded -1 Y offset for Defend objectives (now the documented `MapMetadata.ObjectivePositions` convention)
 - [ ] Unit firing not animated for remote shots (`battleclient.go` TODO); missing invisibility delay
 
 ## 10. Polish

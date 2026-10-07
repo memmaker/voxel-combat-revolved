@@ -12,8 +12,10 @@ import (
 type MapMetadata struct {
 	Name           string
 	SpawnPositions [][]voxel.Int3
-	PoIPlacements  []voxel.Int3
-	Blocks         string
+	// PoIPlacements are markers standing on top of each Defend objective block, so the
+	// objective itself is one block below (see ObjectivePositions).
+	PoIPlacements []voxel.Int3
+	Blocks        string
 	// Lamps are invisible light sources, e.g. inside buildings
 	Lamps []voxel.Int3 `json:",omitempty"`
 }
@@ -45,4 +47,13 @@ func NewMapMetadataFromFile(filename string) MapMetadata {
 		Name:           "Unnamed Map",
 		SpawnPositions: [][]voxel.Int3{{}},
 	}
+}
+
+// ObjectivePositions returns the Defend objective blocks, one below each PoI marker.
+func (m MapMetadata) ObjectivePositions() []voxel.Int3 {
+	objectives := make([]voxel.Int3, len(m.PoIPlacements))
+	for i, pos := range m.PoIPlacements {
+		objectives[i] = pos.Sub(voxel.Int3{Y: 1})
+	}
+	return objectives
 }

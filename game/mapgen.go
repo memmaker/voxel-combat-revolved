@@ -373,7 +373,7 @@ func (g *battlefieldGenerator) wallSegment(x, z, height int32, material string, 
 }
 
 // placeObjectives puts two destructible targets for the Defend mission in front of the first spawn.
-// The returned points of interest are one block above each target (see MissionDetails.SyncFromMap).
+// The returned points of interest are one block above each target (see MapMetadata.ObjectivePositions).
 func (g *battlefieldGenerator) placeObjectives(area rect) []voxel.Int3 {
 	var pois []voxel.Int3
 	for _, x := range []int32{area.x + 3, area.x + area.w - 4} {

@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/memmaker/battleground/engine/util"
@@ -45,6 +46,14 @@ type DummyClient struct {
 	onGameOver func(msg GameOverMessage)
 	passive    bool
 	rejoined   bool
+	closed     atomic.Bool
+}
+
+// send panics on a failed send, unless the connection was closed on purpose.
+func (c *DummyClient) send(err error) {
+	if !c.closed.Load() {
+		util.MustSend(err)
+	}
 }
 
 // Rejoined reports whether this client took over a seat in a running match.
@@ -54,13 +63,14 @@ func (c *DummyClient) Rejoined() bool {
 
 // Close drops the connection (used to test reconnecting).
 func (c *DummyClient) Close() {
+	c.closed.Store(true)
 	_ = c.connection.Close()
 }
 
 // Join takes this client into an existing game, e.g. to rejoin after a disconnect.
 func (c *DummyClient) Join(username, gameID string) {
-	util.MustSend(c.connection.Login(username))
-	util.MustSend(c.connection.JoinGame(gameID))
+	c.send(c.connection.Login(username))
+	c.send(c.connection.JoinGame(gameID))
 }
 
 func NewDummyClient(endpoint string) *DummyClient {
@@ -121,7 +131,7 @@ func (c *DummyClient) OnServerMessage(incomingMessage StringMessage) {
 		c.rejoined = gameInfo.Rejoin
 		c.brain = NewAIBrain(c.GameInstance, c.GetControllingUserID(), int(c.GetSpawnIndex()), c.difficulty)
 
-		util.MustSend(c.connection.MapLoaded())
+		c.send(c.connection.MapLoaded())
 	case "StartDeployment":
 		c.OnDeploy()
 	case "OwnUnitMoved":
@@ -244,40 +254,40 @@ func (c *DummyClient) OnTargetedUnitActionResponse(msg ActionResponse) {
 // AICommander implementation
 
 func (c *DummyClient) Move(unitID uint64, target voxel.Int3) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, "Move", []voxel.Int3{target}))
+	c.send(c.connection.TargetedUnitAction(unitID, "Move", []voxel.Int3{target}))
 }
 
 func (c *DummyClient) Shoot(unitID uint64, target voxel.Int3) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, "Shot", []voxel.Int3{target}))
+	c.send(c.connection.TargetedUnitAction(unitID, "Shot", []voxel.Int3{target}))
 }
 
 func (c *DummyClient) Throw(unitID uint64, itemName string, target mgl32.Vec3) {
-	util.MustSend(c.connection.ThrownUnitAction(unitID, "Throw", itemName, []mgl32.Vec3{target}))
+	c.send(c.connection.ThrownUnitAction(unitID, "Throw", itemName, []mgl32.Vec3{target}))
 }
 
 func (c *DummyClient) Overwatch(unitID uint64, targets []voxel.Int3) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, "Overwatch", targets))
+	c.send(c.connection.TargetedUnitAction(unitID, "Overwatch", targets))
 }
 
 func (c *DummyClient) Heal(unitID uint64, target voxel.Int3) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, "Heal", []voxel.Int3{target}))
+	c.send(c.connection.TargetedUnitAction(unitID, "Heal", []voxel.Int3{target}))
 }
 
 func (c *DummyClient) Melee(unitID uint64, target voxel.Int3) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, "Melee", []voxel.Int3{target}))
+	c.send(c.connection.TargetedUnitAction(unitID, "Melee", []voxel.Int3{target}))
 }
 
 func (c *DummyClient) React(unitID uint64, reaction Reaction) {
-	util.MustSend(c.connection.TargetedUnitAction(unitID, string(reaction), nil))
+	c.send(c.connection.TargetedUnitAction(unitID, string(reaction), nil))
 }
 
 func (c *DummyClient) Reload(unitID uint64) {
-	util.MustSend(c.connection.ReloadAction(unitID))
+	c.send(c.connection.ReloadAction(unitID))
 }
 
 func (c *DummyClient) EndTurn() {
 	c.isMyTurn = false
-	util.MustSend(c.connection.EndTurn())
+	c.send(c.connection.EndTurn())
 }
 
 // AIGameSetup describes how an AI client enters a game: it either creates it or joins an existing one.
@@ -368,7 +378,7 @@ func (c *DummyClient) OnDeploy() {
 		deployment[unit.UnitID()] = targetPos
 	}
 
-	util.MustSend(c.connection.SelectDeployment(deployment))
+	c.send(c.connection.SelectDeployment(deployment))
 }
 
 func (c *DummyClient) choseRandom(unit *DummyClientUnit, spawns []voxel.Int3) voxel.Int3 {
