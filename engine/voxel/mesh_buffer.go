@@ -18,7 +18,7 @@ type MeshBuffer struct {
 	flatVertexData     []glhf.GlUInt
 	sortedVertexData   map[FaceType][]glhf.GlUInt
 	vertexCount        int
-	indexMap           map[uint32]uint32
+	indexMap           map[vertex]uint32
 	indexBuffer        []uint32
 	drawMode           DrawMode
 	faceMap            map[Int3]MultiDrawIndex
@@ -37,83 +37,81 @@ func (m *MeshBuffer) TriangleCount() int {
 // Further reduce the amount of data we need to send to the GPU
 // Use indexed drawing?
 
-func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, lightLevel byte) {
+// vertex is one packed vertex: position, normal, texture and light, plus the ambient extras
+type vertex struct {
+	compressed uint32
+	extra      uint32 // bits 0..1: ambient occlusion (0..3), bits 2..5: sky openness (0..15)
+}
+
+func (m *MeshBuffer) AppendQuad(tr, br, bl, tl Int3, normal FaceType, textureIndex byte, corners [4]VertexLight) {
 	//println(fmt.Sprintf("bl: %v, tl: %v, br: %v, tr: %v, normal: %v, textureIndex: %v", bl, tl, br, tr, normal, textureIndex))
-	// min => bl, max => tr
-	// 8+3 = 11 bits + 4*18 bits => 72 + 11 = 83 bits, one 64bit and one 32bit integer => 96 bits
-	compressedVertexTR := m.Compress(tr, normal, textureIndex, lightLevel)
-	compressedVertexBR := m.Compress(br, normal, textureIndex, lightLevel)
-	compressedVertexBL := m.Compress(bl, normal, textureIndex, lightLevel)
-	compressedVertexTL := m.Compress(tl, normal, textureIndex, lightLevel) // we use 29 of 32 bits, only 18 are different between the vertices
+	pack := func(position Int3, corner VertexLight) vertex {
+		return vertex{
+			compressed: m.Compress(position, normal, textureIndex, corner.Light),
+			extra:      uint32(corner.AO) | uint32(corner.Sky)<<2,
+		}
+	}
+	vertexBL, vertexTL, vertexBR, vertexTR := pack(bl, corners[0]), pack(tl, corners[1]), pack(br, corners[2]), pack(tr, corners[3])
 
-	// quad info:
-	// 4x Origin (x,y,z) => 4x3x6 bits = 72 bits
-	// 1x FaceType (normal) => 1x3 bits = 3 bits
-	// 1x TextureIndex => 1x8 bits = 8 bits
-	// -> 83 bits
+	// a quad is split along one diagonal; with uneven corners the split shows as a crease,
+	// so it runs along the diagonal whose corners are darker (as in 0fps' voxel AO)
+	brightness := func(corner VertexLight) int { return int(corner.AO)*maxLightLevel + int(corner.Light)*3 }
+	flip := brightness(corners[0])+brightness(corners[3]) > brightness(corners[1])+brightness(corners[2])
 
-	// we are using 6x 32 bits = 192 bits
-
+	var triangles [6]vertex
+	if flip {
+		triangles = [6]vertex{vertexTL, vertexBR, vertexBL, vertexTL, vertexTR, vertexBR}
+	} else {
+		triangles = [6]vertex{vertexTR, vertexBL, vertexTL, vertexTR, vertexBR, vertexBL}
+	}
 	reverseOrder := normal%2 == 1
 	if reverseOrder {
-		m.addVertex(compressedVertexTL, normal)
-		m.addVertex(compressedVertexBL, normal)
-		m.addVertex(compressedVertexTR, normal)
-
-		m.addVertex(compressedVertexBL, normal)
-		m.addVertex(compressedVertexBR, normal)
-		m.addVertex(compressedVertexTR, normal)
-
-	} else {
-		// tl,bl,tr clockwise
-		m.addVertex(compressedVertexTR, normal)
-		m.addVertex(compressedVertexBL, normal)
-		m.addVertex(compressedVertexTL, normal)
-
-		// tr,bl,br clockwise
-		m.addVertex(compressedVertexTR, normal)
-		m.addVertex(compressedVertexBR, normal)
-		m.addVertex(compressedVertexBL, normal)
+		for i := 0; i < 3; i++ {
+			triangles[i], triangles[5-i] = triangles[5-i], triangles[i]
+		}
+	}
+	for _, v := range triangles {
+		m.addVertex(v, normal)
 	}
 
 	m.vertexCount += 6
 }
 
-func (m *MeshBuffer) addVertex(vertex uint32, normal FaceType) {
+func (m *MeshBuffer) addVertex(v vertex, normal FaceType) {
 	if m.drawMode == Indexed {
-		m.addIndexedVertex(vertex)
+		m.addIndexedVertex(v)
 	} else if m.drawMode == Partial {
-		m.addVertexSorted(vertex, normal)
+		m.addVertexSorted(v, normal)
 	} else {
-		m.addFlatVertex(vertex)
+		m.addFlatVertex(v)
 	}
 }
 
-func (m *MeshBuffer) addFlatVertex(vertex uint32) {
-	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(vertex))
+func (m *MeshBuffer) addFlatVertex(v vertex) {
+	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(v.compressed), glhf.GlUInt(v.extra))
 }
 
-func (m *MeshBuffer) addVertexSorted(vertex uint32, normal FaceType) {
-	m.sortedVertexData[normal] = append(m.sortedVertexData[normal], glhf.GlUInt(vertex))
+func (m *MeshBuffer) addVertexSorted(v vertex, normal FaceType) {
+	m.sortedVertexData[normal] = append(m.sortedVertexData[normal], glhf.GlUInt(v.compressed), glhf.GlUInt(v.extra))
 }
 
-func (m *MeshBuffer) addIndexedVertex(vertex uint32) {
-	if vertexIndex, isCached := m.indexMap[vertex]; isCached {
+func (m *MeshBuffer) addIndexedVertex(v vertex) {
+	if vertexIndex, isCached := m.indexMap[v]; isCached {
 		m.indexBuffer = append(m.indexBuffer, vertexIndex)
 		return
 	}
-	vertexIndex := len(m.flatVertexData)
-	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(vertex))
+	vertexIndex := len(m.flatVertexData) / 2
+	m.flatVertexData = append(m.flatVertexData, glhf.GlUInt(v.compressed), glhf.GlUInt(v.extra))
 	if vertexIndex > math.MaxUint32 {
 		println("vertexIndex out of bounds: ", vertexIndex)
 	}
 	vertexIndexUnsigned := uint32(vertexIndex)
-	m.indexMap[vertex] = vertexIndexUnsigned
+	m.indexMap[v] = vertexIndexUnsigned
 	m.indexBuffer = append(m.indexBuffer, vertexIndexUnsigned)
 }
 
 func (m *MeshBuffer) Reset() {
-	m.indexMap = make(map[uint32]uint32)
+	m.indexMap = make(map[vertex]uint32)
 	m.indexBuffer = m.indexBuffer[:0]
 	m.flatVertexData = m.flatVertexData[:0]
 	m.vertexCount = 0
@@ -208,7 +206,7 @@ func (m *MeshBuffer) preparePartialVertexData(data map[FaceType][]glhf.GlUInt) [
 	mergedData := make([]glhf.GlUInt, 0, 0)
 	faceVertices := make(map[FaceType][2]int32, 0)
 	for normalDir, vertexData := range data {
-		startIndex, count := len(mergedData), len(vertexData)
+		startIndex, count := len(mergedData)/2, len(vertexData)/2 // two values per vertex
 		mergedData = append(mergedData, vertexData...)
 		faceVertices[normalDir] = [2]int32{int32(startIndex), int32(count)}
 	}
@@ -255,7 +253,7 @@ func NewMeshBuffer() *MeshBuffer {
 		faceMap[FaceType(i)] = make([]glhf.GlUInt, 0, 0)
 	}
 	return &MeshBuffer{
-		indexMap:         make(map[uint32]uint32),
+		indexMap:         make(map[vertex]uint32),
 		sortedVertexData: faceMap,
 		drawMode:         Flat,
 		faceMap:          make(map[Int3]MultiDrawIndex),

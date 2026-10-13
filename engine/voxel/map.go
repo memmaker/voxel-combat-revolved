@@ -35,6 +35,7 @@ type Map struct {
 	lightingEnabled bool
 	lightingDirty   bool
 	lamps           []Int3
+	sky             []byte // sky openness (0..15) per block, see computeSky
 }
 
 func NewDefaultMap(width, height, depth int32) *Map {

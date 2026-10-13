@@ -50,7 +50,7 @@ func NewThrowable(shader *glhf.Shader, model *util.CompoundMesh, path []mgl32.Ve
 		shader:    shader,
 		model:     model,
 	}
-	p.lerper = util.NewWaypointLerper(p, path, 0.5)
+	p.lerper = util.NewWaypointLerper(p, path, 0.1)
 	//p.Transform.SetLookAt(path[1].Add(velocity.Normalize().Mul(10)), up)
 	return p
 }

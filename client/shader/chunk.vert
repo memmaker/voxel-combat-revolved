@@ -38,9 +38,13 @@
 // that's 20 bits per vertex without the texture index
 // if we assume a 32 bit int, that leaves 12 bits for the texture index
 in uint compressedValue;
+// bits 0..1: ambient occlusion (0..3), bits 2..5: sky openness (0..15)
+in uint ambientValue;
 
 flat out vec3 VertNormal;
 out float VertLightLevel;
+out float VertAO;
+out float VertSky;
 out vec3 VertPos;
 out float VertWorldY;
 flat out uint VertTexIndex;
@@ -103,6 +107,8 @@ void main() {
     uint normalDir = uint(1);
 
     decompressVertex(compressedValue, VertPos, normalDir, VertTexIndex, VertLightLevel);
+    VertAO = float(ambientValue & uint(0x3)) / 3.0;
+    VertSky = float((ambientValue >> uint(2)) & uint(0xF)) / 15.0;
 
     // pass-through for fragment shader
     VertNormal = normalLookup[normalDir];

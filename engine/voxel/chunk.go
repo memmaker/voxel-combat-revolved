@@ -79,7 +79,8 @@ type VoxelFace struct {
 	inVisible    bool
 	side         FaceType
 	textureIndex byte
-	lightLevel   byte
+	// corners are lit in the order of the quad's vertices: bottomLeft, topLeft, bottomRight, topRight
+	corners [4]VertexLight
 }
 
 func (v *VoxelFace) EqualForMerge(face *VoxelFace) bool {
@@ -87,7 +88,7 @@ func (v *VoxelFace) EqualForMerge(face *VoxelFace) bool {
 		return face.inVisible == v.inVisible // so, both have to be transparent
 	}
 	// one is solid
-	return face.inVisible == v.inVisible && face.textureIndex == v.textureIndex && face.lightLevel == v.lightLevel
+	return face.inVisible == v.inVisible && face.textureIndex == v.textureIndex && face.corners == v.corners
 }
 
 func (c *Chunk) InitNeighbors() {
@@ -236,7 +237,7 @@ func (c *Chunk) GreedyMeshing(outChannel chan ChunkMesh) {
 								topLeft := Int3{x[0] + du[0], x[1] + du[1], x[2] + du[2]}
 								bottomRight := Int3{x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]}
 								topRight := Int3{x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]}
-								mesh.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, mask[n].lightLevel)
+								mesh.AppendQuad(topRight, bottomRight, bottomLeft, topLeft, mask[n].side, mask[n].textureIndex, mask[n].corners)
 								// we also would have width (w) and height (h) here
 								// backface is a bool, true if we are rendering the backface of a block
 							}
@@ -333,9 +334,38 @@ func (c *Chunk) getVoxelFace(x int32, y int32, z int32, side FaceType) *VoxelFac
 		face.inVisible = true
 	}
 	if !solidNeighbor {
-		face.lightLevel = c.m.faceLight(neighbor)
+		c.lightCorners(face, Int3{x, y, z})
 	}
 	return face
+}
+
+// faceAxes are the face normal and the mesher's u and v axes (u = d+1, v = d+2) for each side
+var faceAxes = map[FaceType][3]Int3{
+	East:   {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
+	West:   {{-1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
+	Top:    {{0, 1, 0}, {0, 0, 1}, {1, 0, 0}},
+	Bottom: {{0, -1, 0}, {0, 0, 1}, {1, 0, 0}},
+	South:  {{0, 0, 1}, {1, 0, 0}, {0, 1, 0}},
+	North:  {{0, 0, -1}, {1, 0, 0}, {0, 1, 0}},
+}
+
+// lightCorners lights the four corners of the face of the block at the local position.
+func (c *Chunk) lightCorners(face *VoxelFace, local Int3) {
+	axes := faceAxes[face.side]
+	normal, u, v := axes[0], axes[1], axes[2]
+	global := Int3{
+		c.chunkPosX*c.m.ChunkSizeHorizontal + local.X,
+		c.chunkPosY*c.m.ChunkSizeHeight + local.Y,
+		c.chunkPosZ*c.m.ChunkSizeHorizontal + local.Z,
+	}
+	air := global.Add(normal)
+	minusU, minusV := Int3{-u.X, -u.Y, -u.Z}, Int3{-v.X, -v.Y, -v.Z}
+	face.corners = [4]VertexLight{
+		c.m.cornerLight(air, minusU, minusV), // bottomLeft
+		c.m.cornerLight(air, u, minusV),      // topLeft
+		c.m.cornerLight(air, minusU, v),      // bottomRight
+		c.m.cornerLight(air, u, v),           // topRight
+	}
 }
 
 type Int3 struct {

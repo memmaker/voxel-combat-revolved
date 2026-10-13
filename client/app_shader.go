@@ -277,6 +277,7 @@ func (a *BattleClient) loadChunkShader() *glhf.Shader {
 	var (
 		vertexFormat = glhf.AttrFormat{
 			{Name: "compressedValue", Type: glhf.UInt},
+			{Name: "ambientValue", Type: glhf.UInt},
 		}
 		uniformFormat = glhf.AttrFormat{
 			glhf.Attr{Name: "camProjectionView", Type: glhf.Mat4},

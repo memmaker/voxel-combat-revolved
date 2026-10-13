@@ -5,6 +5,8 @@ flat in vec3 VertNormal;
 in vec3 VertPos;
 in float VertWorldY;
 in float VertLightLevel;
+in float VertAO;
+in float VertSky;
 flat in uint VertTexIndex;
 
 uniform sampler2D tex;
@@ -108,18 +110,26 @@ void main() {
     vec4 surfaceColor = texture(tex, vec2(u, v));
     //vec4 surfaceColor = vec4(VertColor, 1.0);
 
-    // light: sun or lamp level of the air in front of the face (0..15), shaded by face direction
+    // light: sun or lamp level of the air in front of the face (0..15), smoothed across corners
     float light = VertLightLevel / 15.0;
-    float shade = 0.72;                            // north / south walls
-    if (VertNormal.y > 0.5) shade = 1.0;          // tops catch the sky
-    else if (VertNormal.y < -0.5) shade = 0.5;    // undersides
-    else if (abs(VertNormal.x) > 0.5) shade = 0.84; // east / west walls
-    float ambient = 0.12;
-    float brightness = shade * (ambient + (1.0 - ambient) * pow(light, 2.2));
-    vec3 tint = mix(vec3(0.75, 0.8, 1.0), vec3(1.05, 1.0, 0.94), light); // cool shade, warm light
+    float direct = pow(light, 2.2);
+    // faces turned towards the sun (+x, +y, +z, see sunDirection in lighting.go) catch more of it
+    float shade = 0.62;                                  // undersides
+    if (VertNormal.y > 0.5) shade = 1.0;                // tops
+    else if (VertNormal.x > 0.5) shade = 0.88;          // east walls face the sun
+    else if (VertNormal.z > 0.5) shade = 0.8;           // south walls
+    else if (VertNormal.x < -0.5) shade = 0.66;         // west walls
+    else if (VertNormal.z < -0.5) shade = 0.7;          // north walls
+    shade = mix(0.78, shade, direct);                   // in the shade only the sky lights faces, evenly
+    // the sky lights shaded spots: open squares stay readable, alleys and rooms get darker
+    float ambient = 0.05 + 0.25 * VertSky;
+    float brightness = shade * (ambient + (1.0 - ambient) * direct) * (0.9 + 0.1 * VertSky);
+    vec3 tint = mix(vec3(0.72, 0.8, 1.0), vec3(1.06, 1.0, 0.92), direct); // cool sky shade, warm sunlight
 
     vec3 litColor = surfaceColor.rgb * brightness * tint * 1.15;
     vec3 toneMappedColor = toneMapping(litColor, 1.2, 1.0);
+    // corners and wall bases get darker; applied after tone mapping, which would flatten it in sunlight
+    toneMappedColor *= mix(0.4, 1.0, pow(VertAO, 0.8));
     color = vec4(toneMappedColor, surfaceColor.a);
 }
 
